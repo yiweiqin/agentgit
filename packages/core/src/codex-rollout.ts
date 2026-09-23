@@ -143,6 +143,29 @@ const TOKEN_DROP_RATIO = 0.5
 /** Below this the numbers are startup noise, not a conversation worth resetting. */
 const TOKEN_DROP_FLOOR = 8_000
 
+/**
+ * The command text of a `CommandExecution`, from whichever shape it arrives in.
+ *
+ * The live format is an argv array — `["pwsh", "-Command", "…"]` — and this used to read
+ * only a string, or an object's `command` field. Both are null for every record in a real
+ * transcript, so every adopted shell command was dropped in silence. That is the one gap
+ * adoption exists to fill: the hook cannot see what a shell command touches, which is why
+ * an opaque command is recorded as an explicit coverage gap rather than skipped.
+ *
+ * `parsed_cmd` looks like the structured answer and is not: it is present on every record
+ * and always empty.
+ */
+function commandTextOf(item: Record<string, unknown>): string | null {
+  const direct = str(item.command)
+  if (direct) return direct
+  const argv = item.command
+  if (Array.isArray(argv)) {
+    const parts = argv.filter((part): part is string => typeof part === 'string' && part.length > 0)
+    if (parts.length > 0) return parts.join(' ')
+  }
+  return str(asRecord(item.command)?.command)
+}
+
 function timestampOf(record: Record<string, unknown>): string {
   return str(record.timestamp) ?? new Date(0).toISOString()
 }
@@ -250,7 +273,7 @@ export function parseRollout(file: string): RolloutSession | null {
       }
 
       if (itemType === 'CommandExecution') {
-        const command = str(item.command) ?? str(asRecord(item.command)?.command)
+        const command = commandTextOf(item)
         if (command) commands.push({ at, command })
         continue
       }
@@ -293,11 +316,33 @@ export function parseRollout(file: string): RolloutSession | null {
   }
 }
 
+/** Whether `candidate` is `root` itself or inside it, compared on path boundaries. */
+function isWithin(root: string, candidate: string): boolean {
+  const parent = resolve(root)
+  const child = resolve(candidate)
+  if (parent === child) return true
+  const prefix = parent.endsWith(sep) ? parent : `${parent}${sep}`
+  return child.startsWith(prefix)
+}
+
 /**
  * Sessions belonging to one workspace.
  *
- * Matching is by resolved workspace root rather than by string prefix, so a session
- * started in a subdirectory still binds to the repository it belongs to.
+ * Membership is containment rather than equality, and it is checked in both directions.
+ *
+ * - A session started *inside* the workspace belongs to it. This is the ordinary case, since
+ *   an agent is usually started somewhere in the project, and the equality check this
+ *   replaces missed every one of them: a session running in `src/auth` contributed nothing
+ *   to the repository it was working in, while the comment above claimed otherwise. A
+ *   `resolve()` call on both sides does not fix that on its own — it only makes the
+ *   comparison exact.
+ * - A session started *above* the workspace — at a repository root, when the workspace is a
+ *   package inside it — belongs to it too. The ledger refuses entities outside the
+ *   workspace (`toWorkspaceRelative` returns null for them), so adopting such a session
+ *   records exactly the writes that landed here and nothing else.
+ *
+ * A sibling that merely shares a prefix (`/repo-other` against `/repo`) is not inside it,
+ * which is why this compares path boundaries instead of string prefixes.
  */
 export function sessionsForWorkspace(root: string, home: string = codexHome()): RolloutSession[] {
   const target = resolve(root)
@@ -308,10 +353,7 @@ export function sessionsForWorkspace(root: string, home: string = codexHome()): 
     const candidates = [session.cwd, ...session.workspaceRoots].filter(
       (value): value is string => typeof value === 'string' && value.length > 0,
     )
-    const belongs = candidates.some((candidate) => {
-      const resolved = resolve(candidate)
-      return resolved === target
-    })
+    const belongs = candidates.some((candidate) => isWithin(target, candidate) || isWithin(candidate, target))
     if (belongs) out.push(session)
   }
   return out
