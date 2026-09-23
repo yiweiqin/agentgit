@@ -147,17 +147,130 @@ otherwise.
   cheap to overrule, and every verdict is recorded so you can see why it was made.
 - The demo is a walkthrough, not a benchmark. It asserts the three verdicts it is built to
   produce, and nothing about how often they occur in real repositories.
+- The A/B run below is a fixture with scripted agents. It shows the mechanism works and that
+  the arms differ. It is not an effect size.
+
+## What you can tune
+
+The verdicts are heuristics, so every one of them is a knob — and a product that will be
+wrong for somebody's repository owes them the knob, the default, and the reason the default
+was chosen. All three are in one command:
+
+```
+$ agentgit config
+settings  (0 changed from the default)
+
+  arm
+    value   : A3-advisory  (default)
+    means   : record cross-session, report what was seen, offer next actions (default)
+    effect  : Which experimental arm this workspace runs: what is recorded, and whether this
+              session can see other sessions at all.
+    caution : A non-default arm makes this workspace incomparable with one running another arm...
+
+  duplicateIntentThreshold
+    value   : 0.42  (default)
+    effect  : How similar two agents' own words for their intent must be before their work is
+              called the same. This is the number behind the REUSE verdict.
+    caution : Too low and unrelated work is flagged as duplicate, which is how a team learns to
+              ignore the tool. The matcher is lexical, so two agents describing one job in
+              different words score low no matter where this is set: raising it hides the miss
+              rather than fixing it.
+```
+
+Set one with `agentgit config <setting> <value>`; the value is validated before anything is
+written, and a rejected setting leaves the file exactly as it was. `--json` gives the same
+fields to a tool, and `agentgit status`, `agentgit board`, `doctor` and the inline panel all
+print which arm produced the numbers they are showing.
+
+The `arm` setting is the interesting one, and it is the experiment's unit of analysis:
+
+| arm | what it does |
+|---|---|
+| `A3-advisory` (default) | record cross-session, report what was seen, offer next actions |
+| `A1-instrument` | record cross-session and decide, but offer no next actions |
+| `A4-session-only` | record, but see only this session |
+| `A0-baseline` | record nothing, see nothing, always allow |
+
+Two of the research arms are deliberately **not** offered. `A4-gated` refuses writes, and this
+product never does — it reports what it sees and hands you the command — so naming it is
+refused with that reason rather than quietly downgraded. `A2-inert` and `A4-detect-only` are
+not offered either: in a product without a gate they are byte-for-byte identical to
+`A0-baseline` and `A1-instrument`, and two arm names for one behaviour would make the labels
+meaningless.
+
+## The A/B run, and how to read it
+
+```bash
+node examples/ab/run.mjs                      # about half a minute
+node examples/ab/run.mjs --compliance 0,0.25,0.5,0.75,1
+```
+
+It builds a scratch repository per arm, runs the same six-round two-agent scenario through
+the real CLI, and reports what happened to the code in a real ghost merge — not in the
+ledger's opinion of itself.
+
+```
+what each arm knew, and what it said
+------------------------------------
+  A0-baseline       b-agent verdicts: allow x6
+                    usable next actions: 0/6   ledger events written: 0
+  A4-session-only   b-agent verdicts: allow x6
+                    usable next actions: 0/6   ledger events written: 12
+  A1-instrument     b-agent verdicts: reuse x3, replan x2, allow x1
+                    usable next actions: 0/6   ledger events written: 12
+  A3-advisory       b-agent verdicts: reuse x3, replan x2, allow x1
+                    usable next actions: 5/6   ledger events written: 12
+
+outcome by arm and obedience rate
+---------------------------------
+  arm                obey   dup closed   indep stopped   untouched   files left in conflict
+  A0-baseline       0      0/3          0/2             1/1         5
+  A0-baseline       1      0/3          0/2             1/1         5
+  A4-session-only   0.5    0/3          0/2             1/1         5
+  A1-instrument     1      0/3          0/2             1/1         5
+  A3-advisory       0.5    1/3          1/2             1/1         3
+  A3-advisory       1      3/3          2/2             1/1         0
+```
+
+Six of the twelve rows are shown; the rest repeat the same two shapes.
+
+Read it in this order, because the honest reading is not the flattering one:
+
+1. **The last row is arithmetic, not evidence.** An arm that closes all three duplicates when
+   every agent obeys is showing you what "obeyed" means. A harness cannot discover that.
+2. **The row that carries information is `obey 0.5`** — one duplicate closed, three files
+   still conflicted — and it is only informative if the obedience rate is real. Nobody has
+   measured a real agent's rate here, and that rate is the only thing that would turn this
+   into an effect size.
+3. **Two ablations collapse to the baseline, for different reasons.** `A4-session-only` writes
+   all 12 events and cannot see them, so it answers `allow` six times. `A1-instrument` sees
+   everything and says `reuse` and `replan`, but offers no next action, so nothing changes
+   either. What the product needs is the shared ledger *and* an actionable step; either one
+   alone leaves all five files conflicted.
+4. **`untouched` is a floor, not a detail.** One round has the second agent working on an
+   entity the first never touched, and no arm at any obedience rate may interfere. If that
+   number moved, a detector is firing on ground nobody is on, and the duplicate column would
+   be uninterpretable.
+5. **`indep stopped` is the cost side.** Those rounds share an entity for genuinely different
+   reasons. The product says `REPLAN` there, which means split the entity or agree an order —
+   a deferral, not a loss — and the number is printed beside the duplicate column because a
+   tool that closed duplicates by stopping everything would look identical on it alone.
+
+Obedience is applied only to a verdict that came with a usable next action. That is an
+assumption, and it is what separates the instrument arm from the default; if it is wrong, the
+`A1-instrument` row is the one to distrust, not the others.
 
 ## Layout
 
 ```
 packages/core       the ledger, contracts, leases, preflight verdicts, rollout ingestion, git
 packages/board      the inline panel fragment and the standalone page, from one view
-packages/cli        agentgit status | board | panel | preflight | why | reconcile | task | up | install
+packages/cli        agentgit status | board | panel | preflight | why | reconcile | task | config | up | install
 packages/mcp        the stdio MCP server: agentgit_preflight, agentgit_task, agentgit_contracts
 packages/daemon     the live board on localhost:7777, one page per workspace, SSE
 plugins/agentgit    the Codex plugin: manifest, hook wiring, the track.mjs fast path, the skill
 examples/collision  the two-agent walkthrough above
+examples/ab         the A/B run: the same scenario under two arms, with an obedience dial
 ```
 
 The hook script is the only thing on the hot path of every tool call, so it is a single
@@ -173,9 +286,17 @@ would stop meaning anything.
 ## Tests
 
 ```bash
-npm test          # 391 tests: core, board, cli, mcp, daemon
+npm test          # 438 tests: core, board, cli, mcp, daemon
 npm run test:py   #  45 tests: the Python ledger, checked against the same fixtures
 npm run typecheck
 ```
+
+The arm tests are the ones worth knowing about, because an arm is easy to get wrong in the
+one way that produces a plausible-looking result: `packages/core/tests/arm.test.ts` drives the
+same ledger under two arms and fails if the verdicts agree. `packages/cli/tests/ab.test.ts`
+runs the A/B harness and fails if the arms stop differing, if the ablation stops recording, or
+if untouched ground is ever disturbed. `packages/cli/tests/hooks.test.ts` pins the hook's own
+copy of the arm table against core's, because the hook cannot import the library and a drifted
+copy would silently keep recording in a workspace that had been switched off.
 
 MIT licensed.

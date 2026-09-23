@@ -77,6 +77,15 @@ export interface DebtScore {
 export interface BoardView {
   readonly workspace: string
   readonly machine: string
+  /**
+   * The arm that produced this view, so the numbers can be read against it.
+   *
+   * Carried on the view rather than looked up by each renderer because a board is a snapshot
+   * of a moment, and the arm is part of what that moment could see. A panel that showed
+   * counts without it would invite exactly the wrong question — "why is nothing collided?" —
+   * when the answer is that this workspace was running the session-only ablation.
+   */
+  readonly arm: string
   readonly generatedAt: string
   readonly report: LedgerReport
   readonly tasks: readonly BoardTask[]
@@ -242,6 +251,7 @@ export function buildBoardView(
   return {
     workspace: paths.root,
     machine: machineId(),
+    arm: config.arm,
     generatedAt: now.toISOString(),
     report,
     tasks,

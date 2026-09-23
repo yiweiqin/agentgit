@@ -146,9 +146,105 @@ export function readAllEvents(paths: WorkspacePaths): { events: CoordEvent[]; ma
   return { events, malformed, files }
 }
 
+/**
+ * The arms this product runs, and why two of the research arms are not here.
+ *
+ * `config.ts` defines seven arms for the research harness. Two of them cannot be
+ * expressed as a workspace setting, and offering them would put two names on one
+ * behaviour:
+ *
+ * - `A4-gated` refuses writes. This product never does - refusing lowers the amount of
+ *   work rather than raising the amount of coordination, which is why `PRODUCT_POLICY` is
+ *   `action: 'none'`. Wiring it in would make "block my agents" reachable from a config
+ *   file, so it is refused *by name* with the reason rather than silently downgraded.
+ * - `A2-inert` means "the plugin is loaded and touching nothing". That is a distinction
+ *   between two *processes*, and a workspace config has one process. In this product it is
+ *   byte-for-byte `A0-baseline`, and two arm labels for one arm would make the experiment's
+ *   own labels lie.
+ * - `A4-detect-only` computes a gate decision and records it without acting. The product
+ *   has no gate to dry-run; more importantly, every verdict is already recorded in the
+ *   event detail (`detail.verdict`), so "what a gate would have done" is derivable from
+ *   any ledger the product writes. A separate arm would add a name and no information.
+ *
+ * What remains is the 2x2 that a non-gating coordination tool actually has: whether it
+ * records at all, and whether it sees beyond its own session.
+ */
+export const PRODUCT_ARMS = ['A0-baseline', 'A1-instrument', 'A3-advisory', 'A4-session-only'] as const
+export type ProductArm = (typeof PRODUCT_ARMS)[number]
+
+/** The arm the product ships with: record cross-session, and say what was seen. */
+export const DEFAULT_ARM: ProductArm = 'A3-advisory'
+
+/**
+ * What each arm means in this product, in one line, for `agentgit config`.
+ *
+ * Kept next to the arm list so an arm cannot be added without a description: the point of
+ * exposing them is that a user can tell what they are switching between.
+ */
+export const ARM_EFFECTS: Readonly<Record<ProductArm, string>> = {
+  'A0-baseline': 'record nothing, see nothing, always allow - the control',
+  'A1-instrument': 'record cross-session and decide, but offer no next actions - measurement only',
+  'A3-advisory': 'record cross-session, report what was seen, offer next actions (default)',
+  'A4-session-only': 'record, but see only this session - cross-session work is invisible (the shared-ledger ablation)',
+}
+
+/** True when the arm records nothing at all, so the hook should not append. */
+export function armRecordsNothing(arm: string): boolean {
+  return arm === 'A0-baseline'
+}
+
+/** True when the arm may see events written by other sessions. */
+export function armSeesOtherSessions(arm: string): boolean {
+  return arm === 'A1-instrument' || arm === 'A3-advisory'
+}
+
+/** True when the arm may hand the caller next actions. */
+export function armOffersActions(arm: string): boolean {
+  return arm === 'A3-advisory'
+}
+
+export function isProductArm(value: string): value is ProductArm {
+  return (PRODUCT_ARMS as readonly string[]).includes(value)
+}
+
+/**
+ * Resolve a configured arm name, refusing anything the product will not run.
+ *
+ * Throws rather than falling back to the default. A config file naming `A4-gated` is
+ * someone trying to change the product's most load-bearing behaviour, and quietly running
+ * `A3-advisory` instead would leave them believing they had gated writes, wondering why
+ * nothing was ever blocked. The message names the arm and the reason.
+ */
+export function resolveProductArm(value: string | null | undefined): ProductArm {
+  if (value == null || value === '') return DEFAULT_ARM
+  if (isProductArm(value)) return value
+  if (value === 'A4-gated') {
+    throw new Error(
+      'A4-gated refuses writes, and this product never does: it reports what it sees and hands you the command. ' +
+        `Choose one of ${PRODUCT_ARMS.join(', ')}.`,
+    )
+  }
+  if (value === 'A2-inert' || value === 'A4-detect-only') {
+    throw new Error(
+      `${value} is not offered as a workspace setting: in a product without a gate it behaves identically to ` +
+        `${value === 'A2-inert' ? "'A0-baseline'" : "'A1-instrument'"}, and two arm names for one behaviour would ` +
+        `make the labels meaningless. Choose one of ${PRODUCT_ARMS.join(', ')}.`,
+    )
+  }
+  throw new Error(`unknown arm '${value}'. Choose one of ${PRODUCT_ARMS.join(', ')}.`)
+}
+
 /** Anything a project wants the coordinator to leave alone. */
 export interface WorkspaceConfig {
   readonly version: number
+  /**
+   * Which experimental arm this workspace runs.
+   *
+   * The arm is the experiment's unit of analysis, so it belongs in the workspace rather
+   * than in an environment variable: a number is only interpretable if the configuration
+   * that produced it is recorded with it, and `.agentgit/config.json` is committed.
+   */
+  readonly arm: ProductArm
   readonly ignore: readonly string[]
   /** Globs whose writes are always treated as low-signal (lockfiles, generated code). */
   readonly quiet: readonly string[]
@@ -170,6 +266,7 @@ export interface WorkspaceConfig {
 
 export const DEFAULT_CONFIG: WorkspaceConfig = {
   version: 1,
+  arm: DEFAULT_ARM,
   ignore: ['.agentgit/state/', 'node_modules/', '.git/'],
   quiet: ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', '*.min.js', '*.snap'],
   duplicateIntentThreshold: 0.42,
@@ -177,24 +274,44 @@ export const DEFAULT_CONFIG: WorkspaceConfig = {
   inFlightMinutes: 720,
 }
 
-/** Read `.agentgit/config.json`, falling back to defaults field by field. */
+/**
+ * Read `.agentgit/config.json`, falling back to defaults field by field.
+ *
+ * The arm is resolved *outside* the per-field fallback, and deliberately: a config file
+ * naming an arm the product will not run is a mistake about the product's most
+ * load-bearing behaviour, and the blanket `catch` below would swallow it while silently
+ * resetting every other field - so a user who mistyped an arm would also lose their tuned
+ * thresholds, with no message saying either had happened. Anything else malformed still
+ * degrades field by field, because a partially-usable config beats a refused one.
+ */
 export function loadConfig(paths: WorkspacePaths): WorkspaceConfig {
   if (!existsSync(paths.config)) return DEFAULT_CONFIG
+
+  const raw = readConfigFile(paths.config)
+  if (raw === null) return DEFAULT_CONFIG
+
+  return {
+    version: typeof raw.version === 'number' ? raw.version : DEFAULT_CONFIG.version,
+    arm: resolveProductArm(raw.arm),
+    ignore: Array.isArray(raw.ignore) ? raw.ignore : DEFAULT_CONFIG.ignore,
+    quiet: Array.isArray(raw.quiet) ? raw.quiet : DEFAULT_CONFIG.quiet,
+    duplicateIntentThreshold:
+      typeof raw.duplicateIntentThreshold === 'number'
+        ? raw.duplicateIntentThreshold
+        : DEFAULT_CONFIG.duplicateIntentThreshold,
+    leaseMinutes: typeof raw.leaseMinutes === 'number' ? raw.leaseMinutes : DEFAULT_CONFIG.leaseMinutes,
+    inFlightMinutes: typeof raw.inFlightMinutes === 'number' ? raw.inFlightMinutes : DEFAULT_CONFIG.inFlightMinutes,
+  }
+}
+
+/** Parse the config file, treating unreadable or unparseable JSON as absent. */
+function readConfigFile(file: string): Partial<WorkspaceConfig> | null {
   try {
-    const raw = JSON.parse(readFileSync(paths.config, 'utf8')) as Partial<WorkspaceConfig>
-    return {
-      version: typeof raw.version === 'number' ? raw.version : DEFAULT_CONFIG.version,
-      ignore: Array.isArray(raw.ignore) ? raw.ignore : DEFAULT_CONFIG.ignore,
-      quiet: Array.isArray(raw.quiet) ? raw.quiet : DEFAULT_CONFIG.quiet,
-      duplicateIntentThreshold:
-        typeof raw.duplicateIntentThreshold === 'number'
-          ? raw.duplicateIntentThreshold
-          : DEFAULT_CONFIG.duplicateIntentThreshold,
-      leaseMinutes: typeof raw.leaseMinutes === 'number' ? raw.leaseMinutes : DEFAULT_CONFIG.leaseMinutes,
-      inFlightMinutes: typeof raw.inFlightMinutes === 'number' ? raw.inFlightMinutes : DEFAULT_CONFIG.inFlightMinutes,
-    }
+    const parsed = JSON.parse(readFileSync(file, 'utf8')) as unknown
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    return parsed as Partial<WorkspaceConfig>
   } catch {
-    return DEFAULT_CONFIG
+    return null
   }
 }
 
@@ -204,6 +321,32 @@ export function writeDefaultConfig(paths: WorkspacePaths): boolean {
   mkdirSync(paths.agentgit, { recursive: true })
   writeFileSync(paths.config, `${JSON.stringify(DEFAULT_CONFIG, null, 2)}\n`, 'utf8')
   return true
+}
+
+/**
+ * Change one field of the workspace config, creating the file if it is missing.
+ *
+ * Merges onto whatever is already there rather than writing defaults, so tuning a
+ * threshold does not silently reset the arm or the ignore list. The value is written
+ * through the same validation the read path uses, so `setArm` cannot produce a file that
+ * `loadConfig` will refuse to read - a config the tool writes but then rejects is the one
+ * failure mode that would make the setting untrustworthy.
+ */
+export function updateConfig(paths: WorkspacePaths, patch: Partial<WorkspaceConfig>): WorkspaceConfig {
+  const current = existsSync(paths.config) ? readConfigFile(paths.config) : null
+  // Resolve before writing, so an invalid arm is refused here rather than on the next read.
+  // Done on the way in rather than by mutating the result, because every field of
+  // `WorkspaceConfig` is readonly and a config object that was assigned to after
+  // construction is exactly the kind of thing the read path is written to trust.
+  const merged: WorkspaceConfig = {
+    ...DEFAULT_CONFIG,
+    ...(current ?? {}),
+    ...patch,
+    arm: resolveProductArm(patch.arm ?? current?.arm ?? DEFAULT_CONFIG.arm),
+  } as WorkspaceConfig
+  mkdirSync(paths.agentgit, { recursive: true })
+  writeFileSync(paths.config, `${JSON.stringify(merged, null, 2)}\n`, 'utf8')
+  return merged
 }
 
 /** True when a path matches one of the configured ignore prefixes. */
@@ -251,7 +394,7 @@ export function resolveConfigured(value: string | null | undefined, fallback: st
  *
  * Returns null in three cases that are all "cannot be expressed relative to this
  * workspace": the workspace root itself, anything above it, and anything on another
- * volume. The last one is Windows-specific and was a live defect — `path.relative`
+ * volume. The last one is Windows-specific and was a live defect - `path.relative`
  * between `C:\` and `D:\` hands back the absolute target path instead of a `..`
  * climb, so a check that only looked for `..` accepted it and the caller stored a
  * plausible-looking absolute path believing it was relative.

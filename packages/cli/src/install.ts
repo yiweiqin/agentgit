@@ -46,6 +46,13 @@ import { fileURLToPath } from 'node:url'
 
 import type { DoctorCheck } from './output.ts'
 
+import {
+  ARM_EFFECTS,
+  DEFAULT_ARM,
+  loadConfig,
+  workspacePaths,
+} from '@agentgit/core'
+
 /** `<repo>/plugins/agentgit`, located from this file rather than from the cwd. */
 export function pluginSourceDir(): string {
   const here = dirname(fileURLToPath(import.meta.url))
@@ -578,7 +585,43 @@ export function runDoctor(options: { home?: string } = {}): DoctorReport {
       : 'no .agentgit yet in this checkout; the hooks create it on the first write',
   })
 
+  /*
+   * The arm, reported as a check rather than left to `agentgit config`.
+   *
+   * `doctor` is the command that answers "can this actually work", and the arm decides what
+   * every verdict is allowed to see — so a workspace running a non-default arm is a fact a
+   * user needs at exactly the moment they are diagnosing why the coordination is quiet. It
+   * is always `ok`: an unusual arm is a choice, not a fault, and marking it as a failure
+   * would train people to change it back.
+   */
+  const armCheck = describeArmCheck(paths.repo)
+  checks.push(armCheck)
+
   return { checks, version: manifestVersion(paths.target) }
+}
+
+/**
+ * Which arm the checkout is running, for `doctor`.
+ *
+ * A config that names an arm the product refuses is reported as a failed check with the
+ * resolver's own message, because that is the one arm problem that genuinely stops the
+ * product working: `loadConfig` throws, so every verdict command fails until it is fixed.
+ */
+export function describeArmCheck(repo: string): DoctorCheck {
+  const config = join(repo, '.agentgit', 'config.json')
+  const fix = 'agentgit config arm A3-advisory'
+  try {
+    const arm = loadConfig(workspacePaths(repo)).arm
+    return {
+      name: 'experimental arm',
+      ok: true,
+      // ASCII only, and no trailing "(default)": the arm's own effect line already says it,
+      // and a doubled marker reads as though two things were being asserted.
+      detail: `${arm}: ${ARM_EFFECTS[arm]}${arm === DEFAULT_ARM ? '' : `  [set in ${config}]`}`,
+    }
+  } catch (error) {
+    return { name: 'experimental arm', ok: false, detail: (error as Error).message, fix }
+  }
 }
 
 /** Machine-readable form of the install report. */

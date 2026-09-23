@@ -30,6 +30,30 @@ import { isAbsolute, join, resolve } from 'node:path'
 /** Must match `SCHEMA_VERSION` in `packages/core/src/ledger.ts` and `coord_ledger.py`. */
 const SCHEMA_VERSION = 'coord-ledger-0.1'
 
+/**
+ * The arms that record nothing, mirrored from core's `armRecordsNothing`.
+ *
+ * The hook runs per tool call with no dependencies and no build step, so it cannot import
+ * `@agentgit/core` and has to carry its own copy of this rule — the same arrangement as
+ * `canonicalEntityPath`, which is duplicated here for the same reason. Copies drift, so
+ * `packages/cli/tests/hooks.test.ts` drives both against one table and fails the moment the
+ * two disagree. What that prevents: a user selecting the baseline arm, believing the
+ * workspace had stopped recording, while the hook kept appending.
+ */
+const ARMS_THAT_RECORD_NOTHING = new Set(['A0-baseline'])
+
+/** Read the workspace config, tolerating every way it can be unreadable. */
+function armOf(paths) {
+  try {
+    const raw = JSON.parse(readFileSync(paths.config, 'utf8'))
+    return raw && typeof raw === 'object' && typeof raw.arm === 'string' ? raw.arm : null
+  } catch {
+    // No config, or malformed: fall through to the default arm, which records. A workspace
+    // that cannot state its arm must keep working rather than silently stopping.
+    return null
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* input                                                                       */
 /* -------------------------------------------------------------------------- */
@@ -113,6 +137,7 @@ function workspacePaths(root) {
   return {
     root,
     agentgit,
+    config: join(agentgit, 'config.json'),
     events: join(agentgit, 'events'),
     state: join(agentgit, 'state'),
     tasks: join(agentgit, 'state', 'tasks.json'),
@@ -400,6 +425,11 @@ function main() {
   // decides not to record leaves the workspace byte-for-byte as it found it.
   const mayRecord = existsSync(paths.events) || found.kind === 'claimed'
   if (!mayRecord) return
+
+  // An arm that records nothing must record nothing *here*, or the control arm would still
+  // fill the ledger and every later comparison would be against a contaminated workspace.
+  const arm = armOf(paths)
+  if (arm !== null && ARMS_THAT_RECORD_NOTHING.has(arm)) return
 
   const { taskId, source } = taskIdFor(paths, payload.sessionId)
   const timestampUtc = new Date().toISOString()

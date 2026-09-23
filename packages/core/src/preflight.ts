@@ -50,6 +50,9 @@ import {
 import type { ContentionRecord } from './types.ts'
 import {
   appendEvent,
+  armOffersActions,
+  armRecordsNothing,
+  armSeesOtherSessions,
   loadConfig,
   readAllEvents,
   type WorkspaceConfig,
@@ -128,6 +131,23 @@ export const DEFAULT_TTL_SECONDS = 300
 /* Read-only context, assembled once per call                                  */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * What a verdict is allowed to see, from the workspace's arm.
+ *
+ * This is where the arm has teeth in the product, and it is the one axis the A/B
+ * experiment turns on: `A4-session-only` still writes every event to the ledger, but a
+ * proposal is shown only its own session's history — so it catches local duplicates and
+ * misses global ones. That is the ablation that asks whether the *shared ledger* is the
+ * mechanism, rather than whether the tool does something at all.
+ */
+export interface ContextScope {
+  /** The arm in force. `A4-session-only` narrows what is visible; `A0-baseline` blinds it. */
+  readonly arm: string
+  /** Whose view this is. Only consulted when the arm narrows visibility. */
+  readonly sessionId: string
+  readonly taskId?: string | null
+}
+
 export interface CoordinationContext {
   readonly paths: WorkspacePaths
   readonly config: WorkspaceConfig
@@ -148,11 +168,17 @@ export interface CoordinationContext {
  * Read once per call rather than cached in memory, because the whole point is that
  * two sessions in two processes see the same state. An in-memory cache would make
  * the coordinator's answer depend on which process happened to ask first.
+ *
+ * With no `scope`, everything is visible — which is what the panel and the board want,
+ * because they show the workspace rather than one session's view of it. A `scope` narrows
+ * the *events* and the *leases*, and only those: see {@link scopeOf} for why contracts
+ * stay visible.
  */
 export function loadContext(
   paths: WorkspacePaths,
   now: Date = new Date(),
   windowHours = 24,
+  scope?: ContextScope,
 ): CoordinationContext {
   const config = loadConfig(paths)
   const { events, malformed } = readAllEvents(paths)
@@ -161,10 +187,40 @@ export function loadContext(
     const at = Date.parse(event.timestampUtc)
     return Number.isFinite(at) ? at >= cutoff : true
   })
+  // The arm can only ever remove things from view, never add, so an unscoped read stays
+  // the widest view and the narrowing is a single filter rather than a second code path.
+  //
+  // Three cases, not two, and the third is the one that matters: the baseline must be blind
+  // to *everything*, including this session's own leases. Blinding only the events would
+  // leave `A0-baseline` still answering `reuse` from a lease, which would make it identical
+  // to `A4-session-only` and turn the experiment's control into a second treatment.
+  const blind = scope !== undefined && armRecordsNothing(scope.arm)
+  const narrow = scope !== undefined && !blind && !armSeesOtherSessions(scope.arm)
+  const visible = blind
+    ? []
+    : narrow
+      ? windowed.filter((event) => event.sessionId === scope!.sessionId)
+      : windowed
 
   const registry = loadContracts(paths)
   const assumptions = loadAssumptions(paths)
-  const capsules = buildCapsules(windowed)
+  const capsules = buildCapsules(visible)
+
+  /*
+   * Leases are narrowed with the events, and this is not optional.
+   *
+   * A lease is another session's activity written to a shared file, so leaving all leases
+   * visible would let the ablated arm catch cross-session duplicates through the lease store
+   * while its ledger was blind — and the ablation would attribute to the ledger an effect
+   * that came from somewhere else. Under a narrow arm only this session's own leases
+   * remain, which is exactly what that session could have learned on its own.
+   */
+  const allLeases = loadLeases(paths)
+  const leases = blind
+    ? { ...allLeases, leases: [] }
+    : narrow
+      ? { ...allLeases, leases: allLeases.leases.filter((entry) => entry.sessionId === scope!.sessionId) }
+      : allLeases
 
   return {
     paths,
@@ -172,7 +228,7 @@ export function loadContext(
     // `entityTouches`, not `buildContention`: the filtered list hides the first
     // other toucher, which is exactly the collision a first preflight is about.
     contention: entityTouches(capsules),
-    leases: loadLeases(paths),
+    leases,
     stale: allStaleAssumptions(assumptions, registry),
     contractCount: registry.contracts.length,
     eventCount: events.length,
@@ -243,11 +299,14 @@ function asProposal(query: PreflightQuery, entityPath: string): WriteProposal {
 export function preflight(
   paths: WorkspacePaths,
   query: PreflightQuery,
-  context: CoordinationContext = loadContext(paths, new Date(), query.windowHours),
+  context: CoordinationContext = loadContext(paths, new Date(), query.windowHours, scopeOf(paths, query)),
 ): PreflightResult {
   const entityPath = query.entityPath ?? query.entityKey.replace(/^file::/, '')
   const proposal = asProposal(query, entityPath)
   const decision = decideWrite(proposal, context.contention, PRODUCT_POLICY)
+  // Read from the context, not from a fresh read, so a caller that assembled a context
+  // under one arm cannot have the verdict's action set decided under another.
+  const offersActions = armOffersActions(context.config.arm)
 
   const registry = loadContracts(paths)
   const staleMine = staleForTask(loadAssumptions(paths), registry, query.taskId)
@@ -273,6 +332,17 @@ export function preflight(
     decidedAt: context.now.toISOString(),
     entityKey: query.entityKey,
     taskId: query.taskId,
+    /*
+     * The arm decides whether the caller is handed anything to do about the verdict.
+     *
+     * `A1-instrument` records and decides identically to the default and returns the same
+     * word and reason — it just offers no next actions. That is what makes it measurement
+     * only in a product without a gate: the *record* is unchanged, so a comparison against
+     * the default measures the effect of being told what to do, not the effect of the
+     * detection. The verdict itself is never suppressed, because a caller that asked
+     * cannot be lied to about what was seen.
+     */
+    nextActions: offersActions ? nextActions : [],
     evidence: {
       detection: decision.detection,
       similarity: decision.similarity,
@@ -282,7 +352,6 @@ export function preflight(
       staleAssumptions: staleNamed,
       contractConflicts,
     },
-    nextActions,
   })
 
   /* 1. wait — the interface is being landed right now, so re-reading would race it.
@@ -497,8 +566,18 @@ export function preflightAndClaim(
   query: PreflightQuery,
   options: { readonly symbol?: boolean } = {},
 ): PreflightResult {
-  const context = loadContext(paths)
+  const context = loadContext(paths, new Date(), query.windowHours, scopeOf(paths, query))
   const result = preflight(paths, query, context)
+
+  /*
+   * The baseline arm records nothing, so it records nothing here either.
+   *
+   * A control that still wrote its own decisions to the ledger would not be a control: the
+   * next preflight under any other arm would read those events and answer differently, so
+   * switching arms would leave the workspace permanently contaminated by whichever arm ran
+   * first. Skipping the write keeps the arm a property of the moment it ran.
+   */
+  if (armRecordsNothing(context.config.arm)) return result
 
   if (result.verdict === 'allow' || result.verdict === 'reuse') {
     const leaseMinutes = context.config.leaseMinutes
@@ -550,6 +629,21 @@ export function preflightAndClaim(
 /** The ledger key for a path or symbol, so every caller spells it the same way. */
 export function keyOf(path: string): string {
   return entityKey({ kind: 'file', identifier: path, path })
+}
+
+/**
+ * The scope a query should be answered under, from the workspace's own arm.
+ *
+ * Contracts and assumptions are deliberately *outside* the scope and stay fully visible
+ * under every arm, including the session-only ablation. The reason is what the ablation is
+ * trying to isolate: a ledger of who touched what is coordination memory, while a contract
+ * version is an artifact fact — the same kind of thing as reading the code, which no arm
+ * can hide. Hiding it would not test the shared ledger, it would only stop `review` from
+ * firing, and the ablation would then measure a broken feature instead of a missing ledger.
+ * The assumption side is local anyway: a task's recorded belief is its own.
+ */
+export function scopeOf(paths: WorkspacePaths, query: PreflightQuery): ContextScope {
+  return { arm: loadConfig(paths).arm, sessionId: query.sessionId, taskId: query.taskId }
 }
 
 /** The ledger key for a symbol. */

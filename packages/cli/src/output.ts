@@ -11,6 +11,7 @@
  */
 
 import {
+  ARM_EFFECTS,
   compareCodepoint,
   currentVersion,
   kindOfVerdict,
@@ -18,6 +19,7 @@ import {
   type CoordEvent,
   type PreflightResult,
   type StaleAssumption,
+  type TunableView,
   type Verdict,
   type WorkspaceConfig,
 } from '@agentgit/core'
@@ -52,6 +54,8 @@ export function renderStatus(view: BoardView, config: WorkspaceConfig): string {
 
   lines.push(`workspace        : ${view.workspace}`)
   lines.push(`machine shard    : ${view.machine}`)
+  // The arm is printed before the numbers, because it decides what the numbers could see.
+  lines.push(`arm              : ${config.arm}  (${ARM_EFFECTS[config.arm] ?? 'unknown'})`)
   lines.push(`coordination debt: ${view.debt.score}/100${view.debt.drivers.length > 0 ? `  (${view.debt.drivers.join('; ')})` : ''}`)
   lines.push('')
   lines.push(`tasks in flight  : ${counts(open.length, 'task')}${open.length > 0 ? ` of ${view.tasks.length} recorded` : ''}`)
@@ -95,7 +99,10 @@ export function renderStatus(view: BoardView, config: WorkspaceConfig): string {
 /** `agentgit board` - the same view the live page renders, in text. */
 export function renderBoard(view: BoardView): string {
   const lines: string[] = []
-  lines.push(`${view.workspace}  -  ${ago(view.generatedAt)}  -  debt ${view.debt.score}/100`)
+  // The arm is on the header line for the same reason `status` puts it there: the counts
+  // below are the counts this arm could see, and a reader who does not know that cannot ask
+  // the right question about them.
+  lines.push(`${view.workspace}  -  arm ${view.arm}  -  ${ago(view.generatedAt)}  -  debt ${view.debt.score}/100`)
 
   lines.push(heading('Tasks'))
   if (view.tasks.length === 0) lines.push('  (none)')
@@ -357,3 +364,48 @@ export function renderWhy(target: string, key: string, events: readonly CoordEve
 }
 
 export { baseName }
+
+/* -------------------------------------------------------------------------- */
+/* Settings                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `agentgit config` — what is adjustable, what it is set to, and what it costs.
+ *
+ * Every setting prints its effect and its caution, not just its value. A settings screen
+ * that lists six names and six numbers tells a user nothing about which one to suspect when
+ * the verdicts feel wrong, and "which one should I change?" is the only question anyone
+ * actually has. The caution lines are the reason this output is long: they are the part a
+ * `--json` consumer does not need and a person does.
+ */
+export function renderConfig(rows: readonly TunableView[]): string {
+  const lines: string[] = []
+  lines.push(`settings  (${rows.filter((row) => !row.isDefault).length} changed from the default)`)
+
+  for (const row of rows) {
+    const value = Array.isArray(row.value) ? row.value.join(', ') : String(row.value)
+    lines.push('')
+    lines.push(`  ${row.key}`)
+    lines.push(`    value   : ${value}${row.isDefault ? '  (default)' : `   (default: ${String(row.default)})`}`)
+    if (row.note) lines.push(`    means   : ${row.note}`)
+    lines.push(`    effect  : ${row.effect}`)
+    lines.push(`    caution : ${row.caution}`)
+  }
+
+  lines.push('')
+  lines.push('Set one with:  agentgit config <setting> <value>')
+  lines.push(`See the arms:  agentgit config --arms`)
+  return `${lines.join('\n')}\n`
+}
+
+/** `agentgit config --arms` — the arms, and which one is running. */
+export function renderArms(arms: readonly { name: string; effect: string; current: boolean }[]): string {
+  const lines: string[] = ['arms', '----']
+  for (const arm of arms) {
+    lines.push(`  ${arm.current ? '*' : ' '} ${arm.name.padEnd(18)} ${arm.effect}`)
+  }
+  lines.push('')
+  lines.push('One line per arm, because a number is only interpretable if you know which arm produced it.')
+  lines.push('Switch with:  agentgit config arm <name>')
+  return `${lines.join('\n')}\n`
+}

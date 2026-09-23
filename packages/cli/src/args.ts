@@ -56,6 +56,9 @@ export const BARE_SAFE = new Set([
   'steal',
   'breaking',
   'symbol',
+  // `agentgit config arm --arms` reads `--arms` as a boolean, so without this entry it would
+  // swallow whatever came next and the listing would silently become a different command.
+  'arms',
   // `--claim` turns a question into a recorded decision, and it is given bare
   // (`preflight src/a.ts --claim`). Left off this list it would swallow the next
   // positional and the entity under discussion would become the flag's value.
@@ -116,7 +119,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   }
 }
 
-const COMMANDS_WITH_SUBCOMMANDS = new Set(['task', 'contracts', 'contract', 'lease'])
+const COMMANDS_WITH_SUBCOMMANDS = new Set(['task', 'contracts', 'contract', 'lease', 'config'])
 
 function push(flags: Map<string, string[]>, name: string, value: string): void {
   const list = flags.get(name) ?? []
@@ -140,6 +143,9 @@ export const USAGE = `agentgit - coordination for agents sharing one repository
   agentgit contracts list|show <name>|publish|assume
   agentgit lease list|release <task> [<entity>]
   agentgit task start|checkpoint|finish
+  agentgit config [<setting>] [<value>] [--arms]  what is adjustable, and what it is set to
+                                               no argument lists every setting with what it does;
+                                               'config arm A1-instrument' switches the experiment arm
   agentgit install [--copy] [--enable] [--json]  install the Codex plugin from this checkout
                                                --enable also sets [plugins."agentgit@personal"] in
                                                ~/.codex/config.toml, which is otherwise left alone

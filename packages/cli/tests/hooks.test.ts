@@ -23,7 +23,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { canonicalEntityPath, appendEvent, loadLeases, readAllEvents, workspacePaths } from '@agentgit/core'
+import { canonicalEntityPath, appendEvent, armRecordsNothing, loadLeases, PRODUCT_ARMS, readAllEvents, workspacePaths } from '@agentgit/core'
 
 /** The checkout root, found from this file rather than from the working directory. */
 const REPO = join(import.meta.dirname, '..', '..', '..')
@@ -372,3 +372,71 @@ describe('the spool', () => {
     assert.equal(loadLeases(paths).leases.length, 0, 'a fresh workspace has no leases to report')
   })
 })
+
+describe('the hook obeys the arm, and its copy of the rule does not drift', () => {
+  test('the baseline arm stops the hook recording', () => {
+    // Selecting a non-recording arm has to reach the one writer that runs on every tool
+    // call. Before this, the arm was a label in a file and the hook appended regardless:
+    // a user who chose the control would still have been filling the ledger.
+    writeFileSync(join(workspace, '.agentgit', 'config.json'), JSON.stringify({ version: 1, arm: 'A0-baseline' }), 'utf8')
+    const result = runHook(preToolUse(join(workspace, 'src', 'auth.ts')))
+    assert.equal(result.status, 0)
+    assert.equal(existsSync(eventsDir) && readdirSync(eventsDir).length > 0, false, 'the control records nothing')
+  })
+
+  test('a recording arm still records', () => {
+    for (const arm of ['A3-advisory', 'A1-instrument', 'A4-session-only']) {
+      rmSync(eventsDir, { recursive: true, force: true })
+      writeFileSync(join(workspace, '.agentgit', 'config.json'), JSON.stringify({ version: 1, arm }), 'utf8')
+      runHook(preToolUse(join(workspace, 'src', 'auth.ts')))
+      assert.equal(events().length, 1, `${arm} must record: it is the treatment, not the control`)
+    }
+  })
+
+  test('a workspace with no config, or a broken one, keeps recording', () => {
+    // Fail-open is the right direction here: a workspace whose config cannot be read must
+    // keep working. Silently stopping would look like a broken plugin, not a chosen arm.
+    rmSync(join(workspace, '.agentgit', 'config.json'), { force: true })
+    runHook(preToolUse(join(workspace, 'src', 'auth.ts')))
+    assert.equal(events().length, 1, 'no config means the default arm, which records')
+
+    rmSync(eventsDir, { recursive: true, force: true })
+    writeFileSync(join(workspace, '.agentgit', 'config.json'), '{ not json', 'utf8')
+    runHook(preToolUse(join(workspace, 'src', 'auth.ts')))
+    assert.equal(events().length, 1, 'an unreadable config means the default arm, which records')
+  })
+
+  test('the hook\'s arm table agrees with core\'s, so the copies cannot drift', () => {
+    /*
+     * The hook cannot import the library, so it carries its own `ARMS_THAT_RECORD_NOTHING`
+     * — the same arrangement as its copy of `canonicalEntityPath`. Two copies of a rule
+     * drift, and this one drifts silently in the worst direction: the product would say a
+     * workspace had stopped recording while the hook kept writing, or the reverse, and
+     * neither would raise anything. So both are driven over every arm and compared.
+     */
+    const script = readFileSync(TRACK, 'utf8')
+    const table = script.match(/const ARMS_THAT_RECORD_NOTHING = new Set\(\[(.*?)\]\)/s)?.[1]
+    assert.ok(table !== undefined, 'the hook must still declare the table this test reads')
+
+    const fromScript = new Set(
+      (table.match(/'([^']+)'/g) ?? []).map((quoted) => quoted.slice(1, -1)),
+    )
+    const fromCore = new Set(PRODUCT_ARMS.filter((arm) => armRecordsNothing(arm)))
+    assert.deepEqual([...fromScript].sort(), [...fromCore].sort(), 'core and the hook must name the same arms')
+
+    // And every arm the product offers is decided the same way by both, which is the
+    // property that actually matters rather than the table's contents.
+    for (const arm of PRODUCT_ARMS) {
+      const recorded = runHookRecordsWith(arm)
+      assert.equal(recorded, !fromCore.has(arm), `${arm}: the hook and core disagree about recording`)
+    }
+  })
+})
+
+/** Does the hook write an event for this arm? Measured, not read out of the source. */
+function runHookRecordsWith(arm: string): boolean {
+  rmSync(eventsDir, { recursive: true, force: true })
+  writeFileSync(join(workspace, '.agentgit', 'config.json'), JSON.stringify({ version: 1, arm }), 'utf8')
+  runHook(preToolUse(join(workspace, 'src', 'auth.ts')))
+  return events().length > 0
+}

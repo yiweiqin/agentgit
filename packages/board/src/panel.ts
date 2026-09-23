@@ -303,7 +303,7 @@ export function renderPanel(view: BoardView): string {
 
   <hr>
   <div class="text-small text-muted">
-    ${escapeHtml(view.workspace)} - machine ${escapeHtml(view.machine)} - snapshot ${escapeHtml(ago(view.generatedAt))}
+        ${escapeHtml(view.workspace)} - machine ${escapeHtml(view.machine)} - arm ${escapeHtml(view.arm)} - snapshot ${escapeHtml(ago(view.generatedAt))}
   </div>
 </div>`
 }

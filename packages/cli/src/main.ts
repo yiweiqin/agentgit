@@ -30,7 +30,10 @@ import {
   currentBranch,
   currentVersion,
   defaultBranch,
+  DEFAULT_CONFIG,
+  describeArms,
   describeProtected,
+  describeTunables,
   ensureWorkspace,
   ensureWorktree,
   findWorkspaceRoot,
@@ -45,6 +48,7 @@ import {
   loadLeases,
   machineId,
   mergeTreePreview,
+  parseTunable,
   preflight,
   preflightAndClaim,
   publishContract,
@@ -55,8 +59,10 @@ import {
   staleAssumptions,
   symbolKeyOf,
   toWorkspaceRelative,
+  updateConfig,
   worktreeList,
   type Entity,
+  type WorkspaceConfig,
   type WorkspacePaths,
 } from '@agentgit/core'
 
@@ -65,7 +71,9 @@ import { defaultPanelDir, panelMarkdown, truncate, writePanel } from '@agentgit/
 import { USAGE, parseArgs, type ParsedArgs } from './args.ts'
 import { install, installReportJson, runDoctor, uninstall, writePluginEnabled } from './install.ts'
 import {
+  renderArms,
   renderBoard,
+  renderConfig,
   renderContract,
   renderContracts,
   renderDoctor,
@@ -107,6 +115,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdWhy(args)
     case 'reconcile':
       return cmdReconcile(args)
+    case 'config':
+      return cmdConfig(args)
     case 'contracts':
       return cmdContracts(args)
     case 'lease':
@@ -791,6 +801,71 @@ async function cmdDemo(args: ParsedArgs): Promise<number> {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Settings                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `agentgit config` — read and change what the product does.
+ *
+ * Three shapes, one command: with no key it lists everything and what each does, with a key
+ * it shows that one, with a key and a value it changes it. The value is parsed and validated
+ * before anything is written, so a rejected setting leaves the file exactly as it was
+ * rather than half-applied.
+ *
+ * Nothing here needs a separate command per setting. `git config` is the model: one verb, a
+ * key, an optional value, and the whole surface discoverable by asking with no arguments.
+ */
+function cmdConfig(args: ParsedArgs): number {
+  const paths = workspaceOf(args)
+  const current = loadConfig(paths)
+
+  if (args.boolean('arms')) {
+    const arms = describeArms(current.arm)
+    process.stdout.write(
+      args.boolean('json') ? `${JSON.stringify(arms, null, 2)}\n` : renderArms(arms),
+    )
+    return 0
+  }
+
+  const key = args.subcommand
+  const rows = describeTunables(current, DEFAULT_CONFIG)
+
+  // No key: show everything, with what each one does.
+  if (key === null) {
+    process.stdout.write(args.boolean('json') ? `${JSON.stringify(rows, null, 2)}\n` : renderConfig(rows))
+    return 0
+  }
+
+  const row = rows.find((candidate) => candidate.key === key)
+  if (!row) {
+    throw new UsageError(
+      `unknown setting '${key}'. Known settings: ${rows.map((candidate) => candidate.key).join(', ')}`,
+    )
+  }
+
+  const next = args.positionals[0]
+  // Key with no value: report the current one. Same output shape as the list, so a caller
+  // that reads one setting and a caller that reads all of them parse the same way.
+  if (next === undefined) {
+    process.stdout.write(args.boolean('json') ? `${JSON.stringify(row, null, 2)}\n` : renderConfig([row]))
+    return 0
+  }
+
+  const parsed = parseTunable(key, next)
+  const written = updateConfig(paths, { [parsed.key]: parsed.value } as Partial<WorkspaceConfig>)
+  const after = describeTunables(written, DEFAULT_CONFIG).find((candidate) => candidate.key === key)!
+
+  if (args.boolean('json')) {
+    process.stdout.write(`${JSON.stringify({ file: paths.config, ...after }, null, 2)}\n`)
+    return 0
+  }
+  process.stdout.write(`${key} = ${String(after.value)}\n`)
+  if (after.note) process.stdout.write(`  ${after.note}\n`)
+  process.stdout.write(`  written to ${paths.config}\n`)
+  return 0
+}
+
+/* -------------------------------------------------------------------------- */
 /* Small helpers                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -832,6 +907,19 @@ main(process.argv.slice(2))
       process.exitCode = 2
       return
     }
-    process.stderr.write(`agentgit: ${(error as Error)?.stack ?? String(error)}\n`)
+    /*
+     * A domain error gets its message, not its stack.
+     *
+     * Everything this tool throws about a bad setting, a refused operation or an unreadable
+     * config is a sentence written for a person, and burying it under eight frames of
+     * `file:///` paths makes a fixable typo look like a crash. `AGENTGIT_DEBUG` restores the
+     * stack, so the frames are still one environment variable away when they are what is
+     * wanted.
+     */
+    const message = error instanceof Error ? error.message : String(error)
+    process.stderr.write(`agentgit: ${message}\n`)
+    if (process.env.AGENTGIT_DEBUG === '1' && error instanceof Error && error.stack) {
+      process.stderr.write(`${error.stack}\n`)
+    }
     process.exitCode = 2
   })
