@@ -184,7 +184,18 @@ export function parseRollout(file: string): RolloutSession | null {
   } catch {
     return null
   }
+  return parseRolloutText(text, file)
+}
 
+/**
+ * Parse rollout text a caller has already read.
+ *
+ * The transcript pool is gigabytes, and a study that reads it twice — once for the
+ * session and once for the patch bodies — spends half its wall clock on the second
+ * read. Letting the caller hand in the text it already holds keeps the module's
+ * single implementation of the format while making one pass possible.
+ */
+export function parseRolloutText(text: string, file: string): RolloutSession | null {
   let sessionId: string | null = null
   let cwd: string | null = null
   let contextWindowId: string | null = null
