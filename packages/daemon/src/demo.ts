@@ -2,7 +2,7 @@
  * The demo: one real collision, produced and then caught.
  *
  * This is not a mock. It writes to the workspace's own ledger, because a walkthrough
- * that ran against a fake store would prove nothing about the product — the whole
+ * that ran against a fake store would prove nothing about the product - the whole
  * claim is that the coordination facts are derived from what actually happened. Every
  * task it creates is named `demo-*` and every event it writes is attributed to a
  * `demo` session, so the trail is easy to find and easy to remove.
@@ -63,7 +63,7 @@ export function runDemo(options: DemoOptions): number {
     if (!options.json) process.stdout.write(`${line}\n`)
   }
 
-  say(`AgenticGit demo — ${root}`)
+  say(`AgenticGit demo - ${root}`)
   say('')
   say('Two agents, one file, no Git conflict. This is the case Git cannot see.')
 
@@ -163,7 +163,7 @@ export function runDemo(options: DemoOptions): number {
 
   say(`   v2 published. Tasks now behind a breaking change: ${published.newlyStale.length}`)
 
-  /* ---- 5. B asks again ------------------------------------------------------- */
+  /* ---- 5. B asks again, while A is still landing it --------------------------- */
 
   say('')
   say('5. Agent B asks again, before writing')
@@ -181,20 +181,68 @@ export function runDemo(options: DemoOptions): number {
   say(`   verdict : ${stale.verdict.toUpperCase()}`)
   say(`   reason  : ${stale.reason}`)
   steps.push({
-    name: 'a breaking interface move is caught',
-    expected: 'review',
+    name: 'a breaking change still being landed makes the other agent wait',
+    expected: 'wait',
     got: stale.verdict,
     detail: stale.reason,
-    ok: stale.verdict === 'review',
+    ok: stale.verdict === 'wait',
   })
 
-  /* ---- 6. The board ---------------------------------------------------------- */
+  /* ---- 6. A lands it, and the answer changes ---------------------------------- */
+
+  say('')
+  say('6. Agent A merges and says so')
+  say('   `wait` is the only verdict that can hold indefinitely, so it is bounded: a task')
+  say('   whose last event is older than inFlightMinutes stops counting as in flight, and')
+  say('   an explicit integrate closes it immediately. A producer that quietly stops must')
+  say('   not leave every consumer waiting on a task that will never speak again.')
+
+  const landedAt = new Date(now.getTime() + 2_000).toISOString()
+  appendEvent(paths, buildEvent({
+    kind: 'lifecycle_validated',
+    timestampUtc: landedAt,
+    sessionId: 'demo-a',
+    taskId: 'demo-a',
+    hostEvent: 'demo',
+    reason: 'demo: checkpointed',
+  }))
+  appendEvent(paths, buildEvent({
+    kind: 'lifecycle_integrated',
+    timestampUtc: landedAt,
+    sessionId: 'demo-a',
+    taskId: 'demo-a',
+    entities: [{ kind: 'file', identifier: DEMO_FILE, path: DEMO_FILE }],
+    hostEvent: 'demo',
+    reason: 'demo: merged',
+  }))
+
+  const afterLanding = preflightAndClaim(paths, {
+    taskId: 'demo-b',
+    sessionId: 'demo-b',
+    entityKey: `file::${DEMO_FILE}`,
+    entityPath: DEMO_FILE,
+    symbol: 'throttle',
+    intentText: INTENT_B,
+    contracts: [DEMO_CONTRACT],
+  })
+
+  say(`   verdict : ${afterLanding.verdict.toUpperCase()}`)
+  say(`   reason  : ${afterLanding.reason}`)
+  steps.push({
+    name: 'a landed breaking change tells the other agent to replan',
+    expected: 'review',
+    got: afterLanding.verdict,
+    detail: afterLanding.reason,
+    ok: afterLanding.verdict === 'review',
+  })
+
+  /* ---- 7. The board ---------------------------------------------------------- */
 
   const view = buildBoardView(paths)
   const artifact = writePanel(view, defaultPanelDir(paths.root))
 
   say('')
-  say('6. What the board now shows')
+  say('7. What the board now shows')
   say('')
   for (const line of panelMarkdown(view).split('\n')) say(`   ${line}`)
   say('')
@@ -206,13 +254,14 @@ export function runDemo(options: DemoOptions): number {
   say('')
   say('Result')
   for (const step of steps) {
-    say(`  ${step.ok ? 'ok  ' : 'FAIL'} ${step.name} — expected ${step.expected}, got ${step.got}`)
+    say(`  ${step.ok ? 'ok  ' : 'FAIL'} ${step.name} - expected ${step.expected}, got ${step.got}`)
   }
 
   say('')
   say('What this proves: two agents edited one file, Git would have reported nothing, and')
-  say('the second agent was told the work already existed and that the interface it relied')
-  say('on had moved. Both failures merge cleanly and break at run time.')
+  say('the second agent was told the work already existed, then that the interface it had')
+  say('coded against was still moving, then - once that moved - that it had to replan.')
+  say('Both failures merge cleanly and break at run time.')
 
   say('')
   say('To remove the demo from this ledger, delete the demo shard file:')

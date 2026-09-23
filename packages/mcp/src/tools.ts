@@ -11,7 +11,7 @@
  * descriptions.** The model decides whether to call them, so the description is the
  * contract: a tool that says it may rewrite history will be avoided, and one that
  * hides that it does will be called and then blamed. Nothing here merges, rebases,
- * resets or deletes — {@link PROTECTED_OPERATIONS} lists those, and the reconcile tool
+ * resets or deletes - {@link PROTECTED_OPERATIONS} lists those, and the reconcile tool
  * returns their commands as text for a human to run.
  *
  * Wording for facts comes from `@agentgit/board`, which the panel and the CLI also use.
@@ -138,14 +138,14 @@ interface EntityTarget {
 /**
  * The one place a path or a symbol becomes a ledger key.
  *
- * Both are accepted because they answer different questions — a file is "this ground",
- * a symbol is "this behaviour" — and the caller should not have to know which spelling
+ * Both are accepted because they answer different questions - a file is "this ground",
+ * a symbol is "this behaviour" - and the caller should not have to know which spelling
  * the ledger uses.
  *
  * The schema documents `path` as workspace-relative, and that is what is honoured: a
  * relative path is resolved against the workspace root, never against the server's own
  * directory. The directory is chosen by the host, so resolving against it would build
- * keys that look right and match nothing — the failure mode that silently reports "no
+ * keys that look right and match nothing - the failure mode that silently reports "no
  * collisions" while an agent edits the same file as someone else.
  */
 function targetOf(args: Record<string, unknown>, workspaceRoot: string): EntityTarget {
@@ -264,7 +264,7 @@ const panel: ToolDefinition = {
   title: 'Render the AgenticGit panel',
   description:
     'Writes the panel for this workspace to a file and returns `reference`. Put that value on its own line in your ' +
-    'reply, verbatim, where the panel should appear — it is a content reference, not a link, and it will not render ' +
+    'reply, verbatim, where the panel should appear - it is a content reference, not a link, and it will not render ' +
     'if it is edited, wrapped in backticks, or given a different name. Do not describe the file or the mechanism. ' +
     'The panel is a snapshot taken now; for a live view, tell the user to run `agentgit up`.',
   inputSchema: {
@@ -302,7 +302,7 @@ const preflightTool: ToolDefinition = {
     'Ask before writing. Give the path or symbol you are about to change and what you intend to do, and get back one ' +
     'of six verdicts: allow, reuse, refresh, replan, wait, or review. Each carries a reason, a `version` and a ' +
     '`ttlSeconds`. Cache on `version`: it changes whenever any input to the verdict changes, so a cached verdict can ' +
-    'never be stale. Verdicts are advisory — only `review` is a stop signal, and it never blocks a write by itself. ' +
+    'never be stale. Verdicts are advisory - only `review` is a stop signal, and it never blocks a write by itself. ' +
     'Set `claim` to also take a soft lease on the entity and record the decision in the ledger.',
   inputSchema: {
     type: 'object',
@@ -359,14 +359,14 @@ function renderPreflightText(result: PreflightResult, identity: Identity): strin
   if (result.evidence.competitors.length > 0) {
     lines.push('', 'Competing work:')
     for (const record of result.evidence.competitors.slice(0, 5)) {
-      lines.push(`  ${record.entityKey} — ${record.tasks.length} task(s), ${record.touches} touch(es)`)
+      lines.push(`  ${record.entityKey} - ${record.tasks.length} task(s), ${record.touches} touch(es)`)
       for (const intent of record.intents.slice(0, 3)) lines.push(`    "${truncate(intent, 130)}"`)
     }
   }
   if (result.evidence.leaseConflicts.length > 0) {
     lines.push('', 'Held by:')
     for (const lease of result.evidence.leaseConflicts) {
-      lines.push(`  ${lease.taskId} until ${lease.expiresAt} — ${truncate(lease.reason, 100)}`)
+      lines.push(`  ${lease.taskId} until ${lease.expiresAt} - ${truncate(lease.reason, 100)}`)
     }
   }
   if (result.evidence.staleAssumptions.length > 0) {
@@ -374,7 +374,7 @@ function renderPreflightText(result: PreflightResult, identity: Identity): strin
     for (const stale of result.evidence.staleAssumptions) {
       lines.push(
         `  ${stale.contract}: coded against v${stale.assumedVersion}, current is v${stale.currentVersion}` +
-          `${stale.breaking ? ' (breaking)' : ''} — ${truncate(stale.summary, 110)}`,
+          `${stale.breaking ? ' (breaking)' : ''} - ${truncate(stale.summary, 110)}`,
       )
     }
   }
@@ -385,7 +385,7 @@ function renderPreflightText(result: PreflightResult, identity: Identity): strin
   if (kindOfVerdict(result.verdict) !== 'clear') {
     lines.push(
       '',
-      'This is advisory. Report it and continue unless the user says otherwise — do not refuse their instruction on the strength of a verdict.',
+      'This is advisory. Report it and continue unless the user says otherwise - do not refuse their instruction on the strength of a verdict.',
     )
   }
   return lines.join('\n')
@@ -395,7 +395,7 @@ const reconcile: ToolDefinition = {
   name: 'agentgit_reconcile',
   title: 'What to integrate, in what order, and what will conflict',
   description:
-    'Returns expired assumptions, the order task branches should land in, and a ghost merge of each pair — performed ' +
+    'Returns expired assumptions, the order task branches should land in, and a ghost merge of each pair - performed ' +
     'with `git merge-tree`, which writes no branch and touches no working tree. Also returns the exact commands for ' +
     'merging, rebasing or discarding, for the user to run. This tool never runs them.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -469,20 +469,20 @@ const reconcile: ToolDefinition = {
       lines.push('', 'Expired assumptions:')
       for (const entry of stale) {
         lines.push(
-          `  ${entry.taskId}: ${entry.contract} v${entry.assumedVersion} → v${entry.currentVersion}` +
+          `  ${entry.taskId}: ${entry.contract} v${entry.assumedVersion} -> v${entry.currentVersion}` +
             `${entry.breaking ? ' (breaking)' : ''}`,
         )
       }
     }
     if (order.length > 0) {
       lines.push('', `Integration order (${blocked.length} task(s) others depend on):`)
-      for (const item of order) lines.push(`  ${item.taskId} (${item.branch}) — ${item.reason}`)
+      for (const item of order) lines.push(`  ${item.taskId} (${item.branch}) - ${item.reason}`)
     } else {
       lines.push('', 'No task branch exists yet, so there is nothing to order.')
     }
     if (merge.length > 0) {
       lines.push('', 'Ghost merge:')
-      for (const pair of merge) lines.push(`  ${pair.a} + ${pair.b}: ${pair.clean ? 'clean' : 'conflicts'} — ${pair.note}`)
+      for (const pair of merge) lines.push(`  ${pair.a} + ${pair.b}: ${pair.clean ? 'clean' : 'conflicts'} - ${pair.note}`)
       if (merge.some((pair) => pair.clean)) {
         lines.push(
           '',
@@ -649,7 +649,7 @@ const claim: ToolDefinition = {
     if (result.conflicts.length > 0) {
       lines.push('', 'Also held by:')
       for (const lease of result.conflicts) {
-        lines.push(`  ${lease.taskId} (${lease.sessionId}) until ${until(lease.expiresAt)} — ${truncate(lease.reason, 120)}`)
+        lines.push(`  ${lease.taskId} (${lease.sessionId}) until ${until(lease.expiresAt)} - ${truncate(lease.reason, 120)}`)
       }
       lines.push(
         '',
@@ -787,7 +787,7 @@ const assume: ToolDefinition = {
   title: 'Record which interface version this task is coded against',
   description:
     'Declare that this task relies on a specific version of an interface. Recording it is the only way the plugin can ' +
-    'later tell you that interface moved — without a recorded assumption there is nothing to compare, and the task ' +
+    'later tell you that interface moved - without a recorded assumption there is nothing to compare, and the task ' +
     'will look fresh forever. Additive and reversible; re-recording replaces the previous belief.',
   inputSchema: {
     type: 'object',
@@ -851,7 +851,7 @@ const task: ToolDefinition = {
     'checkpoint: commit only the paths this task touched, leaving every other agent\'s in-progress edit alone. ' +
     'finish: release leases and report the commands to integrate. ' +
     'integrate: say that the merge actually happened, which is what stops other tasks waiting on this one. ' +
-    'Merging is not among these actions and never will be — the commands are returned for the user to run.',
+    'Merging is not among these actions and never will be - the commands are returned for the user to run.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -1007,8 +1007,8 @@ const task: ToolDefinition = {
           `${identity.taskId} is recorded as integrated${typeof args.revision === 'string' ? ` at ${args.revision}` : ''}.`,
           released.length > 0 ? `Released ${released.length} leftover lease(s).` : '',
           '',
-          'Tasks waiting on a breaking change this one published will now get "review" — a stable version to replan ' +
-            'against — instead of "wait".',
+          'Tasks waiting on a breaking change this one published will now get "review" - a stable version to replan ' +
+            'against - instead of "wait".',
         ].filter((line) => line !== '').join('\n'),
         structured: { taskId: identity.taskId, marked: true, released, revision: nullable(args.revision) },
       }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `agentgit` — the command line.
+ * `agentgit` - the command line.
  *
  * This file is dispatch, and nothing else. Every decision it could make lives in
  * `@agentgit/core`, and every word it prints lives in `./output.ts` or
@@ -167,7 +167,9 @@ interface Identity {
  *
  * The fallback task id is derived from the session id rather than generated fresh, so
  * running `preflight` twice from one shell does not invent two tasks that then collide
- * with each other.
+ * with each other. It is the session id *unchanged*: the hook and the MCP server fall
+ * back the same way, and any prefix added here (`t-<session>`) would attribute this
+ * command's writes to a different task than the hook recorded for the same agent.
  */
 function identityOf(args: ParsedArgs, kind = 'cli'): Identity {
   const sessionId =
@@ -175,7 +177,7 @@ function identityOf(args: ParsedArgs, kind = 'cli'): Identity {
     process.env.AGENTGIT_SESSION ??
     process.env.CODEX_SESSION_ID ??
     `${kind}-${machineId()}-${process.pid}`
-  const taskId = args.value('task') ?? process.env.AGENTGIT_TASK ?? `t-${sessionId}`
+  const taskId = args.value('task') ?? process.env.AGENTGIT_TASK ?? sessionId
   return { sessionId, taskId }
 }
 
@@ -689,11 +691,11 @@ function cmdInstall(args: ParsedArgs): number {
 
   process.stdout.write('AgenticGit plugin installed\n\n')
   process.stdout.write(`  plugin      : ${report.paths.target}\n`)
-  process.stdout.write(`  link        : ${report.link.kind} — ${report.link.detail}\n`)
+  process.stdout.write(`  link        : ${report.link.kind} - ${report.link.detail}\n`)
   process.stdout.write(`  hooks       : ${report.files.hooks}\n`)
   process.stdout.write(`  mcp         : ${report.files.mcp}\n`)
   process.stdout.write(`  marketplace : ${report.marketplace.file}${report.marketplace.created ? ' (created)' : ''}\n`)
-  process.stdout.write(`  version     : ${report.version.from} → ${report.version.to}\n`)
+  process.stdout.write(`  version     : ${report.version.from} -> ${report.version.to}\n`)
   process.stdout.write(`                (the cachebuster; without a change here Codex keeps the cached copy)\n`)
   process.stdout.write(`  node        : ${report.files.node}${report.files.flags.length > 0 ? ` ${report.files.flags.join(' ')}` : ''}\n`)
 
@@ -722,7 +724,7 @@ function cmdInstall(args: ParsedArgs): number {
 
   if (report.warnings.length > 0) {
     process.stdout.write('\nWorth knowing:\n')
-    for (const warning of report.warnings) process.stdout.write(`  · ${warning}\n`)
+    for (const warning of report.warnings) process.stdout.write(`  - ${warning}\n`)
   }
 
   process.stdout.write('\nVerify with: agentgit doctor\n')

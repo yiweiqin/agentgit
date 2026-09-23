@@ -172,7 +172,7 @@ function safeReadlink(path: string): string | null {
  * open and a plugin that silently recorded nothing.
  *
  * A name listed in `raw` is inserted verbatim, for placeholders that stand for JSON
- * fragments rather than string contents — an argument list, for instance.
+ * fragments rather than string contents - an argument list, for instance.
  */
 function renderTemplate(
   template: string,
@@ -311,7 +311,7 @@ export function upsertMarketplace(paths: InstallPaths): { file: string; name: st
  * `+codex.a+codex.b` and push the semver further from anything a human wrote.
  *
  * The stamp is built digit by digit rather than sliced out of an ISO string. Slicing
- * an ISO instant at a fixed width leaves punctuation behind — the first version of this
+ * an ISO instant at a fixed width leaves punctuation behind - the first version of this
  * produced `0.1.0+codex.local-20260923064735.`, with a trailing dot that no semver
  * parser accepts and that reads as a typo in the user's config.
  */
@@ -441,7 +441,7 @@ export function uninstall(options: { home?: string; marketplaceName?: string } =
         kept.push(`${paths.target} (could not remove the link)`)
       }
     } else {
-      kept.push(`${paths.target} (a real directory, not a link — left alone)`)
+      kept.push(`${paths.target} (a real directory, not a link - left alone)`)
     }
   }
 
@@ -534,7 +534,7 @@ export function runDoctor(options: { home?: string } = {}): DoctorReport {
       const payload = JSON.parse(readTemplate(paths.marketplace)) as Marketplace
       const entry = (payload.plugins ?? []).find((candidate) => candidate?.name === 'agentgit')
       marketplaceOk = entry?.source?.path === './plugins/agentgit'
-      marketplaceDetail = entry ? `${paths.marketplace} → ${entry.source.path}` : `${paths.marketplace} has no agentgit entry`
+      marketplaceDetail = entry ? `${paths.marketplace} -> ${entry.source.path}` : `${paths.marketplace} has no agentgit entry`
     } catch (error) {
       marketplaceDetail = `${paths.marketplace} is not valid JSON: ${(error as Error).message}`
     }
@@ -617,7 +617,7 @@ export interface ConfigEdit {
  *
  * Refuses rather than guesses when `config.toml` holds `plugins` as an inline table.
  * Appending a `[plugins."x"]` section to a file that already assigned `plugins` is
- * invalid TOML, and the failure would surface as Codex refusing to start — with the
+ * invalid TOML, and the failure would surface as Codex refusing to start - with the
  * cause several lines away from the symptom. A refusal here costs one sentence.
  */
 export function setPluginEnabled(

@@ -26,8 +26,15 @@ export interface ParsedArgs {
   number(name: string, fallback: number): number
 }
 
-/** Flags that never consume the next argument, so `--json status` cannot eat `status`. */
-const BARE_SAFE = new Set([
+/**
+ * Flags that never consume the next argument, so `--json status` cannot eat `status`.
+ *
+ * Exported because the rule is only correct as a set: every flag read with
+ * `args.boolean(...)` must appear here, and a missing entry is invisible until the flag
+ * happens to be followed by a positional. `packages/cli/tests/args.test.ts` reads this
+ * set against the source to keep the two in step.
+ */
+export const BARE_SAFE = new Set([
   'json',
   'print',
   'open',
@@ -44,10 +51,15 @@ const BARE_SAFE = new Set([
   'adopt',
   'worktree',
   'no-worktree',
+  'no-watch',
   'dry-run',
   'steal',
   'breaking',
   'symbol',
+  // `--claim` turns a question into a recorded decision, and it is given bare
+  // (`preflight src/a.ts --claim`). Left off this list it would swallow the next
+  // positional and the entity under discussion would become the flag's value.
+  'claim',
 ])
 
 export function parseArgs(argv: readonly string[]): ParsedArgs {
@@ -113,14 +125,16 @@ function push(flags: Map<string, string[]>, name: string, value: string): void {
 }
 
 /** The usage text. Kept next to the parser so the two cannot drift silently. */
-export const USAGE = `agentgit — coordination for agents sharing one repository
+export const USAGE = `agentgit - coordination for agents sharing one repository
 
   agentgit status [--json]                     what is in flight, and what the ledger is missing
   agentgit board [--json] [--open]             every task, collision, lease and contract
   agentgit panel [--out <dir>] [--print]       write the inline panel fragment
   agentgit up [--port 7777] [--watch <path>]   live board, one page per workspace
-  agentgit preflight [<path>...] [--intent <text>] [--task <id>] [--session <id>] [--json]
-                                               the verdict for a set of paths
+  agentgit preflight [<path>|--symbol <name>] [--intent <text>] [--task <id>] [--session <id>]
+                    [--claim] [--json]         the verdict for one entity
+                                               --claim also takes the lease and records the decision,
+                                               which is what puts the interception on the board
   agentgit why <entity|task> [--json]          the events behind one decision
   agentgit reconcile [--json]                  stale assumptions, integration order, ghost merge
   agentgit contracts list|show <name>|publish|assume
@@ -135,5 +149,5 @@ export const USAGE = `agentgit — coordination for agents sharing one repositor
 
 Every command accepts --json for machine consumption, and --help.
 
-Exit codes: 0 success · 1 the command ran and found something to act on · 2 usage or environment error.
+Exit codes: 0 success - 1 the command ran and found something to act on - 2 usage or environment error.
 `

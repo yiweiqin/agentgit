@@ -156,7 +156,11 @@ describe('agentgit_whoami', () => {
     assert.equal(structured.sessionId, 'session-from-skill')
     assert.equal(structured.sessionSource, 'argument')
     assert.equal(structured.sessionIsGuess, false)
-    assert.equal(structured.taskId, 't-session-from-skill', 'a task derives from the session, so two sessions are two tasks')
+    assert.equal(
+      structured.taskId,
+      'session-from-skill',
+      'the task falls back to the session id itself, spelled exactly as the hook spells it',
+    )
   })
 })
 
@@ -230,7 +234,10 @@ describe('agentgit_preflight', () => {
       breaking: true,
       session: 'publisher',
     })
-    await call('agentgit_task', { action: 'integrate', task: 't-publisher', session: 'publisher' })
+    // No `task` argument: the publisher never declared one, so its work is attributed to
+    // its session id, and that is the capsule `integrate` has to close. Naming a task it
+    // never used would mark a capsule nobody opened and leave the real one in flight.
+    await call('agentgit_task', { action: 'integrate', session: 'publisher' })
   }
 
   test('waits while the interface is still being landed, then reviews once it has', async () => {
@@ -262,8 +269,9 @@ describe('agentgit_preflight', () => {
     )
 
     // Marking the merge as done is what turns the change into a stable thing to replan
-    // against. Without it every consumer of a breaking change waits forever.
-    await call('agentgit_task', { action: 'integrate', task: 't-publisher', session: 'publisher' })
+    // against. Without it every consumer of a breaking change waits forever. The task is
+    // named by its session, because that is the capsule the publisher's work opened.
+    await call('agentgit_task', { action: 'integrate', session: 'publisher' })
 
     const result = await call('agentgit_preflight', {
       path: 'src/limiter.ts',

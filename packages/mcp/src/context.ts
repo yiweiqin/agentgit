@@ -191,7 +191,13 @@ export function resolveIdentity(input: ResolveInput = {}): Identity {
   // A task id derived from the session keeps two sessions in one workspace in two
   // tasks, which is the entire premise of the product. A random id per call would put
   // every call in its own task and show no collisions at all.
-  const taskId = input.task && input.task.trim() !== '' ? input.task.trim() : `t-${sessionId}`
+  //
+  // The fallback is the bare session id, and it has to be *exactly* that: the hook
+  // (`plugins/agentgit/scripts/track.mjs`) and the CLI fall back the same way, and a
+  // prefix here - `t-abc123` against the hook's `abc123` - split one agent's work into
+  // two tasks. The symptom is quiet and confusing: the board shows two half-tasks that
+  // never collide with each other, because they are no longer about the same ground.
+  const taskId = input.task && input.task.trim() !== '' ? input.task.trim() : sessionId
 
   return {
     paths,

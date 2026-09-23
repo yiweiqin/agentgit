@@ -12,7 +12,7 @@
  * @module @agentgit/daemon
  */
 
-export { serve, fingerprintOf, assignIds } from './serve.ts'
+export { serve, startBoard, fingerprintOf, assignIds } from './serve.ts'
 export type { BoardServer, ServeOptions } from './serve.ts'
 
 export { runDemo } from './demo.ts'

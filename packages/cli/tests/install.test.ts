@@ -411,11 +411,29 @@ describe('doctor', () => {
 
 describe('the resolved plugin source', () => {
   test('is found from this file, not from the current directory', () => {
-    // `install` is run from wherever the user happens to be standing; deriving the
-    // source from `process.cwd()` would install an empty directory.
-    const paths = installPaths({ home })
-    const here = process.cwd()
-    assert.equal(resolve(paths.source), resolve(here, 'plugins', 'agentgit'))
-    assert.ok(existsSync(join(paths.source, '.codex-plugin', 'plugin.json')))
+    // `install` is run from wherever the user happens to be standing, so the source cannot
+    // come from `process.cwd()`: run from an unrelated directory it would resolve to a
+    // `plugins/agentgit` that does not exist, and install an empty plugin.
+    //
+    // The assertion here used to be `resolve(process.cwd(), 'plugins', 'agentgit')`, which
+    // is precisely the cwd-derived path this test claims to rule out. It passed for as long
+    // as the suite was only ever launched from the repository root, where the two answers
+    // coincide, and failed the first time `npm test` ran it from `packages/cli` — the guess
+    // and the fact were only ever distinguished by luck.
+    const expected = join(resolve(import.meta.dirname, '..', '..', '..'), 'plugins', 'agentgit')
+
+    const before = process.cwd()
+    const elsewhere = mkdtempSync(join(tmpdir(), 'agentgit-cwd-'))
+    try {
+      process.chdir(elsewhere)
+      assert.equal(resolve(installPaths({ home }).source), expected, 'the source must not follow the cwd')
+    } finally {
+      // Restored synchronously, so no other test in this file can observe the change.
+      process.chdir(before)
+      rmSync(elsewhere, { recursive: true, force: true })
+    }
+
+    assert.equal(resolve(installPaths({ home }).source), expected)
+    assert.ok(existsSync(join(expected, '.codex-plugin', 'plugin.json')))
   })
 })
