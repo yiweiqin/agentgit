@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Workspace layout and event spool for `.agentgit/`.
  *
  * Every Codex workspace folder owns its own coordination ledger, so "which
@@ -18,7 +18,7 @@
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { hostname } from 'node:os'
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 import { fromWire, parseWireLine, serializeEvent } from './ledger.ts'
 import type { CoordEvent, WireEvent } from './types.ts'
@@ -156,6 +156,16 @@ export interface WorkspaceConfig {
   readonly duplicateIntentThreshold: number
   /** Minutes a lease stays valid without a renewal. */
   readonly leaseMinutes: number
+  /**
+   * How long a task with no terminal event still counts as working.
+   *
+   * A capsule stays open until something says it closed, and an agent that stops
+   * without saying so leaves it open forever. This bounds the damage: past the window,
+   * a silent publisher is treated as settled, so the tasks waiting on it get a version
+   * to replan against instead of an indefinite `wait`. Defaults to half a day, which is
+   * longer than any plausible single session and shorter than a forgotten one.
+   */
+  readonly inFlightMinutes: number
 }
 
 export const DEFAULT_CONFIG: WorkspaceConfig = {
@@ -164,6 +174,7 @@ export const DEFAULT_CONFIG: WorkspaceConfig = {
   quiet: ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', '*.min.js', '*.snap'],
   duplicateIntentThreshold: 0.42,
   leaseMinutes: 20,
+  inFlightMinutes: 720,
 }
 
 /** Read `.agentgit/config.json`, falling back to defaults field by field. */
@@ -180,6 +191,7 @@ export function loadConfig(paths: WorkspacePaths): WorkspaceConfig {
           ? raw.duplicateIntentThreshold
           : DEFAULT_CONFIG.duplicateIntentThreshold,
       leaseMinutes: typeof raw.leaseMinutes === 'number' ? raw.leaseMinutes : DEFAULT_CONFIG.leaseMinutes,
+      inFlightMinutes: typeof raw.inFlightMinutes === 'number' ? raw.inFlightMinutes : DEFAULT_CONFIG.inFlightMinutes,
     }
   } catch {
     return DEFAULT_CONFIG
@@ -228,4 +240,53 @@ export function shardMachineOf(fileName: string): string {
 export function resolveConfigured(value: string | null | undefined, fallback: string): string {
   if (!value) return fallback
   return isAbsolute(value) ? value : resolve(fallback, value)
+}
+
+/* -------------------------------------------------------------------------- */
+/* One spelling for a file                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Normalise a path to a workspace-relative POSIX path, or null when it is not inside.
+ *
+ * Returns null in three cases that are all "cannot be expressed relative to this
+ * workspace": the workspace root itself, anything above it, and anything on another
+ * volume. The last one is Windows-specific and was a live defect — `path.relative`
+ * between `C:\` and `D:\` hands back the absolute target path instead of a `..`
+ * climb, so a check that only looked for `..` accepted it and the caller stored a
+ * plausible-looking absolute path believing it was relative.
+ *
+ * A relative input is resolved against the workspace root rather than the process
+ * directory. The process directory belongs to whoever launched the server or the
+ * hook, and is not reliably the project; resolving against it produced keys that
+ * matched nothing while looking correct.
+ */
+export function toWorkspaceRelative(root: string, path: string): string | null {
+  const rootAbs = resolve(root)
+  const targetAbs = resolve(rootAbs, path)
+  if (targetAbs === rootAbs) return null
+
+  const rel = relative(rootAbs, targetAbs)
+  if (!rel || isAbsolute(rel)) return null
+  const parts = rel.split(/[\\/]/)
+  if (parts.includes('..')) return null
+  return parts.join('/')
+}
+
+/**
+ * The one spelling of a file's identity, shared by every ledger writer and reader.
+ *
+ * Workspace-relative when the file is inside the workspace, absolute when it is not.
+ * This is what lets two clones of the same repository on two machines agree that
+ * `file::src/auth.py` is one entity: an absolute key would make every machine's copy
+ * look like separate ground, and the ledger's whole purpose is to disagree with that.
+ *
+ * `plugins/agentgit/scripts/track.mjs` has its own copy of this function, because the
+ * hook must run with no dependencies and no build step. A core test drives both
+ * through the same input table so the copies cannot drift apart unnoticed.
+ */
+export function canonicalEntityPath(root: string, path: string): string {
+  const normalized = path.trim().replace(/\\/g, '/').replace(/^\.\//, '')
+  if (normalized === '') return normalized
+  return toWorkspaceRelative(root, normalized) ?? normalized
 }

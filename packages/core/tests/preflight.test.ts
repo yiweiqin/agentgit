@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tests for the product layer: contracts, leases and the six-verdict preflight.
  *
  * These are the tests that matter most, because every surface — the CLI, the MCP

@@ -1,0 +1,43 @@
+{
+  "_comment": [
+    "Template only, and named so Codex cannot mistake it for the real thing.",
+    "`agentgit install` writes hooks.json beside it, with the NODE and TRACK",
+    "placeholders replaced by absolute paths on this machine. Codex performs no",
+    "command substitution and does not resolve a POSIX-style relative script path",
+    "on Windows, so absolute paths are the only form that works everywhere. That is",
+    "why hooks.json is gitignored and this template is not.",
+    "",
+    "Matchers are deliberately broad. The hook script classifies the tool itself",
+    "and ignores anything that cannot change a file, so a tool Codex renames or",
+    "adds still gets recorded instead of silently dropping out of the ledger."
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" }]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" }]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" }]
+      }
+    ]
+  }
+}

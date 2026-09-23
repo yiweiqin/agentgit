@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Cross-language contract tests against `04_协调插件/coord_ledger.py`.
  *
  * These exist because the interop claim was wrong the first time it was made, in

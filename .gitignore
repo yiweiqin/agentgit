@@ -1,4 +1,4 @@
-﻿# AgenticGit — derived state, never committed
+# AgenticGit — derived state, never committed
 #
 # Contracts and the event ledger ARE committed: two machines must agree on a
 # published interface, and the ledger is the shared record. Everything else in

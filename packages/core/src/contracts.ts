@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Versioned shared contracts and the stale-assumption detector.
  *
  * The failure this exists to catch
@@ -387,6 +387,7 @@ export function registryView(registry: ContractRegistry): Array<{
   symbol: string | null
   declaredIn: string | null
   publishedBy: string
+  summary: string
   versions: number
 }> {
   return contractNames(registry).map((name) => {
@@ -398,6 +399,7 @@ export function registryView(registry: ContractRegistry): Array<{
       symbol: current.symbol,
       declaredIn: current.declaredIn,
       publishedBy: current.publishedBy,
+      summary: current.summary,
       versions: versionHistory(registry, name).length,
     }
   })

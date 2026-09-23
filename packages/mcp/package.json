@@ -1,0 +1,24 @@
+{
+  "name": "@agentgit/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AgenticGit MCP server: preflight verdicts, leases, contracts and the panel, as tools.",
+  "license": "MIT",
+  "bin": {
+    "agentgit-mcp": "./src/main.ts"
+  },
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./tools": "./src/tools.ts"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "dependencies": {
+    "@agentgit/core": "0.1.0",
+    "@agentgit/board": "0.1.0"
+  }
+}

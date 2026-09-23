@@ -158,6 +158,13 @@ export interface Capsule {
   nCompactEvents: number
   /** Writes issued after this capsule's session had already lost context. */
   writesAfterCompact: number
+  /**
+   * The most recent event time for this task, or null when it has none.
+   *
+   * Needed to tell "still working" from "stopped without saying so" — a capsule stays
+   * open until a terminal event arrives, and one may never arrive.
+   */
+  lastEventAtUtc: string | null
 }
 
 /** Per-entity accumulation inside one capsule. */

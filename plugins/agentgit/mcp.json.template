@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "Template only, and named so Codex cannot mistake it for the real thing.",
+    "`agentgit install` writes .mcp.json beside it with the NODE, NODE_FLAGS, MCP",
+    "and REPO placeholders resolved to this machine.",
+    "",
+    "Absolute paths are unavoidable here. A plugin is loaded from a cache directory",
+    "whose location is generated at install time, so nothing inside the manifest can",
+    "name this repository relatively. NODE_FLAGS is resolved at install time rather",
+    "than hard-coded because Node only strips TypeScript types unflagged from major",
+    "23 onward, and the plugin has to run on the Node the user already has.",
+    "",
+    "plugin.json deliberately does NOT declare `mcpServers`. Component discovery",
+    "finds .mcp.json at the plugin root on its own, and declaring the path would make",
+    "plugin validation require the file to exist in the repository -- which it cannot,",
+    "because it is machine-specific and generated.",
+    "",
+    "`cwd` is deliberately absent. A server pinned to this repository would answer",
+    "every question about the wrong workspace. Left unset, the server inherits the",
+    "Codex session's directory, which is the project being worked on. When that is",
+    "still not the right project, every tool takes an explicit `workspace` argument,",
+    "and the server says so in its error rather than guessing."
+  ],
+  "mcpServers": {
+    "agentgit": {
+      "command": "{{NODE}}",
+      "args": [{{NODE_FLAGS}}"{{MCP}}"],
+      "startup_timeout_sec": 30,
+      "tool_timeout_sec": 60
+    }
+  }
+}

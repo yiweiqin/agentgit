@@ -1,0 +1,20 @@
+{
+  "name": "@agentgit/board",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Inline panel fragment and live board page for AgenticGit.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./panel": "./src/panel.ts",
+    "./page": "./src/page.ts",
+    "./format": "./src/format.ts"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "dependencies": {
+    "@agentgit/core": "0.1.0"
+  }
+}

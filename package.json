@@ -23,12 +23,14 @@
   },
   "workspaces": [
     "packages/core",
+    "packages/board",
     "packages/cli",
     "packages/mcp",
     "packages/daemon"
   ],
   "scripts": {
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run lint:encoding && npm run test --workspaces --if-present",
+    "lint:encoding": "node scripts/strip-bom.mjs --check",
     "test:core": "node --test \"packages/core/tests/**/*.test.ts\"",
     "test:cli": "node --test \"packages/cli/tests/**/*.test.ts\"",
     "test:mcp": "node --test \"packages/mcp/tests/**/*.test.ts\"",

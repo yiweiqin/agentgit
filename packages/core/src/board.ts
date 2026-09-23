@@ -1,4 +1,4 @@
-﻿/**
+/**
  * The board: one derived view of a workspace, for both the panel and the daemon.
  *
  * The panel and the daemon must never disagree, because a user who sees a
@@ -169,9 +169,30 @@ export function buildBoardView(
   const touches = entityTouches(capsules).filter((record) => record.tasks.length > 1 || record.sessions.length > 1)
   const leaseStore = loadLeases(paths)
   const live = liveLeases(leaseStore, now)
-  const held = new Map<string, string[]>()
+
+  // Ground a task is on, either by holding a lease or by being named in one. The two are
+  // not the same: a share is only coverage while the task also holds its own lease on that
+  // entity. Counting a bare permission as coverage would let a released task keep showing
+  // up as protected by an agreement it is no longer acting on.
+  const holdersByEntity = new Map<string, Set<string>>()
   for (const lease of live) {
-    held.set(lease.taskId, [...(held.get(lease.taskId) ?? []), lease.entityKey])
+    const holders = holdersByEntity.get(lease.entityKey) ?? new Set<string>()
+    holders.add(lease.taskId)
+    holdersByEntity.set(lease.entityKey, holders)
+  }
+
+  const held = new Map<string, string[]>()
+  const cover = (taskId: string, entityKey: string): void => {
+    const entities = held.get(taskId) ?? []
+    if (!entities.includes(entityKey)) entities.push(entityKey)
+    held.set(taskId, entities)
+  }
+  for (const lease of live) {
+    cover(lease.taskId, lease.entityKey)
+    const holders = holdersByEntity.get(lease.entityKey)!
+    for (const shared of lease.shareWith) {
+      if (holders.has(shared)) cover(shared, lease.entityKey)
+    }
   }
 
   const registry = loadContracts(paths)

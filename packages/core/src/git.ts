@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Git operations, split into what may happen automatically and what may not.
  *
  * The split is the product's safety boundary, and it is enforced here rather than

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Public surface of the AgenticGit coordination core.
  *
  * Everything below is host-independent and depends only on Node builtins. That is

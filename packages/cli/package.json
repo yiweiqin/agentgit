@@ -1,0 +1,22 @@
+{
+  "name": "@agentgit/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AgenticGit command line: status, preflight, contracts, tasks, the panel and the live board.",
+  "license": "MIT",
+  "bin": {
+    "agentgit": "./src/main.ts"
+  },
+  "exports": {
+    ".": "./src/main.ts",
+    "./install": "./src/install.ts"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "dependencies": {
+    "@agentgit/core": "0.1.0",
+    "@agentgit/board": "0.1.0"
+  }
+}

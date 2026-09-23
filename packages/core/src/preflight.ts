@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Preflight: one deterministic verdict before an agent writes.
  *
  * This is the product's whole interface in one function. Everything else either
@@ -244,7 +244,6 @@ export function preflight(
   paths: WorkspacePaths,
   query: PreflightQuery,
   context: CoordinationContext = loadContext(paths, new Date(), query.windowHours),
-  options: { readonly record?: boolean } = {},
 ): PreflightResult {
   const entityPath = query.entityPath ?? query.entityKey.replace(/^file::/, '')
   const proposal = asProposal(query, entityPath)
@@ -286,21 +285,16 @@ export function preflight(
     nextActions,
   })
 
-  /* 1. review — a breaking interface change the task is coding directly against. */
-  if (contractConflicts.length > 0) {
-    const worst = contractConflicts[0]
-    return decide(
-      'review',
-      `${worst.contract} moved to v${worst.currentVersion} (breaking) and this change touches ${entityPath}. ` +
-        `You are coded against v${worst.assumedVersion}: ${worst.summary}. Published by task ${worst.publishedBy}.`,
-      [
-        `agentgit contracts show ${worst.contract}`,
-        `agentgit task replan ${query.taskId} --contract ${worst.contract}`,
-      ],
-    )
-  }
-
-  /* 2. wait — the interface is being landed right now, so re-reading would race it. */
+  /* 1. wait — the interface is being landed right now, so re-reading would race it.
+   *
+   * Before `review`, deliberately. `review` says "the interface settled at a new
+   * version, replan against it", which presupposes something settled to replan
+   * against. While the producer is still typing, a replan would be aimed at a moving
+   * target and would produce a second stale assumption to replace the first. `wait`
+   * is also the only verdict this ordering can hold indefinitely, so it is bounded by
+   * `config.inFlightMinutes`: past that, a silent publisher is treated as landed and
+   * the consumer gets `review` instead of waiting on a task that will never speak.
+   */
   const producerInFlight = staleNamed.find(
     (entry) => entry.breaking && isTaskInFlight(context, entry.publishedBy),
   )
@@ -312,6 +306,20 @@ export function preflight(
         `${publisher?.declaredIn ? ` in ${publisher.declaredIn}` : ''}. ` +
         'Code against the published signature and stub the rest, or wait for it to land.',
       [`agentgit board`, `agentgit contracts show ${producerInFlight.contract}`],
+    )
+  }
+
+  /* 2. review — a breaking interface change the task is coding directly against. */
+  if (contractConflicts.length > 0) {
+    const worst = contractConflicts[0]
+    return decide(
+      'review',
+      `${worst.contract} moved to v${worst.currentVersion} (breaking) and this change touches ${entityPath}. ` +
+        `You are coded against v${worst.assumedVersion}: ${worst.summary}. Published by task ${worst.publishedBy}.`,
+      [
+        `agentgit contracts show ${worst.contract}`,
+        `agentgit task replan ${query.taskId} --contract ${worst.contract}`,
+      ],
     )
   }
 
@@ -402,13 +410,27 @@ function intentIsSimilar(
  *
  * Read from the ledger rather than from a lease, because publishing a contract does
  * not oblige anyone to hold a lease on it, and a producer that has already
- * integrated must stop causing `wait`. The capsule is open exactly while the task
- * has not reached a terminal state, which is the definition of "still in flight".
+ * integrated must stop causing `wait`.
+ *
+ * Two conditions, and the second is the one that keeps a forgotten task from wedging
+ * the workspace. A capsule is open while the task has not reached a terminal state —
+ * but "not terminal" is not the same as "still happening": an agent that published a
+ * breaking change and then simply stopped would otherwise leave every consumer waiting
+ * on it forever, and no lease expiry would save them, because `wait` is driven by the
+ * ledger and not by a reservation. So a task counts as in flight only while its last
+ * event is recent. Past that window the interface is treated as settled, and consumers
+ * get `review` — a version to replan against — which is the recoverable answer.
  */
 function isTaskInFlight(context: CoordinationContext, taskId: string): boolean {
   const capsule = context.capsules.get(taskId)
   if (!capsule) return false
-  return capsule.closedAtUtc === null
+  if (capsule.closedAtUtc !== null) return false
+
+  const last = capsule.lastEventAtUtc
+  if (!last) return true
+  const ageMinutes = (context.now.getTime() - Date.parse(last)) / 60_000
+  if (!Number.isFinite(ageMinutes)) return true
+  return ageMinutes <= context.config.inFlightMinutes
 }
 
 /* -------------------------------------------------------------------------- */
@@ -440,12 +462,7 @@ export function summariseTask(
 ): TaskPreflightSummary {
   const context = loadContext(paths)
   const results = entities.map((entityKeyValue) =>
-    preflight(
-      paths,
-      { taskId, sessionId, entityKey: entityKeyValue, intentText },
-      context,
-      { record: false },
-    ),
+    preflight(paths, { taskId, sessionId, entityKey: entityKeyValue, intentText }, context),
   )
   let verdict: Verdict = 'allow'
   for (const candidate of VERDICT_SEVERITY) {
@@ -481,10 +498,24 @@ export function preflightAndClaim(
   options: { readonly symbol?: boolean } = {},
 ): PreflightResult {
   const context = loadContext(paths)
-  const result = preflight(paths, query, context, { record: true })
+  const result = preflight(paths, query, context)
 
   if (result.verdict === 'allow' || result.verdict === 'reuse') {
     const leaseMinutes = context.config.leaseMinutes
+    // On `reuse`, the caller joins the tasks already doing this work instead of waiting
+    // on them. Naming them here is what makes the lease mutual, so the second agent is
+    // not blocked by a grant it has already given away.
+    const shareWith =
+      result.verdict === 'reuse'
+        ? [
+            ...new Set(
+              result.evidence.competitors
+                .flatMap((record) => record.tasks)
+                .filter((taskId) => taskId !== query.taskId),
+            ),
+          ].sort()
+        : []
+
     acquireLease(paths, {
       entityKey: query.entityKey,
       kind: options.symbol ? 'symbol' : query.entityKey.includes('::') ? undefined : 'file',
@@ -492,7 +523,7 @@ export function preflightAndClaim(
       sessionId: query.sessionId,
       reason: query.intentText?.slice(0, 160) || 'preflight claim',
       minutes: leaseMinutes,
-      shareWith: result.verdict === 'reuse' ? [query.taskId] : [],
+      shareWith,
     })
   }
 

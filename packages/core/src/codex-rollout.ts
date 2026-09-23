@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Read Codex session rollouts into coordination events.
  *
  * Why this exists
@@ -31,7 +31,7 @@ import { join, relative, resolve, sep } from 'node:path'
 
 import { buildEvent, toWire } from './ledger.ts'
 import type { CoordEvent, Entity } from './types.ts'
-import { appendEvent, readAllEvents, type WorkspacePaths } from './workspace.ts'
+import { appendEvent, readAllEvents, toWorkspaceRelative, type WorkspacePaths } from './workspace.ts'
 
 /** Where Codex keeps session transcripts, honouring `CODEX_HOME`. */
 export function codexHome(): string {
@@ -291,14 +291,6 @@ export function parseRollout(file: string): RolloutSession | null {
     commands,
     tokenDrops,
   }
-}
-
-/** Normalise a path to a workspace-relative POSIX path, or null when it is outside. */
-export function toWorkspaceRelative(root: string, absolutePath: string): string | null {
-  const rel = relative(resolve(root), resolve(absolutePath))
-  if (!rel || rel.startsWith('..') || resolve(root, rel) === resolve(absolutePath) && rel === '') return null
-  if (rel.split(sep).includes('..')) return null
-  return rel.split(sep).join('/')
 }
 
 /**

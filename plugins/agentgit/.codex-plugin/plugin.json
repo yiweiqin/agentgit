@@ -1,0 +1,43 @@
+{
+  "id": "agentgit",
+  "name": "agentgit",
+  "version": "0.1.0+codex.local-20260923070846",
+  "description": "Coordination layer for coding agents: a shared ledger of in-flight work, versioned contracts, and a single verdict before every write. Reduces duplicate implementations, stale writes and clean-but-wrong merges when several agents share one workspace.",
+  "author": {
+    "name": "AgenticGit contributors",
+    "url": "https://github.com/agentgit/agentgit"
+  },
+  "homepage": "https://github.com/agentgit/agentgit#readme",
+  "repository": "https://github.com/agentgit/agentgit",
+  "license": "MIT",
+  "keywords": [
+    "coordination",
+    "multi-agent",
+    "git",
+    "worktree",
+    "merge-conflict",
+    "contracts"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "AgenticGit",
+    "shortDescription": "Traffic lights for agents sharing one repository",
+    "longDescription": "Git merges text, not intentions. When two agents in one workspace change the same thing for the same reason, Git reports a conflict at best and a clean-but-wrong merge at worst. AgenticGit keeps a ledger of what is in flight, records the interfaces each task assumes, and answers one question before every write: allow, reuse, refresh, replan, wait or review. Changes are isolated in per-task worktrees with checkpoint commits; merges, rebases and discards are only ever described, never executed for you.",
+    "developerName": "AgenticGit contributors",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Coordination ledger",
+      "Write preflight",
+      "Shared contracts",
+      "Task worktrees",
+      "Live board"
+    ],
+    "websiteURL": "https://github.com/agentgit/agentgit",
+    "defaultPrompt": [
+      "Show the AgenticGit board for this workspace",
+      "Who else is working on the files I am about to change?",
+      "Publish the interface I just changed as a contract"
+    ],
+    "brandColor": "#0F766E"
+  }
+}

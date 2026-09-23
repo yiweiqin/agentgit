@@ -1,0 +1,24 @@
+{
+  "name": "@agentgit/daemon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AgenticGit daemon: the live board on localhost, session adoption, and the demo.",
+  "license": "MIT",
+  "bin": {
+    "agentgit-daemon": "./src/main.ts"
+  },
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./serve": "./src/serve.ts",
+    "./demo": "./src/demo.ts"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "dependencies": {
+    "@agentgit/core": "0.1.0",
+    "@agentgit/board": "0.1.0"
+  }
+}

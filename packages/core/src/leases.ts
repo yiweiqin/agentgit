@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Soft leases: a claim on an entity that expires on its own.
  *
  * Why not a lock
@@ -130,14 +130,21 @@ export function acquireLease(
 
   const store = loadLeases(paths)
   const live = liveLeases(store, now)
-  const conflicts = live.filter(
-    (lease) =>
-      lease.entityKey === input.entityKey &&
-      lease.taskId !== input.taskId &&
-      !lease.shareWith.includes(input.taskId),
-  )
+  const others = live.filter((lease) => lease.entityKey === input.entityKey && lease.taskId !== input.taskId)
+  const conflicts = others.filter((lease) => !lease.shareWith.includes(input.taskId))
 
-  if (conflicts.length > 0 && !input.steal) {
+  /**
+   * Two tasks that agreed to share are not in conflict.
+   *
+   * This is what makes `reuse` a real outcome rather than a standoff. When a task is told
+   * that someone else is already building the same thing, it joins them: the caller names
+   * those tasks in `shareWith`, and the grant is recorded on both sides. Without the
+   * reciprocity below, one lease would permit the other while the other still refused,
+   * and the second agent would be blocked by a grant it had already given away.
+   */
+  const joining = (input.shareWith ?? []).filter((taskId) => conflicts.some((lease) => lease.taskId === taskId))
+
+  if (conflicts.length > 0 && joining.length === 0 && !input.steal) {
     return {
       granted: false,
       lease: null,
@@ -163,23 +170,35 @@ export function acquireLease(
     grantedAt: existing?.grantedAt ?? timestamp,
     renewedAt: timestamp,
     expiresAt,
-    shareWith: input.shareWith ?? [],
+    shareWith: [...new Set([...(existing?.shareWith ?? []), ...(input.shareWith ?? [])])].sort(compareCodepoint),
   }
 
   // Expired leases are dropped on every write, so the file cannot grow without
   // bound in a long-lived workspace and no explicit maintenance command is needed.
-  const kept = live.filter(
-    (other) => !(other.entityKey === input.entityKey && other.taskId === input.taskId),
-  )
+  const kept = live
+    .filter((other) => !(other.entityKey === input.entityKey && other.taskId === input.taskId))
+    .map((other) =>
+      // Reciprocate the share, but only for the tasks the caller actually named. A
+      // blanket share would silently turn every lease into a free-for-all.
+      other.entityKey === input.entityKey && joining.includes(other.taskId)
+        ? {
+            ...other,
+            shareWith: [...new Set([...other.shareWith, input.taskId])].sort(compareCodepoint),
+          }
+        : other,
+    )
   saveLeases(paths, { version: store.version, leases: [...kept, lease] })
 
   return {
     granted: true,
     lease,
     conflicts: input.steal ? conflicts : [],
-    reason: conflicts.length > 0
-      ? `took over ${input.entityKey} from task ${conflicts.map((c) => c.taskId).join(', ')}`
-      : `holding ${input.entityKey} until ${expiresAt}`,
+    reason:
+      joining.length > 0
+        ? `sharing ${input.entityKey} with task ${joining.join(', ')} until ${expiresAt}`
+        : conflicts.length > 0
+          ? `took over ${input.entityKey} from task ${conflicts.map((c) => c.taskId).join(', ')}`
+          : `holding ${input.entityKey} until ${expiresAt}`,
   }
 }
 
@@ -222,7 +241,14 @@ export function leasesHeldBy(store: LeaseStore, taskId: string, now: Date = new 
   return liveLeases(store, now).filter((lease) => lease.taskId === taskId)
 }
 
-/** Anything currently claimed by more than one live task. */
+/**
+ * Anything currently claimed by more than one live task, where those tasks have not
+ * agreed to share.
+ *
+ * Mutual sharers are excluded rather than reported. A `reuse` verdict that produced a
+ * shared lease is the product working, and listing it next to a genuine standoff would
+ * make the board cry wolf until someone stopped reading it.
+ */
 export function contestedLeases(store: LeaseStore, now: Date = new Date()): Array<{
   entityKey: string
   tasks: string[]
@@ -236,8 +262,11 @@ export function contestedLeases(store: LeaseStore, now: Date = new Date()): Arra
   }
   const out: Array<{ entityKey: string; tasks: string[]; reason: string }> = []
   for (const [entityKey, leases] of byEntity) {
-    const tasks = [...new Set(leases.map((lease) => lease.taskId))].sort(compareCodepoint)
-    if (tasks.length > 1) out.push({ entityKey, tasks, reason: leases[0].reason })
+    const all = [...new Set(leases.map((lease) => lease.taskId))].sort(compareCodepoint)
+    const contested = all.filter(
+      (taskId) => !leases.every((lease) => lease.taskId === taskId || lease.shareWith.includes(taskId)),
+    )
+    if (contested.length > 1) out.push({ entityKey, tasks: contested, reason: leases[0].reason })
   }
   return out.sort((a, b) => compareCodepoint(a.entityKey, b.entityKey))
 }

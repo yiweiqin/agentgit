@@ -272,8 +272,16 @@ export function buildCapsules(events: readonly CoordEvent[]): Map<string, Capsul
         nEvents: 0,
         nCompactEvents: 0,
         writesAfterCompact: 0,
+        lastEventAtUtc: null,
       }
       capsules.set(taskId, capsule)
+    }
+
+    // Events arrive in file order, not necessarily in time order, so this is a
+    // comparison rather than an assignment. Taking the last line's timestamp would
+    // make a back-dated record look like the newest activity.
+    if (capsule.lastEventAtUtc === null || event.timestampUtc > capsule.lastEventAtUtc) {
+      capsule.lastEventAtUtc = event.timestampUtc
     }
 
     capsule.nEvents += 1
