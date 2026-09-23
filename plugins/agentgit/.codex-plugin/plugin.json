@@ -5,10 +5,10 @@
   "description": "Coordination layer for coding agents: a shared ledger of in-flight work, versioned contracts, and a single verdict before every write. Reduces duplicate implementations, stale writes and clean-but-wrong merges when several agents share one workspace.",
   "author": {
     "name": "AgenticGit contributors",
-    "url": "https://github.com/agentgit/agentgit"
+    "url": "https://github.com/yiweiqin/agentgit"
   },
-  "homepage": "https://github.com/agentgit/agentgit#readme",
-  "repository": "https://github.com/agentgit/agentgit",
+  "homepage": "https://github.com/yiweiqin/agentgit#readme",
+  "repository": "https://github.com/yiweiqin/agentgit",
   "license": "MIT",
   "keywords": [
     "coordination",
@@ -32,7 +32,7 @@
       "Task worktrees",
       "Live board"
     ],
-    "websiteURL": "https://github.com/agentgit/agentgit",
+    "websiteURL": "https://github.com/yiweiqin/agentgit",
     "defaultPrompt": [
       "Show the AgenticGit board for this workspace",
       "Who else is working on the files I am about to change?",

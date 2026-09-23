@@ -5,10 +5,10 @@
   "type": "module",
   "description": "Coordination layer for coding agents: a ledger of what is in flight, shared contracts with versions, and one verdict before every write.",
   "license": "MIT",
-  "homepage": "https://github.com/agentgit/agentgit",
+  "homepage": "https://github.com/yiweiqin/agentgit",
   "repository": {
     "type": "git",
-    "url": "https://github.com/agentgit/agentgit.git"
+    "url": "https://github.com/yiweiqin/agentgit.git"
   },
   "keywords": [
     "codex-plugin",

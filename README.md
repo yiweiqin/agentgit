@@ -83,7 +83,7 @@ Requires **Node 22.19 or newer** (the packages are TypeScript run directly by No
 **git**. Codex must support local plugins and MCP servers.
 
 ```bash
-git clone https://github.com/agentgit/agentgit.git
+git clone https://github.com/yiweiqin/agentgit.git
 cd agentgit
 npm install
 node packages/cli/src/main.ts install          # link the plugin, write hooks and MCP config
@@ -149,6 +149,14 @@ otherwise.
   produce, and nothing about how often they occur in real repositories.
 - The A/B run below is a fixture with scripted agents. It shows the mechanism works and that
   the arms differ. It is not an effect size.
+- The before/after report in `examples/real/run.mjs` is **one** case, so it is not a frequency.
+  The frequency over the same pool is what experiment 4 counts, and the two are kept apart on
+  purpose.
+- When that report says git merges cleanly, read the route it names. On the `reversed`
+  reconstruction route a clean merge is only reachable when the two changes occupy
+  non-overlapping regions of the file — so a clean merge there is the expected result, not a
+  discovery about how blind git is. On the `anchored` route, where both patches apply to a
+  common base, the answer is the case's own.
 
 ## What you can tune
 
@@ -260,6 +268,41 @@ Obedience is applied only to a verdict that came with a usable next action. That
 assumption, and it is what separates the instrument arm from the default; if it is wrong, the
 `A1-instrument` row is the one to distrust, not the others.
 
+## Four experiments, on this machine's own history
+
+The demo above is a walkthrough: it proves the mechanism runs, and it says nothing about how
+often the three failures happen to you. For that there is a second set of scripts, run over the
+real session transcripts in `~/.codex/sessions`, with the criteria computed mechanically from
+the patch bodies rather than chosen by hand. Each experiment answers one question:
+
+| | The question | The one number it reports |
+|---|---|---|
+| 1 | Can it see? On real history, how often does it speak and how often is it right? | precision and recall, always beside `entityVisibleCeiling` |
+| 2 | Does listening help? If the warned agent obeys, how much better is the outcome? | the drop in duplicates closed at the obedience 0.5 row |
+| 3 | Does it cry wolf? On a day with no collision, how many times a day does it speak? | one advisory per N session-hours, and zero refusals |
+| 4 | Could git have seen it? For these cases, would git have spoken at the time? | cases with zero conflicts, and the gap between the two timestamps |
+
+Every one of them carries a control that must not move, and is written down with the value that
+counts as failure. The full write-up — the analogy it is all built on, the numbers as measured,
+the two reconstruction routes behind the before/after, the sandbox constraints, and what was
+redacted before publication — is in [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md).
+
+```bash
+node examples/real/cases.mjs    # scan the pool: candidates, and the three concurrency windows
+node examples/real/run.mjs      # one real case, as a before/after report
+```
+
+`cases.mjs` takes its scope from the transcripts — the workspaces it reports on are every
+directory the sessions recorded, so the source contains no path from any one machine. Narrow
+it with `--workspaces a,b` when the pool contains scratch directories.
+
+`run.mjs` clones the repository into a temporary directory, replays both real sessions up to the
+moment of the write, asks `preflight()` and `git merge-tree` the same question, and renders the
+two answers side by side. It prints a content token; paste the whole line into a Codex reply
+and the report renders inside the conversation. It exits non-zero rather than inventing a case
+if no candidate qualifies, or if the product's verdict is `allow` — silence is a finding, not a
+demo.
+
 ## Layout
 
 ```
@@ -271,6 +314,8 @@ packages/daemon     the live board on localhost:7777, one page per workspace, SS
 plugins/agentgit    the Codex plugin: manifest, hook wiring, the track.mjs fast path, the skill
 examples/collision  the two-agent walkthrough above
 examples/ab         the A/B run: the same scenario under two arms, with an obedience dial
+examples/real       the experiments below, run over this machine's own session transcripts
+docs                EXPERIMENTS.md, and the reasoning behind the numbers it reports
 ```
 
 The hook script is the only thing on the hot path of every tool call, so it is a single
@@ -286,10 +331,15 @@ would stop meaning anything.
 ## Tests
 
 ```bash
-npm test          # 438 tests: core, board, cli, mcp, daemon
+npm test          # 475 tests: runs lint:encoding first, then core, board, cli, mcp, daemon
 npm run test:py   #  45 tests: the Python ledger, checked against the same fixtures
 npm run typecheck
 ```
+
+`npm test` begins with `npm run lint:encoding`, which fails if any text file has a UTF-8 BOM
+or CRLF endings. That is not tidiness: a BOM makes `json.loads` reject a plugin manifest that
+looks correct, and a CRLF checkout makes a committed ledger diff on every line. Fix with
+`node scripts/strip-bom.mjs`.
 
 The arm tests are the ones worth knowing about, because an arm is easy to get wrong in the
 one way that produces a plausible-looking result: `packages/core/tests/arm.test.ts` drives the
