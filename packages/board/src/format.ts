@@ -41,19 +41,19 @@ export function shortPath(path: string, max = 52): string {
   const normalized = path.replace(/\\/g, '/')
   if (normalized.length <= max) return normalized
   const parts = normalized.split('/')
-  if (parts.length <= 2) return `…${normalized.slice(-(max - 1))}`
-  return `${parts[0]}/…/${parts.slice(-2).join('/')}`
+  if (parts.length <= 2) return `...${normalized.slice(-(max - 1))}`
+  return `${parts[0]}/.../${parts.slice(-2).join('/')}`
 }
 
 export function truncate(text: string, max: number): string {
-  return text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1))}…`
+  return text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1))}...`
 }
 
 /** Relative time from an ISO instant, coarse on purpose: precision here is noise. */
 export function ago(iso: string | null, now: Date = new Date()): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const at = Date.parse(iso)
-  if (!Number.isFinite(at)) return '—'
+  if (!Number.isFinite(at)) return '-'
   const seconds = Math.max(0, Math.round((now.getTime() - at) / 1000))
   if (seconds < 60) return `${seconds}s ago`
   const minutes = Math.round(seconds / 60)
@@ -66,7 +66,7 @@ export function ago(iso: string | null, now: Date = new Date()): string {
 /** Time until an ISO instant, for a lease that has not expired yet. */
 export function until(iso: string, now: Date = new Date()): string {
   const at = Date.parse(iso)
-  if (!Number.isFinite(at)) return '—'
+  if (!Number.isFinite(at)) return '-'
   const seconds = Math.round((at - now.getTime()) / 1000)
   if (seconds <= 0) return 'expired'
   if (seconds < 60) return `${seconds}s left`

@@ -12,6 +12,9 @@
     ".": "./src/main.ts",
     "./install": "./src/install.ts"
   },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.ts\""
+  },
   "engines": {
     "node": ">=22.19"
   },

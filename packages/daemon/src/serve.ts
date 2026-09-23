@@ -59,8 +59,18 @@ interface BoardState {
 type Listener = (state: BoardState) => void
 
 export interface BoardServer {
+  /** The URL to open. Always loopback. */
   readonly url: string
+  /** The port actually bound, which is not `options.port` when `0` was asked for. */
+  readonly port: number
   readonly ids: readonly string[]
+  readonly workspaces: readonly { readonly id: string; readonly root: string }[]
+  /**
+   * Stop polling, end every open event stream, and release the port.
+   *
+   * Idempotent, because the two callers are a signal handler and a test teardown, and
+   * either can fire twice.
+   */
   close(): Promise<void>
 }
 
@@ -116,7 +126,16 @@ function assignIds(roots: readonly string[]): string[] {
   })
 }
 
-export async function serve(options: ServeOptions): Promise<number> {
+/**
+ * Start the board and return a handle, without waiting for anything.
+ *
+ * Split out of {@link serve} so the running board can be reached from a test or from a
+ * host that wants to embed it. Before this, the only way to stop the server was to signal
+ * the process, which meant no test could start one without taking the test runner down
+ * with it — which is why this package had no tests and why a stray board could sit on
+ * port 7777 across an entire session without anyone noticing.
+ */
+export async function startBoard(options: ServeOptions): Promise<BoardServer> {
   const roots = options.roots.map((root) => resolve(root))
   const ids = assignIds(roots)
   const watched: WatchedWorkspace[] = roots.map((root, index) => ({
@@ -193,33 +212,62 @@ export async function serve(options: ServeOptions): Promise<number> {
   })
 
   const port = await listen(server, options.port)
-  const url = `http://localhost:${port}`
+  const workspaces = watched.map((workspace) => ({ id: workspace.id, root: workspace.paths.root }))
+
+  let closed = false
+  const close = async (): Promise<void> => {
+    if (closed) return
+    closed = true
+    clearInterval(poll)
+    if (adoption) clearInterval(adoption)
+    // Ending each stream before closing the server is what stops `close()` from waiting
+    // on a browser tab that may never go away.
+    for (const stream of streams) {
+      try {
+        stream.end()
+      } catch {
+        // Already closed; nothing to do.
+      }
+    }
+    streams.clear()
+    await new Promise<void>((resolvePromise) => {
+      server.close(() => resolvePromise())
+      // A socket that was mid-write when the stream ended can keep the server open.
+      server.closeAllConnections?.()
+    })
+  }
+
+  return {
+    url: `http://localhost:${port}`,
+    port,
+    ids,
+    workspaces,
+    close,
+  }
+}
+
+/**
+ * Start the board, print where it is, and run until interrupted.
+ *
+ * The CLI entry point. Everything it does beyond {@link startBoard} is presentation and
+ * signal handling.
+ */
+export async function serve(options: ServeOptions): Promise<number> {
+  const board = await startBoard(options)
 
   if (!options.quiet) {
-    process.stdout.write(`AgenticGit board: ${url}\n`)
-    for (const workspace of watched) {
-      process.stdout.write(`  ${workspace.id.padEnd(20)} ${workspace.paths.root}\n`)
+    process.stdout.write(`AgenticGit board: ${board.url}\n`)
+    for (const workspace of board.workspaces) {
+      process.stdout.write(`  ${workspace.id.padEnd(20)} ${workspace.root}\n`)
     }
     process.stdout.write('\nBound to the loopback interface only. Press Ctrl+C to stop.\n')
   }
 
-  if (options.open) openInBrowser(url)
+  if (options.open) openInBrowser(board.url)
 
   await new Promise<void>((resolvePromise) => {
     const stop = (): void => {
-      clearInterval(poll)
-      if (adoption) clearInterval(adoption)
-      for (const stream of streams) {
-        try {
-          stream.end()
-        } catch {
-          // Already closed; nothing to do.
-        }
-      }
-      streams.clear()
-      server.close(() => resolvePromise())
-      // A socket that was mid-write when the stream ended can keep the server open.
-      server.closeAllConnections?.()
+      void board.close().then(() => resolvePromise())
     }
     process.once('SIGINT', stop)
     process.once('SIGTERM', stop)

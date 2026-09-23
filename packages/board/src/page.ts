@@ -12,7 +12,7 @@
  *
  * - `EventSource` works, so the board updates itself.
  * - The fragment is re-rendered from disk on every change, so the board reflects
- *   edits made by an editor, a `git checkout` or another agent — not just by the
+ *   edits made by an editor, a `git checkout` or another agent - not just by the
  *   plugin.
  *
  * @module @agentgit/board/page
@@ -34,7 +34,7 @@ export interface BoardPageOptions {
  *
  * The fragment is written against the conversation host's CSS variables, so a page
  * that does not define them renders unstyled rather than broken. Defining the same
- * names here — rather than a parallel set of class names — is what lets one fragment
+ * names here - rather than a parallel set of class names - is what lets one fragment
  * serve both surfaces.
  *
  * Exported so the standalone panel file can use the same theme. A panel saved to disk
@@ -75,6 +75,16 @@ export const THEME = `
   .viz-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .viz-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .viz-stat-value { font-size: 20px; }
+  /*
+   * The host's own definitions of the utilities the panel fragment uses. A saved panel
+   * opened straight from disk has no host stylesheet, so without these the pills and the
+   * debt track render as bare text and the file reads as broken. Copied rather than
+   * improvised, so the standalone view and the in-conversation one look like one product.
+   */
+  .viz-badge { display: inline-block; padding: 3px 8px; border-radius: 999px; background: var(--muted); color: var(--muted-foreground); font-size: 12px; line-height: 18px; }
+  .progress { display: flex; height: 8px; overflow: hidden; border-radius: 999px; background: var(--muted); }
+  .progress-bar { height: 100%; flex-shrink: 0; background: var(--primary); }
+  .text-destructive { color: var(--destructive); }
   .text-small { font-size: 12px; }
   .text-muted { color: var(--muted-foreground); }
   .tabular-nums { font-variant-numeric: tabular-nums; }
@@ -95,7 +105,6 @@ export const THEME = `
   }
   .nav-pills .nav-link:hover { background: var(--muted); color: var(--foreground); }
   .nav-pills .nav-link[aria-selected="true"] { background: var(--primary); color: var(--primary-foreground); }
-  .nav-pills .nav-link[aria-selected="true"] .ag-badge { background: var(--primary-foreground); color: var(--primary); }
   .btn { appearance: none; background: var(--muted); color: var(--foreground); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; }
   .ag-chrome { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
   .ag-chrome h1 { font-size: 16px; font-weight: 500; margin: 0; }
@@ -124,14 +133,14 @@ export function renderBoardPage(options: BoardPageOptions): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AgenticGit — ${escapeHtml(options.workspaceId)}</title>
+<title>AgenticGit - ${escapeHtml(options.workspaceId)}</title>
 <style>${THEME}</style>
 </head>
 <body>
   <div class="ag-chrome">
     <div>
       <h1><span class="ag-dot" id="ag-live" data-live="0"></span>AgenticGit board</h1>
-      <div class="text-small text-muted" id="ag-meta">connecting…</div>
+      <div class="text-small text-muted" id="ag-meta">connecting...</div>
     </div>
     ${switcher}
   </div>

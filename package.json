@@ -32,11 +32,12 @@
     "test": "npm run lint:encoding && npm run test --workspaces --if-present",
     "lint:encoding": "node scripts/strip-bom.mjs --check",
     "test:core": "node --test \"packages/core/tests/**/*.test.ts\"",
+    "test:board": "node --test \"packages/board/tests/**/*.test.ts\"",
     "test:cli": "node --test \"packages/cli/tests/**/*.test.ts\"",
     "test:mcp": "node --test \"packages/mcp/tests/**/*.test.ts\"",
     "test:daemon": "node --test \"packages/daemon/tests/**/*.test.ts\"",
     "test:py": "python -m unittest discover -s packages/core/tests-py",
-    "typecheck": "node node_modules/typescript/bin/tsc -p packages/core/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/cli/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/mcp/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/daemon/tsconfig.json",
+    "typecheck": "node node_modules/typescript/bin/tsc -p packages/core/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/board/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/cli/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/mcp/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/daemon/tsconfig.json",
     "agentgit": "node packages/cli/src/main.ts",
     "install-plugin": "node packages/cli/src/main.ts install",
     "uninstall-plugin": "node packages/cli/src/main.ts uninstall"

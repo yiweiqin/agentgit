@@ -11,6 +11,9 @@
     "./page": "./src/page.ts",
     "./format": "./src/format.ts"
   },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.ts\""
+  },
   "engines": {
     "node": ">=22.19"
   },
