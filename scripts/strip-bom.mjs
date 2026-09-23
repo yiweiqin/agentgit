@@ -83,22 +83,38 @@ for (const file of walk(ROOT)) {
   }
   // Only these five bytes can begin a UTF-8 BOM, so the check is two comparisons.
   const hasBom = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf
-  if (!hasBom) continue
+  const decoded = (hasBom ? bytes.subarray(3) : bytes).toString('utf8')
 
-  const label = relative(ROOT, file)
-  offenders.push(label)
-  if (CHECK) continue
-
-  const text = bytes.subarray(3).toString('utf8')
   // Line endings are normalised in the same pass because a checkout that mixes
   // CRLF and LF makes a committed ledger diff on every line.
-  writeFileSync(file, text.replace(/\r\n/g, '\n'), { encoding: 'utf8' })
+  const hasCrlf = decoded.includes('\r\n')
+
+  /*
+   * The two properties are checked independently, and this is the fix for a bug that
+   * made the tooling contradict itself.
+   *
+   * The line-ending normalisation used to sit *after* an `if (!hasBom) continue`, so a
+   * file with CRLF and no BOM was reported by `packages/cli/tests/repo.test.ts` as needing
+   * this script — with the message "run `node scripts/strip-bom.mjs`" — while the script
+   * looked at the same file, saw no BOM, and printed "already clean". Two checks that
+   * disagree about one file are worse than either check alone, because the advice each one
+   * gives is the other one's failure. A CRLF-only offender now fails `--check` too.
+   */
+  if (!hasBom && !hasCrlf) continue
+
+  const label = relative(ROOT, file)
+  if (CHECK) {
+    offenders.push(`${label}${hasBom ? '  (UTF-8 BOM)' : ''}${hasCrlf ? '  (CRLF line endings)' : ''}`)
+    continue
+  }
+
+  writeFileSync(file, hasCrlf ? decoded.replace(/\r\n/g, '\n') : decoded, { encoding: 'utf8' })
   fixed += 1
 }
 
 if (CHECK) {
   if (offenders.length > 0) {
-    process.stderr.write(`encoding: ${offenders.length} file(s) start with a UTF-8 BOM:\n`)
+    process.stderr.write(`encoding: ${offenders.length} file(s) need fixing:\n`)
     for (const name of offenders) process.stderr.write(`  ${name}\n`)
     process.stderr.write('Run `node scripts/strip-bom.mjs` to fix.\n')
     process.exit(1)

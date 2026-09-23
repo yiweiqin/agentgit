@@ -19,3 +19,7 @@ Thumbs.db
 # Local demo scratch space
 playground/*
 !playground/.gitkeep
+
+# Python bytecode from the parity test suite
+__pycache__/
+*.pyc
