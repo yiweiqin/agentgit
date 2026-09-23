@@ -333,6 +333,8 @@ export function renderWhy(target: string, key: string, events: readonly CoordEve
   const ordered = [...events].sort((a, b) => compareCodepoint(a.timestampUtc, b.timestampUtc))
   const lines: string[] = []
   lines.push(`${counts(ordered.length, 'event')} mention ${key}`)
+  // Only when the lookup resolved through a different key than the one typed — a path that
+  // became `file::<path>`. A task id is reported as itself, because that is what was asked.
   if (key !== target) lines.push(`(looked up as ${key})`)
 
   const sessions = new Set(ordered.map((event) => event.sessionId))

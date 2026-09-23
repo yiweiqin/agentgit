@@ -289,7 +289,18 @@ function cmdWhy(args: ParsedArgs): number {
   if (!target) throw new UsageError('why needs an entity key, a path, or a task id')
 
   const { events } = readAllEvents(paths)
-  const asKey = target.includes('::') ? target : keyOf(target)
+
+  /*
+   * How the target matched decides how the answer is worded, and the order matters.
+   *
+   * A target can be a task id, a session id, or an entity key, and the same string can be
+   * more than one of those. Deriving the label from the string alone turned `why demo-a`
+   * into "5 events mention file::demo-a" — a sentence about a file the ledger never
+   * recorded a write to, about a task whose timeline it had just printed. The matched
+   * events say which one it was, so they decide the label.
+   */
+  const asTask = events.some((event) => event.taskId === target || event.sessionId === target)
+  const asKey = asTask || target.includes('::') ? target : keyOf(target)
 
   const matches = events.filter((event) => {
     if (event.taskId === target) return true
