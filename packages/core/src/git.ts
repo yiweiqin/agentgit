@@ -21,7 +21,7 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 export interface GitResult {
@@ -110,7 +110,15 @@ export interface WorktreeEntry {
   readonly detached: boolean
 }
 
-/** Parse `git worktree list --porcelain`. */
+/**
+ * Parse `git worktree list --porcelain`.
+ *
+ * Paths are resolved on the way out. git prints them with forward slashes (`C:/…`) while
+ * every caller here builds them with the platform separator, so a string comparison of the
+ * two fails on Windows — which is how a second `ensureWorktree` call tried to create a
+ * worktree that already existed. `resolve` also collapses the trailing separator git adds
+ * to the main checkout, so the main entry compares equal to the repository root.
+ */
 export function worktreeList(repo: string): WorktreeEntry[] {
   const result = runGit(['worktree', 'list', '--porcelain'], repo)
   if (!result.ok) return []
@@ -119,7 +127,7 @@ export function worktreeList(repo: string): WorktreeEntry[] {
   const flush = (): void => {
     if (current.path) {
       entries.push({
-        path: current.path,
+        path: resolve(current.path),
         head: current.head ?? null,
         branch: current.branch ?? null,
         detached: current.detached === true,
@@ -150,6 +158,32 @@ export interface EnsureWorktreeResult {
   readonly branch: string
   readonly base: string | null
   readonly message: string
+}
+
+/**
+ * Keep the coordination directory out of `git status`. Best effort, never throws.
+ *
+ * The worktree is created *inside* the repository, so git reports `.agentgit/` as untracked
+ * from then on — and `isDirty` reads that same status, which means AgenticGit would tell the
+ * user their workspace has uncommitted changes because of a directory AgenticGit created.
+ * `.git/info/exclude` is the right place: local, never committed, and deleting one line
+ * undoes it. Nothing an existing entry says is removed or reordered.
+ */
+function excludeCoordinationDir(repo: string): void {
+  try {
+    const gitDir = runGit(['rev-parse', '--git-dir'], repo)
+    if (!gitDir.ok) return
+    const info = join(resolve(repo, gitDir.stdout.trim()), 'info')
+    const exclude = join(info, 'exclude')
+    const existing = existsSync(exclude) ? readFileSync(exclude, 'utf8') : ''
+    if (existing.split('\n').some((line) => line.trim() === '.agentgit/')) return
+    mkdirSync(info, { recursive: true })
+    const prefix = existing.length > 0 && !existing.endsWith('\n') ? '\n' : ''
+    writeFileSync(exclude, `${existing}${prefix}# AgenticGit coordination state (worktrees, events)\n.agentgit/\n`, 'utf8')
+  } catch {
+    // A read-only or unusual .git must not stop a worktree from being created; the cost of
+    // failing here is one untracked directory in `git status`, not a broken task.
+  }
 }
 
 /**
@@ -190,6 +224,7 @@ export function ensureWorktree(
     if (!retry.ok) {
       throw new Error(`cannot create worktree for ${taskId}: ${result.stderr.trim() || result.stderr || retry.stderr.trim()}`)
     }
+    excludeCoordinationDir(repo)
     return {
       created: true,
       path: dir,
@@ -198,6 +233,7 @@ export function ensureWorktree(
       message: `attached existing branch ${branch} at ${dir}`,
     }
   }
+  excludeCoordinationDir(repo)
   return {
     created: true,
     path: dir,
@@ -217,11 +253,17 @@ export interface CheckpointResult {
 /**
  * Commit only the paths a task actually touched.
  *
- * `git commit -- <paths>` is the primitive that matters: it takes the working-tree
- * content of exactly those paths and leaves every other staged or unstaged change
- * alone. A plain `git add -A && git commit` would sweep up a second agent's
- * half-finished edit, which is the single worst thing this product could do to a
- * user who runs several agents in one folder.
+ * The two-command shape is the primitive that matters. `git add` records the working-tree
+ * content of exactly those paths — necessary because a file the task just created is
+ * untracked, and `git commit -- <path>` refuses an untracked path outright with
+ * "pathspec did not match any file(s) known to git", which is the ordinary case for an
+ * agent that writes a new file. `git commit -- <paths>` then commits those paths and
+ * *ignores the index for every other path*, so a second agent's staged work stays staged
+ * and its unstaged work stays in the tree.
+ *
+ * The alternative, `git add -A && git commit`, would sweep up a half-finished edit that
+ * belongs to someone else, which is the single worst thing this product could do to a user
+ * who runs several agents in one folder.
  */
 export function checkpointCommit(
   repo: string,
@@ -236,6 +278,17 @@ export function checkpointCommit(
   const status = runGit(['status', '--porcelain', '--', ...wanted], repo)
   if (!status.ok || status.stdout.trim().length === 0) {
     return { committed: false, oid: null, files: wanted, message: 'nothing changed in the task scope' }
+  }
+
+  // Scoped to `wanted`, so nothing outside the task's own paths can be staged by this call.
+  const add = runGit(['add', '--', ...wanted], repo)
+  if (!add.ok) {
+    return {
+      committed: false,
+      oid: null,
+      files: wanted,
+      message: `checkpoint could not stage the task paths: ${add.stderr.trim() || add.stdout.trim()}`,
+    }
   }
 
   const commit = runGit(['commit', '-m', message, '--', ...wanted], repo)
@@ -283,9 +336,16 @@ export function mergeTreePreview(
   const lines = result.stdout.split('\n').map((line) => line.trim()).filter(Boolean)
   const tree = lines[0] && /^[0-9a-f]{40,}$/i.test(lines[0]) ? lines[0] : null
 
-  // Exit code 1 means "merged with conflicts"; anything else is a real failure
-  // (unknown ref, no merge base), which must not be reported as a dirty merge.
-  if (result.code === 1) {
+  /*
+   * Exit code 1 is overloaded, and the difference matters more than the code does.
+   *
+   * `merge-tree` exits 1 for a merge that produced conflicts, and it also exits 1 for a ref
+   * it cannot resolve — printing `merge-tree: <ref> - not something we can merge` to stdout.
+   * Reading only the code turned that into `supported: true, clean: false, "textual
+   * conflicts"`, so the board would state as fact that two branches conflict when one of
+   * them does not exist. A real conflict always writes a tree first; an error never does.
+   */
+  if (result.code === 1 && tree) {
     return {
       supported: true,
       clean: false,
@@ -300,7 +360,7 @@ export function mergeTreePreview(
       clean: false,
       tree: null,
       conflicts: [],
-      message: result.stderr.trim() || 'merge-tree unavailable on this git',
+      message: result.stderr.trim() || lines.join(' ') || 'merge-tree unavailable on this git',
     }
   }
   return { supported: true, clean: true, tree, conflicts: [], message: 'merges cleanly' }
