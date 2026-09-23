@@ -1,0 +1,46 @@
+﻿{
+  "name": "agentgit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Coordination layer for coding agents: a ledger of what is in flight, shared contracts with versions, and one verdict before every write.",
+  "license": "MIT",
+  "homepage": "https://github.com/agentgit/agentgit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agentgit/agentgit.git"
+  },
+  "keywords": [
+    "codex-plugin",
+    "coding-agents",
+    "coordination",
+    "multi-agent",
+    "git",
+    "worktree"
+  ],
+  "engines": {
+    "node": ">=22.19"
+  },
+  "workspaces": [
+    "packages/core",
+    "packages/cli",
+    "packages/mcp",
+    "packages/daemon"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "test:core": "node --test \"packages/core/tests/**/*.test.ts\"",
+    "test:cli": "node --test \"packages/cli/tests/**/*.test.ts\"",
+    "test:mcp": "node --test \"packages/mcp/tests/**/*.test.ts\"",
+    "test:daemon": "node --test \"packages/daemon/tests/**/*.test.ts\"",
+    "test:py": "python -m unittest discover -s packages/core/tests-py",
+    "typecheck": "node node_modules/typescript/bin/tsc -p packages/core/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/cli/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/mcp/tsconfig.json && node node_modules/typescript/bin/tsc -p packages/daemon/tsconfig.json",
+    "agentgit": "node packages/cli/src/main.ts",
+    "install-plugin": "node packages/cli/src/main.ts install",
+    "uninstall-plugin": "node packages/cli/src/main.ts uninstall"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

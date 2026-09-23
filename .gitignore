@@ -1,0 +1,21 @@
+﻿# AgenticGit — derived state, never committed
+#
+# Contracts and the event ledger ARE committed: two machines must agree on a
+# published interface, and the ledger is the shared record. Everything else in
+# `.agentgit/` is a view derived from them, and deriving it costs nothing.
+.agentgit/state/
+.agentgit/worktrees/
+
+# Generated at install time with absolute paths to this machine's node and
+# plugin directory. Committing it would ship one machine's paths to another.
+plugins/agentgit/hooks.json
+plugins/agentgit/.mcp.json
+
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# Local demo scratch space
+playground/*
+!playground/.gitkeep
