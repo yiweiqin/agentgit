@@ -1,0 +1,14 @@
+# Keep every text file LF in the working tree, on every platform.
+#
+# Without this, core.autocrlf=true on Windows rewrites the checkout to CRLF and the
+# encoding test in packages/cli/tests/repo.test.ts fails on a fresh clone. Ledgers are
+# line-oriented JSON that two machines commit to the same repository, so a checkout
+# that differs from the committed bytes by line ending alone makes every merge of them
+# conflict on every line.
+
+* text=auto eol=lf
+
+# Generated at install time, and unlike everything else these must never be
+# normalised or diffed -- they carry absolute paths for one machine.
+plugins/agentgit/hooks.json -text
+plugins/agentgit/.mcp.json -text
