@@ -67,14 +67,20 @@ export interface PanelArtifact {
   readonly bytes: number
 }
 
-/** Wrap a fragment in the smallest document that will display correctly on its own. */
-export function standaloneDocument(view: BoardView, fragment: string): string {
+/**
+ * Wrap a fragment in the smallest document that will display correctly on its own.
+ *
+ * Exported separately so a second artifact (the real-case story) can be a standalone
+ * document without a second doctype, charset and theme — three things that are easy to
+ * get subtly wrong and that no test would notice until a reader opened the file.
+ */
+export function pageDocument(title: string, fragment: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AgenticGit — ${escapeTitle(view.workspace)}</title>
+<title>${escapeTitle(title)}</title>
 <style>${THEME}</style>
 </head>
 <body>
@@ -82,6 +88,10 @@ ${fragment}
 </body>
 </html>
 `
+}
+
+export function standaloneDocument(view: BoardView, fragment: string): string {
+  return pageDocument(`AgenticGit — ${view.workspace}`, fragment)
 }
 
 function escapeTitle(value: string): string {
