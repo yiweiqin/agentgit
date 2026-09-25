@@ -1,0 +1,20 @@
+{
+  "merge_rows": 80,
+  "all_path_or_temporal_candidates": 805,
+  "temporal_overlap_candidates": 7,
+  "temporal_and_shared_production_path_candidates": 2,
+  "candidate_ids_temporal": [
+    "flask-pr-5516-pr-5514",
+    "flask-pr-5754-pr-5723",
+    "flask-pr-5757-pr-5723",
+    "flask-pr-5797-pr-5723",
+    "flask-pr-5812-pr-5808",
+    "flask-pr-5818-pr-5808",
+    "flask-pr-5898-pr-5808"
+  ],
+  "candidate_ids_temporal_and_shared_production_path": [
+    "flask-pr-5812-pr-5808",
+    "flask-pr-5898-pr-5808"
+  ],
+  "interpretation": "Screening counts only. No semantic conflict, duplicate-task, or integration-debt label is inferred."
+}

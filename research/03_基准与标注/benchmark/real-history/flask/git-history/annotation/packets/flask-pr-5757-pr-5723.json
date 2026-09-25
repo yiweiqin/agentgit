@@ -1,0 +1,468 @@
+{
+  "packet_version": "1.1",
+  "scenario_id": "flask-pr-5757-pr-5723",
+  "provenance": {
+    "repository": "pallets/flask",
+    "data_status": "real_public_git_metadata_plus_public_patch_plus_public_pr_context",
+    "license_note": "Flask reports BSD-3-Clause. PR bodies, comments and patches are upstream-authored public content; verify LICENSE before redistribution.",
+    "generator": {
+      "script": "build_annotation_packets.py",
+      "version": "1.1"
+    },
+    "sources": [
+      "temporal_candidates.jsonl (commit-graph screening)",
+      "candidate_patch_manifest.json (patch SHA-256 pins)",
+      "merge_rows.jsonl (local commit graph)",
+      "merge_replay.jsonl (recorded-history replay)",
+      "context_cache/pr-5757.json",
+      "context_cache/pr-5723.json"
+    ],
+    "screening_lineage": "Git commit-graph screening only; no semantic or duplicate-work label is inferred.",
+    "ground_truth_absent": "This packet contains no ACCD label values. Screening opinions and single-researcher adjudications were not read by the builder."
+  },
+  "prediction_view": {
+    "view_instructions": "Fill phase_1 using ONLY this object. Do not open result_view before phase_1 is locked.",
+    "baseline": {
+      "merge_base_commit": "a42c4d54a3e5cd56c0700479ede75157a748acd6",
+      "merge_base_subject": "Fix global CONTRIBUTING link (#5737)",
+      "source": "git merge-base of the two PR head commits",
+      "command": "git merge-base a758915893352f5986c6ee101cdf7e3b7a64fa28 7bf3be8dfa5832ef03a3fd8f07f6736e770440e4",
+      "left_head_commit": "a758915893352f5986c6ee101cdf7e3b7a64fa28",
+      "right_head_commit": "7bf3be8dfa5832ef03a3fd8f07f6736e770440e4"
+    },
+    "tasks": {
+      "A": {
+        "source_pr": 5757,
+        "source_url": "https://github.com/pallets/flask/pull/5757",
+        "title": "svg logo",
+        "description_text": "Use SVG instead of PNG for the logo.",
+        "description_status": "available",
+        "description_truncated_in_packet": false,
+        "description_full_char_count": 36,
+        "acceptance_criteria": [],
+        "acceptance_criteria_status": "not_declared",
+        "acceptance_criteria_note": "Flask PRs frequently declare no acceptance criteria. `not_declared` means the upstream text contains none; it must not be read as `no overlap`.",
+        "declared_labels": [],
+        "author": "davidism",
+        "created_at": "2025-06-09T21:32:15Z",
+        "merged_at": "2025-06-09T21:33:26Z",
+        "changed_files_upstream": 9,
+        "additions_upstream": 9,
+        "deletions_upstream": 3,
+        "discussion": {
+          "review_comments": [],
+          "issue_comments": [],
+          "discussion_status": "none_upstream"
+        },
+        "change_set_stats_from_patch": {
+          "files_changed": 9,
+          "additions": 9,
+          "deletions": 3,
+          "hunks": 6
+        }
+      },
+      "B": {
+        "source_pr": 5723,
+        "source_url": "https://github.com/pallets/flask/pull/5723",
+        "title": "Update macOS UI reference to “System Settings”",
+        "description_text": "made changes to rename system preferences to system settings according to new mac os name change\r\n\r\nDocs: Update macOS UI reference to “System Settings”\r\n\r\nThis PR updates the documentation in docs/server.rst to reflect the latest macOS UI terminology.\r\nSpecifically, it replaces the outdated term “System Preferences” with “System Settings”, aligning with macOS Ventura and later versions.\r\n\r\nWhat Changed\r\n• Line updated in instructions to disable AirPlay Receiver from:\r\n• \"System Preferences\" → \"System Settings\"\r\n\r\nNotes\r\n• No issue was created for this change, as it is a minor documentation correction.\r\n• This update does not affect any code or behavior.\r\n• No test or changelog entry required per contribution guidelines for doc typo-level fixes.",
+        "description_status": "available",
+        "description_truncated_in_packet": false,
+        "description_full_char_count": 755,
+        "acceptance_criteria": [],
+        "acceptance_criteria_status": "not_declared",
+        "acceptance_criteria_note": "Flask PRs frequently declare no acceptance criteria. `not_declared` means the upstream text contains none; it must not be read as `no overlap`.",
+        "declared_labels": [
+          "docs"
+        ],
+        "author": "abhiramk6",
+        "created_at": "2025-05-01T15:48:38Z",
+        "merged_at": "2025-08-18T17:08:08Z",
+        "changed_files_upstream": 1,
+        "additions_upstream": 1,
+        "deletions_upstream": 1,
+        "discussion": {
+          "review_comments": [],
+          "issue_comments": [],
+          "discussion_status": "none_upstream"
+        },
+        "change_set_stats_from_patch": {
+          "files_changed": 1,
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        }
+      }
+    },
+    "change_sets": {
+      "A": {
+        "change_set": "A",
+        "source_pr": 5757,
+        "patch_relative_path": "candidate_patches/pr-5757.patch",
+        "patch_sha256": "b1b7afbd7170e5b3eef1d1e7c313b50289b1d3de7b279012128bd401135d9ff5",
+        "files": [
+          {
+            "path": "README.md",
+            "additions": 2,
+            "deletions": 0,
+            "hunk_count": 1,
+            "is_production_path": false
+          },
+          {
+            "path": null,
+            "additions": 0,
+            "deletions": 0,
+            "hunk_count": 0,
+            "is_production_path": false
+          },
+          {
+            "path": "docs/_static/flask-horizontal.svg",
+            "additions": 1,
+            "deletions": 0,
+            "hunk_count": 1,
+            "is_production_path": false
+          },
+          {
+            "path": "docs/_static/flask-icon.svg",
+            "additions": 1,
+            "deletions": 0,
+            "hunk_count": 1,
+            "is_production_path": false
+          },
+          {
+            "path": null,
+            "additions": 0,
+            "deletions": 0,
+            "hunk_count": 0,
+            "is_production_path": false
+          },
+          {
+            "path": "docs/_static/flask-vertical.svg",
+            "additions": 1,
+            "deletions": 0,
+            "hunk_count": 1,
+            "is_production_path": false
+          },
+          {
+            "path": null,
+            "additions": 0,
+            "deletions": 0,
+            "hunk_count": 0,
+            "is_production_path": false
+          },
+          {
+            "path": "docs/conf.py",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_count": 1,
+            "is_production_path": false
+          },
+          {
+            "path": "docs/index.rst",
+            "additions": 2,
+            "deletions": 1,
+            "hunk_count": 1,
+            "is_production_path": false
+          }
+        ],
+        "diff_hunks": [
+          {
+            "file": "b/README.md",
+            "header": "@@ -1,3 +1,5 @@",
+            "added": [
+              "<div align=\"center\"><img src=\"https://raw.githubusercontent.com/pallets/flask/refs/heads/stable/docs/_static/flask-horizontal.svg\" alt=\"\" height=\"150\"></div>",
+              ""
+            ],
+            "removed": []
+          },
+          {
+            "file": "b/docs/_static/flask-horizontal.svg",
+            "header": "@@ -0,0 +1 @@",
+            "added": [
+              "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"><svg width=\"100%\" height=\"100%\" viewBox=\"0 0 837 271\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xml:space=\"preserve\" xmlns:serif=\"http://www.serif.com/\" style=\"fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;\"><g id=\"gradient-horizontal\"><g><path d=\"M29.271,0c-16.166,-0 -29.271,13.105 -29.271,29.271l0,212.01c0,16.165 13.105,29.271 29.271,29.271l212.009,0c16.166,0 29.271,-13.106 29.271,-29.271l-0,-212.01c-0,-16.166 -13.105,-29.271 -29.271,-29.271l-212.009,-0Z\" style=\"fill:url(#_Linear1);fill-rule:nonzero;\"/><g><path d=\"M68.14,113.858c0.38,1.6 0.81,3.28 1.29,5l-4.98,-4.98l0.03,-0.02c0.74,0.64 1.97,0.74 3.22,0.19l0.44,-0.19Z\" style=\"fill:#00818d;fill-rule:nonzero;\"/><path d=\"M270.55,201.028l-0,40.25c-0,16.17 -13.1,29.27 -29.27,29.27l-45.35,-0l-88.68,-89.04c2.85,2.64 5.89,5.13 9.12,7.45c5.9,4.23 12.46,7.86 19.72,10.59c20.2,7.61 45.94,8.33 78.38,-4.73l0.18,0.91c0.16,1.04 1.4,2.12 3.08,1.46l5.39,-2.1c1.85,-0.7 1.86,-2.12 1.59,-3.04l6.93,-2.71c0.78,-0.3 3.2,-2.17 1.12,-5.11l-4.27,-6.52c-0.63,-0.71 -1.62,-0.98 -2.5,-0.63l-5.48,2.12c-0.65,-0.72 -1.6,-0.99 -2.52,-0.63c-1.79,0.7 -3.58,1.4 -5.38,2.1c-0.58,0.23 -0.73,0.66 -0.63,1.21l0.35,1.71c-10.1,1.09 -27.17,0.54 -42.46,-11.46c-6.75,-5.3 -13.1,-12.8 -18.39,-23.29l-50.16,25.56l-6.79,-6.79c17.74,-9.04 35.48,-18.08 53.23,-27.13c-1.15,-2.97 -2.28,-6.21 -6.11,-20.66l-57.52,25.74l-6.92,-6.92l62.72,-28.07c-0.91,-8.14 -3.36,-31.52 -3.26,-42.03c-0.01,-1.07 -0.1,-1.62 -0.45,-2.01l134.33,134.5Z\" style=\"fill:#00818d;fill-rule:nonzero;\"/></g><g><path d=\"M136.668,68.536c-0.102,10.51 2.356,33.894 3.261,42.033l-62.722,28.067c-4.11,-7.032 -7.182,-16.89 -9.067,-24.773l-0.44,0.187c-1.508,0.654 -2.978,0.383 -3.624,-0.645l-0.081,-0.128l-6.01,-11.042c-0.423,-0.77 -0.361,-1.855 0.177,-2.87c0.538,-1.016 1.552,-1.962 2.62,-2.43l72.003,-30.834c1.069,-0.467 2.19,-0.455 2.93,0.031c0.781,0.456 0.932,0.948 0.953,2.404Z\" style=\"fill:#fff;fill-rule:nonzero;\"/><path d=\"M141.652,119.821l-60.399,27.028c3.551,6.726 7.933,13.868 13.275,20.755l53.228,-27.122c-1.148,-2.977 -2.273,-6.21 -6.104,-20.661Z\" style=\"fill:#fff;fill-rule:nonzero;\"/><path d=\"M100.562,174.788l50.922,-25.95c5.285,10.487 11.632,17.991 18.388,23.289c15.288,12.004 32.354,12.551 42.458,11.457l-0.346,-1.706c-0.107,-0.551 0.05,-0.984 0.631,-1.206l5.38,-2.109c0.916,-0.355 1.866,-0.087 2.511,0.631l5.484,-2.114c0.875,-0.353 1.866,-0.087 2.503,0.627l4.268,6.521c2.076,2.941 -0.339,4.809 -1.12,5.107l-6.935,2.709c0.271,0.921 0.259,2.341 -1.587,3.041l-5.388,2.105c-1.685,0.658 -2.922,-0.424 -3.082,-1.459l-0.175,-0.918c-32.447,13.064 -58.183,12.345 -78.387,4.738c-14.521,-5.466 -26.215,-14.533 -35.525,-24.763Z\" style=\"fill:#fff;fill-rule:nonzero;\"/></g></g><g><path d=\"M415.788,90.054l-50.2,-0c-5.869,-0 -9.969,1.134 -12.3,3.4c-2.335,2.269 -3.5,6.2 -3.5,11.8l0,19.8l52.199,-0l-2,24.8l-50.199,-0l0,57.8l-27.801,-0l0,-113.4c0,-10.531 2.301,-18 6.901,-22.4c4.599,-4.4 12.5,-6.6 23.7,-6.6l63.2,-0l0,24.8Z\" style=\"fill:#423c3c;fill-rule:nonzero;\"/><path d=\"M472.986,207.654l0,-150.4l-26,-0l0,150.6l26,-0.2Z\" style=\"fill:#423c3c;fill-rule:nonzero;\"/><path d=\"M706.186,176.054l0,3c-0.8,10 -5.034,17.534 -12.7,22.6c-7.669,5.068 -17.235,7.599 -28.7,7.599c-16.933,0 -28.799,-3.065 -35.6,-9.199c-6.269,-5.601 -9.399,-13.866 -9.399,-24.801l-0,-2.399l23.6,0c-0,6.134 1.6,10.334 4.799,12.599c3.201,2.269 8.731,3.401 16.601,3.401c10.665,0 16,-3.866 16,-11.601c-0,-6.399 -1.87,-10.665 -5.601,-12.8c-1.734,-1.065 -3.934,-1.865 -6.6,-2.399l-20.199,-3.4c-17.601,-2.8 -26.4,-13.8 -26.4,-33c-0,-10.666 3.899,-18.966 11.699,-24.9c7.801,-5.931 17.701,-8.9 29.701,-8.9c27.33,0 41,11.8 41,35.399l-0,2.601l-22.601,0c-0.269,-6.266 -1.933,-10.531 -5,-12.8c-3.068,-2.266 -7.369,-3.4 -12.899,-3.4c-5.534,0 -9.701,1.1 -12.5,3.299c-2.801,2.201 -4.201,4.635 -4.201,7.301c0,7.6 3.066,11.934 9.201,12.999l24.199,4.401c17.067,3.2 25.601,14.669 25.601,34.4Z\" style=\"fill:#423c3c;fill-rule:nonzero;\"/><path d=\"M836.185,207.654l-31.2,-0l-30,-40.4l-11.4,16.2l-0,24.2l-26,-0l-0,-150.4l26,-0l-0,95l36.4,-54.2l29.4,-0l-37.4,51.2l44.2,58.4Z\" style=\"fill:#423c3c;fill-rule:nonzero;\"/><path d=\"M589.587,207.653l-17.4,0l-8,-13.799l-27.8,15c-15.469,0 -25.869,-5.601 -31.2,-16.8c-5.674,-11.495 -6.886,-24.46 -7,-37.5c0.077,-12.551 -0.096,-15.688 1.2,-26.601c1.063,-8.338 2.543,-13.08 6.599,-20c6.414,-10.446 16.898,-13.434 30.2,-13.7l27.401,0l26,-1.6l-0,115Zm-26,-36.4l-0,-53.6l-19.8,0c-7.335,0 -12.434,2.8 -15.301,8.401c-2.868,5.599 -4.299,13.969 -4.299,25.099c0.491,17.986 1.453,30.212 19.6,30.3l19.8,-10.2Z\" style=\"fill:#423c3c;fill-rule:nonzero;\"/></g></g><defs><linearGradient id=\"_Linear1\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0\" gradientUnits=\"userSpaceOnUse\" gradientTransform=\"matrix(1.59482,270.547,-270.547,1.59482,134.5,3.6886)\"><stop offset=\"0\" style=\"stop-color:#b0deec;stop-opacity:1\"/><stop offset=\"0.99\" style=\"stop-color:#00abd4;stop-opacity:1\"/><stop offset=\"1\" style=\"stop-color:#00abd4;stop-opacity:1\"/></linearGradient></defs></svg>"
+            ],
+            "removed": []
+          },
+          {
+            "file": "b/docs/_static/flask-icon.svg",
+            "header": "@@ -0,0 +1 @@",
+            "added": [
+              "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"><svg width=\"100%\" height=\"100%\" viewBox=\"0 0 955 955\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xml:space=\"preserve\" xmlns:serif=\"http://www.serif.com/\" style=\"fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;\"><g><path d=\"M411,100.5c-3.5,0.9 -384.3,163.8 -393,167.8c-6.3,2.8 -11.7,7.5 -15.1,13.2c-1.8,3 -2.3,5.4 -2.3,9.8c0,3.2 0.4,6.2 1,6.5c0.5,0.4 2.7,4.1 4.8,8.2c5.5,10.5 16,29.8 25.4,46.7c4.6,8.4 6.2,9.7 12.9,10.7c1.8,0.2 5.3,-0.2 7.7,-0.9c4.9,-1.5 4.8,-1.6 6.2,4.7c0.3,1.3 0.7,3.2 0.9,4.3c0.3,1.1 0.7,2.9 0.9,4c2.9,13 15.8,53.3 23.1,72c7,17.8 21.3,47.5 22.9,47.5c0.2,0 320,-143.3 327.2,-146.5c14.5,-6.4 13.3,-4.8 12,-15.5c-0.8,-6.3 -1.5,-12.4 -2.1,-18.4c-1.5,-15.3 -2.6,-25.8 -3,-29.1c-0.2,-1.7 -0.7,-6.6 -1,-11c-0.4,-4.4 -0.8,-9.1 -1,-10.5c-0.2,-1.4 -0.7,-6.1 -1.1,-10.5c-0.4,-4.4 -0.8,-9.4 -1,-11c-0.1,-1.7 -0.5,-6.8 -0.9,-11.5c-0.4,-4.7 -0.8,-9.6 -1,-11c-0.2,-1.4 -0.7,-6.8 -1,-12c-0.4,-5.2 -0.8,-11.1 -1,-13c-0.2,-1.9 -0.7,-8.9 -1,-15.5c-0.4,-6.6 -0.8,-13.6 -1,-15.5c-0.5,-4 -1.6,-36.1 -1.9,-49.3c-0.1,-8.7 -0.2,-8.9 -3.4,-11.8c-1.8,-1.6 -4,-2.9 -5,-3c-0.9,-0 -2.4,-0.2 -3.2,-0.3c-0.8,-0.2 -3.5,0.2 -6,0.9Z\" style=\"fill:#3babc3;fill-rule:nonzero;\"/><path d=\"M455.2,393c-0.4,0.1 -326.8,146.3 -327,146.5c-0.6,0.6 18.3,33.9 28.6,50.5c12.5,20.1 30.3,45.8 40.9,59.4l2.3,2.9c0,0 287.3,-146.3 288.3,-147.2c0.4,-0.4 -0.4,-3.6 -1.8,-7.2c-2.2,-5.5 -13,-39.5 -14,-43.9c-0.2,-0.8 -2.2,-8.3 -4.5,-16.5c-4.2,-14.8 -5.6,-20.2 -6.5,-23.9c-0.2,-1 -1.1,-4.2 -1.9,-7c-0.8,-2.8 -2,-7 -2.6,-9.4c-0.6,-2.3 -1.4,-4.2 -1.8,-4.2Z\" style=\"fill:#3babc3;fill-rule:nonzero;\"/><path d=\"M509.2,550.9c-0.4,-0.4 -276.1,139.9 -276.2,140.4c0,1.1 33,34.1 43.5,43.3c17.2,15.2 52.7,42.4 55.3,42.4c0.5,0 1.7,0.9 2.7,2c1,1.1 2.4,2 3.2,2c0.7,0 1.3,0.3 1.3,0.8c0,0.4 0.9,1.2 1.9,1.7c1.1,0.6 6.6,3.8 12.3,7.1c11.1,6.7 14.6,8.6 22.3,12.7c7,3.6 28.2,13.7 28.9,13.7c0.3,0 3,1.1 6,2.5c19.1,8.7 59.3,21.1 84.3,26c14.3,2.7 17.8,3.4 22.3,4c2.5,0.4 5.6,0.8 7,1c1.4,0.3 5,0.7 8,1c3,0.3 6.9,0.8 8.5,1c3.3,0.4 16.1,1.5 24,2c7.8,0.6 44,0.6 54,0c15.4,-0.7 38.8,-2.8 45.5,-4c1.4,-0.2 4.8,-0.7 7.5,-1c2.8,-0.3 5.7,-0.7 6.5,-1c0.8,-0.2 3.8,-0.6 6.5,-1c2.8,-0.3 9.7,-1.5 15.5,-2.7c5.8,-1.1 11.6,-2.2 12.9,-2.4c3,-0.6 13.3,-3 24.1,-5.6c4.7,-1.1 9.4,-2.2 10.4,-2.4c2.2,-0.4 23.4,-6.4 25.6,-7.2c1.9,-0.7 1.6,-0.6 7,-2.1c8.8,-2.5 37.2,-12.3 53.7,-18.6c18.6,-7 16.9,-7 18.7,0.5c0.8,3.2 4.4,5.8 9.1,6.6c2.9,0.4 6.9,-0.8 20.8,-6.2c9.5,-3.7 18.2,-7.4 19.5,-8.2c3.2,-2 5.2,-6.3 5.2,-10.9c-0,-3.6 0.3,-4 3.8,-5.2c2,-0.7 4.6,-1.6 5.7,-2.1c1.1,-0.5 8,-3.2 15.4,-6.1c17.3,-6.7 22.1,-10.8 22.5,-19.4c0.3,-5.6 -1.9,-10 -15.2,-30.2c-11.9,-17.9 -13.8,-20.3 -17.3,-21.7c-3.7,-1.5 -4.3,-1.5 -10.2,0.4c-3.4,1.2 -7.1,2.5 -8.2,3c-2.2,1 -9.7,3.9 -16.2,6.4c-2.4,0.9 -4.3,1.2 -4.3,0.7c0,-1.3 -5.7,-3.4 -9,-3.3c-3.1,0.1 -32.4,11.3 -35.5,13.6c-1.7,1.3 -1.8,1.9 -0.7,7.7c0.6,3.4 1,6.4 0.9,6.5c-0.8,0.8 -22.6,1.8 -38.2,1.8c-16.3,0 -35.7,-0.9 -39.5,-1.9c-0.8,-0.2 -3.7,-0.7 -6.5,-1c-10.5,-1.4 -14.3,-2.1 -24,-4.2c-3.8,-0.8 -7.7,-1.6 -8.5,-1.8c-3.1,-0.6 -17.6,-4.7 -19.5,-5.5c-1.1,-0.5 -4.5,-1.6 -7.5,-2.6c-8.1,-2.5 -29.9,-11.9 -40.9,-17.7c-27.2,-14.2 -49.6,-31 -73.1,-54.6c-26.8,-26.9 -48,-55.7 -66.4,-90.6c-2.6,-5 -5.1,-9.3 -5.4,-9.6Z\" style=\"fill:#3babc3;fill-rule:nonzero;\"/></g></svg>"
+            ],
+            "removed": []
+          },
+          {
+            "file": "b/docs/_static/flask-vertical.svg",
+            "header": "@@ -0,0 +1 @@",
+            "added": [
+              "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?><!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\"><svg width=\"100%\" height=\"100%\" viewBox=\"0 0 367 538\" version=\"1.1\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xml:space=\"preserve\" xmlns:serif=\"http://www.serif.com/\" style=\"fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;\"><g id=\"Layer-1\" serif:id=\"Layer 1\"><g><path d=\"M366.944,536.805l-22.265,-0l-21.409,-28.831l-8.135,11.561l0,17.27l-18.554,-0l0,-107.329l18.554,-0l0,67.793l25.976,-38.678l20.98,0l-26.689,36.537l31.542,41.677Z\" style=\"fill:#1c1c1a;fill-rule:nonzero;\"/><path d=\"M274.174,514.254l0,2.141c-0.571,7.136 -3.592,12.513 -9.063,16.128c-5.473,3.617 -12.299,5.423 -20.481,5.423c-12.084,0 -20.553,-2.188 -25.405,-6.565c-4.474,-3.997 -6.708,-9.895 -6.708,-17.698l-0,-1.712l16.841,-0c0,4.377 1.142,7.374 3.426,8.991c2.284,1.619 6.231,2.427 11.846,2.427c7.611,-0 11.418,-2.759 11.418,-8.279c0,-4.567 -1.334,-7.611 -3.996,-9.134c-1.238,-0.76 -2.808,-1.331 -4.71,-1.712l-14.415,-2.427c-12.561,-1.998 -18.84,-9.848 -18.84,-23.55c-0,-7.611 2.783,-13.535 8.349,-17.769c5.566,-4.233 12.632,-6.351 21.195,-6.351c19.505,-0 29.259,8.42 29.259,25.262l-0,1.855l-16.128,0c-0.193,-4.471 -1.381,-7.515 -3.569,-9.134c-2.19,-1.617 -5.258,-2.426 -9.205,-2.426c-3.95,-0 -6.922,0.785 -8.92,2.354c-1.998,1.57 -2.998,3.308 -2.998,5.21c0,5.424 2.188,8.517 6.566,9.277l17.27,3.14c12.178,2.284 18.268,10.468 18.268,24.549Z\" style=\"fill:#1c1c1a;fill-rule:nonzero;\"/><path d=\"M190.966,536.805l-12.418,-0l-5.709,-9.848l-19.839,10.704c-11.038,0 -18.46,-3.997 -22.265,-11.989c-4.049,-8.202 -4.913,-17.455 -4.995,-26.761c0.055,-8.956 -0.068,-11.195 0.857,-18.982c0.758,-5.951 1.814,-9.335 4.709,-14.273c4.577,-7.455 12.059,-9.587 21.552,-9.776l19.553,-0l18.555,-1.142l-0,82.067Zm-18.555,-25.977l0,-38.25l-14.129,-0c-5.234,-0 -8.874,1.998 -10.919,5.995c-2.047,3.996 -3.069,9.968 -3.069,17.912c0.351,12.834 1.037,21.559 13.988,21.623l14.129,-7.28Z\" style=\"fill:#1c1c1a;fill-rule:nonzero;\"/><path d=\"M107.757,536.805l-0,-107.329l-18.555,-0l0,107.471l18.555,-0.142Z\" style=\"fill:#1c1c1a;fill-rule:nonzero;\"/><path d=\"M66.938,452.882l-35.824,0c-4.188,0 -7.114,0.81 -8.777,2.426c-1.667,1.62 -2.498,4.425 -2.498,8.421l0,14.13l37.251,0l-1.427,17.698l-35.824,-0l0,41.248l-19.839,-0l-0,-80.925c-0,-7.516 1.641,-12.846 4.924,-15.986c3.283,-3.14 8.92,-4.709 16.913,-4.709l45.101,-0l0,17.697Z\" style=\"fill:#1c1c1a;fill-rule:nonzero;\"/></g><g><path d=\"M29.271,0c-16.166,0 -29.271,13.105 -29.271,29.271l0,308.405c0,16.166 13.105,29.271 29.271,29.271l308.404,0c16.166,0 29.271,-13.105 29.271,-29.271l0,-308.405c0,-16.166 -13.105,-29.271 -29.271,-29.271l-308.404,0Z\" style=\"fill:url(#_Linear1);fill-rule:nonzero;\"/><g><path d=\"M92.417,154.425c0.515,2.17 1.099,4.449 1.75,6.781l-6.755,-6.754l0.041,-0.027c1.004,0.868 2.672,1.004 4.367,0.258l0.597,-0.258Z\" style=\"fill:#00818d;fill-rule:nonzero;\"/><path d=\"M366.944,272.652l-0,64.93c-0,16.215 -13.145,29.359 -29.36,29.359l-71.846,0l-120.276,-120.764c3.865,3.581 7.989,6.958 12.369,10.105c8.002,5.737 16.9,10.66 26.746,14.363c27.397,10.321 62.308,11.298 106.306,-6.415l0.244,1.234c0.217,1.41 1.899,2.875 4.178,1.98l7.31,-2.848c2.509,-0.95 2.523,-2.876 2.157,-4.123l9.399,-3.676c1.058,-0.407 4.34,-2.943 1.519,-6.931l-5.792,-8.843c-0.854,-0.963 -2.197,-1.329 -3.39,-0.854l-7.433,2.875c-0.881,-0.976 -2.17,-1.343 -3.418,-0.854c-2.427,0.949 -4.855,1.899 -7.296,2.848c-0.787,0.312 -0.99,0.895 -0.855,1.641l0.475,2.319c-13.699,1.479 -36.85,0.733 -57.588,-15.543c-9.155,-7.188 -17.768,-17.36 -24.942,-31.588l-68.032,34.667l-9.209,-9.209c24.061,-12.261 48.121,-24.522 72.195,-36.796c-1.56,-4.028 -3.092,-8.423 -8.287,-28.021l-78.013,34.911l-9.386,-9.386l85.066,-38.071c-1.234,-11.04 -4.557,-42.75 -4.421,-57.005c-0.014,-1.451 -0.136,-2.197 -0.61,-2.726l182.19,182.421Z\" style=\"fill:#006e85;fill-rule:nonzero;\"/></g><g><path d=\"M185.361,92.954c-0.138,14.255 3.196,45.97 4.423,57.008l-85.069,38.068c-5.574,-9.538 -9.741,-22.908 -12.297,-33.6l-0.597,0.254c-2.045,0.887 -4.039,0.52 -4.916,-0.874l-0.109,-0.175l-8.152,-14.975c-0.573,-1.045 -0.49,-2.516 0.24,-3.893c0.73,-1.378 2.106,-2.661 3.555,-3.295l97.656,-41.82c1.449,-0.634 2.97,-0.618 3.973,0.042c1.059,0.617 1.265,1.285 1.293,3.26Z\" style=\"fill:#fff;fill-rule:nonzero;\"/><path d=\"M192.122,162.513l-81.918,36.658c4.815,9.123 10.759,18.809 18.004,28.15l72.193,-36.786c-1.558,-4.037 -3.084,-8.423 -8.279,-28.022Z\" style=\"fill:#fff;fill-rule:nonzero;\"/><path d=\"M136.393,237.063l69.062,-35.195c7.169,14.223 15.778,24.401 24.94,31.586c20.736,16.282 43.881,17.023 57.586,15.54l-0.469,-2.314c-0.146,-0.748 0.067,-1.335 0.855,-1.636l7.297,-2.86c1.243,-0.481 2.531,-0.118 3.406,0.855l7.437,-2.866c1.188,-0.479 2.531,-0.118 3.395,0.85l5.789,8.844c2.816,3.989 -0.459,6.522 -1.519,6.926l-9.406,3.675c0.368,1.248 0.351,3.175 -2.152,4.124l-7.308,2.855c-2.286,0.892 -3.962,-0.575 -4.18,-1.978l-0.238,-1.246c-44.007,17.719 -78.913,16.744 -106.315,6.427c-19.694,-7.414 -35.554,-19.712 -48.18,-33.587Z\" style=\"fill:#fff;fill-rule:nonzero;\"/></g></g></g><defs><linearGradient id=\"_Linear1\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0\" gradientUnits=\"userSpaceOnUse\" gradientTransform=\"matrix(2.16376,367.062,-367.062,2.16376,182.42,4.94383)\"><stop offset=\"0\" style=\"stop-color:#b0deec;stop-opacity:1\"/><stop offset=\"0.99\" style=\"stop-color:#00abd4;stop-opacity:1\"/><stop offset=\"1\" style=\"stop-color:#00adc5;stop-opacity:1\"/></linearGradient></defs></svg>"
+            ],
+            "removed": []
+          },
+          {
+            "file": "b/docs/conf.py",
+            "header": "@@ -58,8 +58,8 @@",
+            "added": [
+              "html_favicon = \"_static/flask-icon.svg\"",
+              "html_logo = \"_static/flask-vertical.svg\""
+            ],
+            "removed": [
+              "html_favicon = \"_static/shortcut-icon.png\"",
+              "html_logo = \"_static/flask-vertical.png\""
+            ]
+          },
+          {
+            "file": "b/docs/index.rst",
+            "header": "@@ -3,8 +3,9 @@",
+            "added": [
+              ".. image:: _static/flask-horizontal.svg",
+              "    :height: 200px"
+            ],
+            "removed": [
+              ".. image:: _static/flask-horizontal.png"
+            ]
+          }
+        ],
+        "touched_symbols": [],
+        "stats": {
+          "files_changed": 9,
+          "additions": 9,
+          "deletions": 3,
+          "hunks": 6
+        },
+        "changed_paths": [
+          "README.md",
+          "docs/_static/flask-horizontal.svg",
+          "docs/_static/flask-icon.svg",
+          "docs/_static/flask-vertical.svg",
+          "docs/conf.py",
+          "docs/index.rst"
+        ],
+        "diff_integrity": {
+          "full_diff_in_packet": true,
+          "note": "All added/removed lines present in the public patch are reproduced inline. Hunk context lines (unchanged surrounding code) are not included; read the frozen patch file hash-pinned by patch_sha256 for full context."
+        }
+      },
+      "B": {
+        "change_set": "B",
+        "source_pr": 5723,
+        "patch_relative_path": "candidate_patches/pr-5723.patch",
+        "patch_sha256": "1b4119ac1eb46cd0cf18cb15462403496226ccc8f903213849f80ad9d3164966",
+        "files": [
+          {
+            "path": "docs/server.rst",
+            "additions": 1,
+            "deletions": 1,
+            "hunk_count": 1,
+            "is_production_path": false
+          }
+        ],
+        "diff_hunks": [
+          {
+            "file": "b/docs/server.rst",
+            "header": "@@ -77,7 +77,7 @@ following example shows that process id 6847 is using port 5000.",
+            "added": [
+              "searching for \"AirPlay Receiver\" in System Settings and toggling it off."
+            ],
+            "removed": [
+              "searching for \"AirPlay Receiver\" in System Preferences and toggling it off."
+            ]
+          }
+        ],
+        "touched_symbols": [],
+        "stats": {
+          "files_changed": 1,
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        },
+        "changed_paths": [
+          "docs/server.rst"
+        ],
+        "diff_integrity": {
+          "full_diff_in_packet": true,
+          "note": "All added/removed lines present in the public patch are reproduced inline. Hunk context lines (unchanged surrounding code) are not included; read the frozen patch file hash-pinned by patch_sha256 for full context."
+        }
+      }
+    },
+    "shared_entities": {
+      "files": [],
+      "production_files": [],
+      "symbols": [],
+      "overlap_scope": "none",
+      "evidence_kind": "path_and_lexical_symbol_overlap_screening_signal",
+      "guard": "File or symbol overlap is a screening signal only. It never implies RT/RI/CC/BC, and it never implies LF (H9)."
+    },
+    "repeated_touch_evidence": {
+      "status": "computed",
+      "evidence_kind": "path_level_proxy_for_repeated_touch",
+      "purpose": "Evidence support for the LF label only (manual §3.9). Not an LF label.",
+      "lf_judgeable_from_this_packet": false,
+      "lf_judgeability_verdict": "no_symbol_level_evidence_available",
+      "lf_judgeability_reason": "Neither patch in this pair declares any touched symbol that this builder can extract, so repeated touch cannot even be enumerated. LF is not judgeable from this packet.",
+      "symbols_touched_by_both_packet_changes": [],
+      "symbols_reaching_threshold_on_path_proxy_only": [],
+      "symbols": [],
+      "exact_evidence_available_for": "the two in-packet change sets (A and B) only",
+      "proxy_limitation": "Follow-up history is recorded at path level, not symbol level, so followup_merge_count counts merges that touched a FILE containing this symbol. A merge touching the same file may have changed an unrelated symbol. Therefore `distinct_touch_count_upper_bound_path_proxy` is an upper bound, not a count of touches to this symbol, and `meets_three_touch_threshold_on_path_proxy = true` is a screening signal only. If symbol-level repeated touch cannot be established from the in-packet evidence, annotators must record `uncertain`, never `no` and never `yes` on the proxy alone (H9).",
+      "window_truncated_by_data": false,
+      "window_note": "If window_truncated_by_data is true, missing follow-up merges are an artifact of commit-graph coverage, not evidence that the symbol was touched only twice."
+    },
+    "temporal_context": {
+      "left_pr_merge_time_utc": "2025-06-09T21:33:26+00:00",
+      "right_pr_merge_time_utc": "2025-08-18T17:08:07+00:00",
+      "left_pr_branch_start_utc": "2025-06-09T21:31:31+00:00",
+      "right_pr_branch_start_utc": "2025-06-05T00:24:45+00:00",
+      "temporal_overlap": true,
+      "later_merged_pr": 5723,
+      "screening_definition_of_overlap": "Temporal overlap means the two PR branch lifecycles overlapped in the commit graph; it does not mean the two tasks were concurrent agent tasks."
+    },
+    "agent_context_summary": {
+      "status": "unavailable",
+      "reason": "These are human-authored PRs. There is no agent, prompt, retry, tool log or failure trace. Treat agent attribution as undecidable in this pilot.",
+      "evidence_kind": "not_collected"
+    },
+    "pre_change_test_state": {
+      "status": "not_executed",
+      "reason": "The local clone is a partial clone and the pilot environment does not install Flask test dependencies; pre-change test results were not executed offline.",
+      "available_proxy": "Upstream CI status is not captured in the cached context payloads."
+    }
+  },
+  "result_view": {
+    "view_instructions": "Only open after phase_1.locked_at is set. Record revisions in phase_2; never edit phase_1.",
+    "integration_outcome": {
+      "status": "computed",
+      "evidence_kind": "recorded_history",
+      "both_merges_landed_on_mainline": true,
+      "left_merge_sha": "a7b67c99f922f26b1071a90994e14261dc0a6df2",
+      "right_merge_sha": "7fea7cf15688b2a2712b01c45c9e3385ea382e67",
+      "merges_were_sequential_on_mainline": true,
+      "note": "Both PRs were merged to mainline as separate events, so the recorded integration outcome is 'both landed', not a single joint merge."
+    },
+    "counterfactual_pair_merge": {
+      "status": "computed",
+      "evidence_kind": "counterfactual_replay",
+      "command": "git merge-tree --write-tree a758915893352f5986c6ee101cdf7e3b7a64fa28 7bf3be8dfa5832ef03a3fd8f07f6736e770440e4",
+      "exit_code": 0,
+      "auto_tree": "28a98e5a4b1fd73675546efd8424fc087784104e",
+      "textual_conflict_observed": false,
+      "conflict_lines": [],
+      "conflicted_files": [],
+      "note": "Counterfactual construction: the two PRs were merged into mainline sequentially, so this merge is not recorded history. It answers 'what would a direct three-way merge of the two branch heads produce', which is the scenario the study targets."
+    },
+    "per_pr_merge_replay": {
+      "5757": {
+        "status": "computed",
+        "evidence_kind": "recorded_history_replay",
+        "merge_sha": "a7b67c99f922f26b1071a90994e14261dc0a6df2",
+        "auto_tree": "31339fbecf68b3ae94fc57c3493e2192f850a97c",
+        "actual_tree": "31339fbecf68b3ae94fc57c3493e2192f850a97c",
+        "tree_equal": true,
+        "conflict_lines": [],
+        "replay_status": "auto_clean_same_tree"
+      },
+      "5723": {
+        "status": "computed",
+        "evidence_kind": "recorded_history_replay",
+        "merge_sha": "7fea7cf15688b2a2712b01c45c9e3385ea382e67",
+        "auto_tree": "980ee49f33f7b415ce4f531d1aaaa55b507d0128",
+        "actual_tree": "980ee49f33f7b415ce4f531d1aaaa55b507d0128",
+        "tree_equal": true,
+        "conflict_lines": [],
+        "replay_status": "auto_clean_same_tree"
+      }
+    },
+    "post_integration_tests": {
+      "status": "not_executed",
+      "reason": "No offline run of the merged tree was performed. Absence of test results is 'unmeasured', not 'passed'.",
+      "consequence_for_labels": "AC guide: BC may only be `uncertain` without test or subsequent-repair evidence."
+    },
+    "repair_or_revert_history": {
+      "status": "computed",
+      "evidence_kind": "subsequent_mainline_history",
+      "window_days": 180,
+      "window_start_utc": "2025-08-18T17:08:07Z",
+      "window_end_utc": "2026-02-14T17:08:07Z",
+      "data_coverage_start_utc": "2024-04-23T23:52:13Z",
+      "data_coverage_end_utc": "2026-08-11T20:19:14Z",
+      "window_truncated_by_data": false,
+      "effective_observed_window_end_utc": "2026-02-14T17:08:07Z",
+      "coverage_guard": "The screened commit range ends at data_coverage_end_utc. If window_truncated_by_data is true, the absence of a follow-up fix after effective_observed_window_end_utc is an artifact of data coverage, not evidence that no repair was needed.",
+      "source": "merge_rows.jsonl (local commit graph, 80 PR-like merge rows in the screened window)",
+      "entry_count": 2,
+      "entries": [
+        {
+          "pr_number": 5812,
+          "merge_sha": "adf363679da2d9a5ddc564bb2da563c7ca083916",
+          "merge_time_utc": "2025-09-19T23:45:27+00:00",
+          "subject": "merge app and request context (#5812)",
+          "days_after_candidate": 32.28,
+          "shared_paths": [
+            "docs/index.rst"
+          ],
+          "shared_with_change_set_a": [
+            "docs/index.rst"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 5900,
+          "merge_sha": "407eb76b27884848383a37c7274654f0271e4bc4",
+          "merge_time_utc": "2026-01-25T18:35:12+00:00",
+          "subject": "document using gevent for async (#5900)",
+          "days_after_candidate": 160.06,
+          "shared_paths": [
+            "docs/index.rst"
+          ],
+          "shared_with_change_set_a": [
+            "docs/index.rst"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        }
+      ],
+      "interpretation_guard": "`lexical_revert_signal` and `lexical_fix_signal` are keyword matches on merge subjects. They are candidate evidence for the annotator to inspect, not an ID/BC label. An empty entry list means no mainline merge in the window touched these paths in the screened commit range; it is not proof that no repair happened."
+    }
+  },
+  "label_ontology": {
+    "labels": [
+      "TC",
+      "BC",
+      "AC",
+      "RT",
+      "RI",
+      "CC",
+      "LF",
+      "UA",
+      "ID"
+    ],
+    "allowed_values": {
+      "default": [
+        "yes",
+        "no",
+        "uncertain",
+        null
+      ],
+      "ID": [
+        "yes",
+        "no",
+        "possible_ID",
+        "uncertain",
+        null
+      ]
+    },
+    "manual": "annotation/annotation_manual.md",
+    "preregistration": "annotation/preregistration.md"
+  },
+  "packet_integrity": {
+    "deterministic": true,
+    "contains_no_labels": true,
+    "patch_sha256_matches_manifest": {
+      "A": true,
+      "B": true
+    }
+  }
+}

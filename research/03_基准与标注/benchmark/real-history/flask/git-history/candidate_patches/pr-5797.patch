@@ -1,0 +1,89 @@
+From 53b8f08218796d95764c5252bccd8a50a173a6fb Mon Sep 17 00:00:00 2001
+From: David Lord <davidism@gmail.com>
+Date: Mon, 18 Aug 2025 09:41:03 -0700
+Subject: [PATCH] push preserved contexts in correct order
+
+---
+ CHANGES.rst           |  3 +++
+ src/flask/testing.py  |  4 ++--
+ tests/test_testing.py | 31 ++++++++++---------------------
+ 3 files changed, 15 insertions(+), 23 deletions(-)
+
+diff --git a/CHANGES.rst b/CHANGES.rst
+index 2870fdf605..1c41e34b37 100644
+--- a/CHANGES.rst
++++ b/CHANGES.rst
+@@ -3,6 +3,9 @@ Version 3.1.2
+ 
+ Unreleased
+ 
++-   When using ``follow_redirects`` in the test client, the final state
++    of ``session`` is correct. :issue:`5786`
++
+ 
+ Version 3.1.1
+ -------------
+diff --git a/src/flask/testing.py b/src/flask/testing.py
+index ded2391b02..55eb12fe75 100644
+--- a/src/flask/testing.py
++++ b/src/flask/testing.py
+@@ -240,10 +240,10 @@ def open(
+         response.json_module = self.application.json  # type: ignore[assignment]
+ 
+         # Re-push contexts that were preserved during the request.
+-        while self._new_contexts:
+-            cm = self._new_contexts.pop()
++        for cm in self._new_contexts:
+             self._context_stack.enter_context(cm)
+ 
++        self._new_contexts.clear()
+         return response
+ 
+     def __enter__(self) -> FlaskClient:
+diff --git a/tests/test_testing.py b/tests/test_testing.py
+index de0521520a..20f9f6ddba 100644
+--- a/tests/test_testing.py
++++ b/tests/test_testing.py
+@@ -138,32 +138,21 @@ def index():
+     assert rv.data == b"http://xxx.example.com:1234/foo/"
+ 
+ 
+-def test_redirect_keep_session(app, client, app_ctx):
+-    @app.route("/", methods=["GET", "POST"])
++def test_redirect_session(app, client, app_ctx):
++    @app.route("/redirect")
+     def index():
+-        if flask.request.method == "POST":
+-            return flask.redirect("/getsession")
+-        flask.session["data"] = "foo"
+-        return "index"
++        flask.session["redirect"] = True
++        return flask.redirect("/target")
+ 
+-    @app.route("/getsession")
++    @app.route("/target")
+     def get_session():
+-        return flask.session.get("data", "<missing>")
++        flask.session["target"] = True
++        return ""
+ 
+     with client:
+-        rv = client.get("/getsession")
+-        assert rv.data == b"<missing>"
+-
+-        rv = client.get("/")
+-        assert rv.data == b"index"
+-        assert flask.session.get("data") == "foo"
+-
+-        rv = client.post("/", data={}, follow_redirects=True)
+-        assert rv.data == b"foo"
+-        assert flask.session.get("data") == "foo"
+-
+-        rv = client.get("/getsession")
+-        assert rv.data == b"foo"
++        client.get("/redirect", follow_redirects=True)
++        assert flask.session["redirect"] is True
++        assert flask.session["target"] is True
+ 
+ 
+ def test_session_transactions(app, client):

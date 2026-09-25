@@ -1,0 +1,53 @@
+﻿{
+  "name": "dsh-coord-governor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Coordination ledger and governor for DeepSeek Harness: observes the produced change stream (lambda_produced), reconstructs backlog B(t), measures effective parallelism, and optionally coordinates cross-session writes.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/host.ts",
+    "./api": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "typecheck": "node ../../05_实验/harness/typecheck/node_modules/typescript/bin/tsc -p ../../05_实验/harness/typecheck/tsconfig.json"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "cordis-plugin",
+    "change-coordination",
+    "version-control"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-agent": "*",
+    "@deepseek-ai/dsh-fs": "*",
+    "@deepseek-ai/dsh-llm": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "@deepseek-ai/dsh-tools": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-agent": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-fs": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-session": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    }
+  }
+}

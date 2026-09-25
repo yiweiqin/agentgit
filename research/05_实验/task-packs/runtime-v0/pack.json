@@ -1,0 +1,94 @@
+﻿{
+  "pack": "runtime-v0",
+  "schemaVersion": "coord-runtime-pack-0.1",
+  "status": "draft",
+  "description": "Runnable task pack for E1/E3: natural-language tasks an agent executes in a real repository, with intent equivalence declared by construction. Eight tasks over four structures (true collision, semantic duplicate, independent control, hidden dependency). Intent groups are the construction's claim of same intent and are what the primary indicator (redundant landing rate, preregistration §5.2) is scored against -- never the detector, never entity overlap (§4 hard constraint, H9). Every declared entity is a real path at the pinned commit and every referenced symbol exists there; `harness/task_pack.py --repo` re-checks that mechanically rather than trusting this sentence.",
+  "_status_note": "status is 'draft' until (a) all four prompts have been run once against the pinned commit and produced a landing, and (b) the entity checks have been re-run on the machine's checkout. `arm_runner.py validate` refuses a draft pack only when a plan references it and the plan is not itself a skeleton; the pack validator always reports the status.",
+  "repo": {
+    "url": "https://github.com/pallets/flask.git",
+    "commit": "85793d6c223dd845e8f218403a5ced83041d37e1",
+    "license_note": "Repository metadata reports BSD-3-Clause; verify LICENSE before redistribution.",
+    "language": "python",
+    "test_command": "python -m pytest",
+    "_commit_note": "The same revision the Flask pilot assets are pinned to (03_基准与标注/benchmark/real-history/flask). Reusing it keeps the pilot's path and symbol evidence applicable to this pack."
+  },
+  "scheduling": {
+    "_note": "The runner schedules task i of round r to session (r + i) mod len(tasks), so each duplicate group's members are placed adjacently to guarantee they are in flight together. Changing this order can silently schedule a claimed collision apart; `arm_runner.py validate` refuses a plan whose groups are then never co-scheduled.",
+    "tasks_per_round": 4
+  },
+  "tasks": [
+    {
+      "taskId": "T-json-helper-lexical",
+      "intentGroup": "G-json-response",
+      "developer": "d1",
+      "truthKind": "true-collision",
+      "prompt": "In src/flask/json/__init__.py, add a module-level function json_response(obj) that returns a Response whose body is the JSON encoding of obj and whose content type is application/json. Reuse the existing dumps function rather than calling json.dumps directly.",
+      "expectedEntities": ["src/flask/json/__init__.py"],
+      "why": "Shares its only entity with T-json-helper-paraphrase and states the same intent in nearly the same words. This is the case a lexical baseline is built to catch; failing it would mean the detector is broken rather than limited."
+    },
+    {
+      "taskId": "T-json-helper-paraphrase",
+      "intentGroup": "G-json-response",
+      "developer": "d2",
+      "truthKind": "semantic-duplicate",
+      "prompt": "Make it possible to hand back a JSON document as a Response straight from a plain dict, without going through the view layer. Put the helper in src/flask/json/__init__.py alongside the existing serialisation functions.",
+      "expectedEntities": ["src/flask/json/__init__.py"],
+      "why": "Same purpose as T-json-helper-lexical on the same entity, with almost no shared content words ('hand back', 'plain dict', 'view layer' versus 'returns a Response', 'JSON encoding'). This is the hard semantic case: reachable by the entity key, unreachable by wording, which is what separates 'paraphrase' from 'paraphrase that happens to share a term'."
+    },
+    {
+      "taskId": "T-config-toml-lexical",
+      "intentGroup": "G-config-loader",
+      "developer": "d1",
+      "truthKind": "true-collision",
+      "prompt": "Add a from_toml method to the Config class in src/flask/config.py that loads configuration from a TOML file path, in the same style as the existing from_pyfile and from_object methods.",
+      "expectedEntities": ["src/flask/config.py"],
+      "why": "Same entity and near-identical wording as T-config-toml-paraphrase; the loader family in that class makes the naming almost forced, which is exactly what the lexical signal is supposed to exploit."
+    },
+    {
+      "taskId": "T-config-toml-paraphrase",
+      "intentGroup": "G-config-loader",
+      "developer": "d2",
+      "truthKind": "semantic-duplicate",
+      "prompt": "Let an application read its settings out of a TOML document on disk. The loading entry point belongs on the Config class in src/flask/config.py, next to the other loaders.",
+      "expectedEntities": ["src/flask/config.py"],
+      "why": "Same purpose as T-config-toml-lexical on the same entity. Included so the pack carries a second paraphrase on a different file: if only the JSON pair is paraphrased, a matcher could pass on one lucky file rather than on the signal."
+    },
+    {
+      "taskId": "T-control-config-validation",
+      "intentGroup": "G-control-config-validation",
+      "developer": "d2",
+      "truthKind": "independent-control",
+      "prompt": "In src/flask/config.py, add a check that raises a clear error when SECRET_KEY is left unset and the application is about to serve a request. Do not change how configuration values are loaded.",
+      "expectedEntities": ["src/flask/config.py"],
+      "why": "DELIBERATE OVERLAP CONTROL. It shares src/flask/config.py with both TOML tasks and must still never be flagged: the purpose (validating a value) is unrelated to the purpose (loading a file format). This is the H9 case, and under A4-gated a false positive here refuses legitimate work -- the E2 pack's own hard constraint, reproduced in a runnable pack."
+    },
+    {
+      "taskId": "T-control-logging-handler",
+      "intentGroup": "G-control-logging-handler",
+      "developer": "d1",
+      "truthKind": "independent-control",
+      "prompt": "In src/flask/logging.py, extend create_logger so that setting a new configuration key LOG_FILE makes it attach a rotating file handler in addition to the stream handler it already installs.",
+      "expectedEntities": ["src/flask/logging.py"],
+      "why": "Clean control: no other task touches src/flask/logging.py, so it is the false-positive floor. Without a case like this, 'flag everything' would score a perfect recall and the accuracy gate would be meaningless."
+    },
+    {
+      "taskId": "T-control-views-docstring",
+      "intentGroup": "G-control-views-docstring",
+      "developer": "d1",
+      "truthKind": "independent-control",
+      "prompt": "In src/flask/views.py, document and tighten the typing of View.as_view so that the decorator returns a function whose signature mypy can check against the class's dispatch_request. Behaviour must not change.",
+      "expectedEntities": ["src/flask/views.py"],
+      "why": "Second clean control, on an entity no other task touches, with an intent that is adjacent in wording to nothing in the pack. Two clean controls on different files keep the false-positive floor from being a property of one file."
+    },
+    {
+      "taskId": "T-hidden-cli-config-dump",
+      "intentGroup": "G-hidden-cli-config-dump",
+      "developer": "d2",
+      "truthKind": "hidden-dependency",
+      "prompt": "Add a CLI command to src/flask/cli.py that prints the resolved configuration for an application, so a developer can see what the settings actually ended up as before the app serves anything.",
+      "expectedEntities": ["src/flask/cli.py"],
+      "dependsOn": ["T-config-toml-lexical", "T-config-toml-paraphrase"],
+      "why": "Depends on whichever TOML loader lands: the command's output is only meaningful once a file-based loader exists, and validation of a TOML source in particular is what a developer would use it for. It shares NO entity with the tasks it depends on (cli.py versus config.py), so no entity-key detector can reach it. Present to establish the recall ceiling rather than to be scored against it -- the same role p-hidden-dependency plays in the E2 pack."
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+﻿{
+  "status": "skeleton",
+  "schemaVersion": "coord-runplan-0.1",
+  "experiment": "E3",
+  "topology": "in-process-multi-session",
+  "experimentRoot": "/root/autodl-tmp/coord-exp",
+  "dshEnvFile": "~/.coord-dsh.env",
+  "pack": "../../task-packs/runtime-v0/pack.json",
+  "_comment": [
+    "SKELETON, not data. `status: skeleton` makes `arm_runner.py run` refuse this plan (exit 2),",
+    "and the referenced pack is itself `status: draft`. Both must be frozen before a real run: the",
+    "plan because its arms and rounds define the comparison, the pack because its intent groups are",
+    "the construction truth the primary indicator is scored against.",
+    "",
+    "The tasks come from the pack, not from this file. Keeping them in one place means the labels",
+    "the truth-consistency checks are performed against are the same text the sessions actually run;",
+    "duplicating the text here would let the two drift apart silently.",
+    "",
+    "Topology is 'in-process-multi-session' because A3/A4 need it and nothing weaker will do:",
+    "`ledgerScope: 'cross-session'` reads the governor instance's IN-MEMORY event list, and the",
+    "ledger file is append-only with no read-back path. N separate `dsh` processes sharing a ledger",
+    "directory therefore cannot see each other (review R4.3), so under 'multi-process' the treatment",
+    "never fires and a null result cannot be distinguished from broken wiring. `arm_runner.py`",
+    "refuses A3/A4 under 'multi-process' for exactly that reason.",
+    "",
+    "dsh.profile is 'coord-inproc', NOT the shipped 'headless' profile: 'headless' mounts a one-shot",
+    "runner that consumes one task at startup, while the in-process backend needs a leaf that mounts",
+    "dsh-base's core (agent, agent-loop, session, llm-deepseek, fs, sandbox) WITHOUT that runner.",
+    "The round driver then creates every session of the round through the one shared `ctx.agents`",
+    "registry. Creating that profile on the machine is the remaining live step; see harness/README.md."
+  ],
+  "repo": {
+    "url": "https://github.com/pallets/flask.git",
+    "path": "/root/autodl-tmp/coord-exp/repo",
+    "commit": "85793d6c223dd845e8f218403a5ced83041d37e1"
+  },
+  "plugin": {
+    "entry": "/root/autodl-tmp/coord-exp/dsh-coord-governor/src/index.ts",
+    "driverEntry": "/root/autodl-tmp/coord-exp/dsh-coord-governor/src/round-driver.ts"
+  },
+  "dsh": {
+    "binary": "/root/autodl-tmp/coord-exp/dsh-host/node_modules/.bin/dsh",
+    "profile": "coord-inproc",
+    "pathPrepend": ["/opt/node24/bin"],
+    "env": {}
+  },
+  "arms": ["A0-baseline", "A1-instrument", "A2-inert", "A3-advisory", "A4-gated"],
+  "rounds": 8,
+  "concurrency": 4,
+  "timeoutSeconds": 420
+}

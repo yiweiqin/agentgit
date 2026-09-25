@@ -1,0 +1,91 @@
+{
+  "packet_version": "1.1",
+  "builder_version": "1.1",
+  "built_at_utc": "2026-09-15T12:46:59.100240Z",
+  "follow_up_window_days": 180,
+  "scenarios": 7,
+  "contains_labels": false,
+  "packets": [
+    {
+      "scenario_id": "flask-pr-5516-pr-5514",
+      "packet_path": "annotation/packets/flask-pr-5516-pr-5514.json",
+      "packet_sha256": "3ea44bc9ee7102b60a24d51eb8fa18507fdae1eabcb3c8e6bbea6edfa33a485d",
+      "left_pr": 5516,
+      "right_pr": 5514,
+      "shared_files": [],
+      "counterfactual_merge_status": "computed",
+      "textual_conflict_observed": false,
+      "repair_history_entries": 4
+    },
+    {
+      "scenario_id": "flask-pr-5754-pr-5723",
+      "packet_path": "annotation/packets/flask-pr-5754-pr-5723.json",
+      "packet_sha256": "d7b39283869a7efcb08175f25f4e3ddb026dfe02bdfe5e99ad4a2807f3696216",
+      "left_pr": 5754,
+      "right_pr": 5723,
+      "shared_files": [],
+      "counterfactual_merge_status": "computed",
+      "textual_conflict_observed": false,
+      "repair_history_entries": 4
+    },
+    {
+      "scenario_id": "flask-pr-5757-pr-5723",
+      "packet_path": "annotation/packets/flask-pr-5757-pr-5723.json",
+      "packet_sha256": "410257b929e584eaf85608376898e197a5dc488e3b4a3f6b5dcb023296cd216d",
+      "left_pr": 5757,
+      "right_pr": 5723,
+      "shared_files": [],
+      "counterfactual_merge_status": "computed",
+      "textual_conflict_observed": false,
+      "repair_history_entries": 2
+    },
+    {
+      "scenario_id": "flask-pr-5797-pr-5723",
+      "packet_path": "annotation/packets/flask-pr-5797-pr-5723.json",
+      "packet_sha256": "ba229abc94d427912b7129debcfcdd8304a1102a3fe9c56649c4ac321b4e6c1c",
+      "left_pr": 5797,
+      "right_pr": 5723,
+      "shared_files": [],
+      "counterfactual_merge_status": "computed",
+      "textual_conflict_observed": false,
+      "repair_history_entries": 9
+    },
+    {
+      "scenario_id": "flask-pr-5812-pr-5808",
+      "packet_path": "annotation/packets/flask-pr-5812-pr-5808.json",
+      "packet_sha256": "b8448d8252f638010ed5f1377d1194df438dc4e2ab9f539a99fd0197325bb4ca",
+      "left_pr": 5812,
+      "right_pr": 5808,
+      "shared_files": [
+        "src/flask/sansio/app.py"
+      ],
+      "counterfactual_merge_status": "computed",
+      "textual_conflict_observed": false,
+      "repair_history_entries": 8
+    },
+    {
+      "scenario_id": "flask-pr-5818-pr-5808",
+      "packet_path": "annotation/packets/flask-pr-5818-pr-5808.json",
+      "packet_sha256": "c5e6feb210f5fc69046d9c61d0f899f678e9e46283d83a3df763b9620dc4252f",
+      "left_pr": 5818,
+      "right_pr": 5808,
+      "shared_files": [],
+      "counterfactual_merge_status": "computed",
+      "textual_conflict_observed": false,
+      "repair_history_entries": 7
+    },
+    {
+      "scenario_id": "flask-pr-5898-pr-5808",
+      "packet_path": "annotation/packets/flask-pr-5898-pr-5808.json",
+      "packet_sha256": "4e030b28ec82f20cde0ae493d36d89c3738cda0b5a42d5d406513d73490d2747",
+      "left_pr": 5898,
+      "right_pr": 5808,
+      "shared_files": [
+        "src/flask/sansio/app.py"
+      ],
+      "counterfactual_merge_status": "computed",
+      "textual_conflict_observed": false,
+      "repair_history_entries": 5
+    }
+  ]
+}

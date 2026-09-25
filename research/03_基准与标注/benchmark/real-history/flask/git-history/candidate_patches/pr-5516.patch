@@ -1,0 +1,83 @@
+From 7621b3d96ac2d53846c4df211bc05c5e13420028 Mon Sep 17 00:00:00 2001
+From: "dependabot[bot]" <49699333+dependabot[bot]@users.noreply.github.com>
+Date: Mon, 1 Jul 2024 15:56:20 +0000
+Subject: [PATCH] Bump the github-actions group with 2 updates
+
+Bumps the github-actions group with 2 updates: [actions/checkout](https://github.com/actions/checkout) and [pypa/gh-action-pypi-publish](https://github.com/pypa/gh-action-pypi-publish).
+
+
+Updates `actions/checkout` from 4.1.6 to 4.1.7
+- [Release notes](https://github.com/actions/checkout/releases)
+- [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/actions/checkout/compare/a5ac7e51b41094c92402da3b24376905380afc29...692973e3d937129bcbf40652eb9f2f61becf3332)
+
+Updates `pypa/gh-action-pypi-publish` from 1.8.14 to 1.9.0
+- [Release notes](https://github.com/pypa/gh-action-pypi-publish/releases)
+- [Commits](https://github.com/pypa/gh-action-pypi-publish/compare/81e9d935c883d0b210363ab89cf05f3894778450...ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0)
+
+---
+updated-dependencies:
+- dependency-name: actions/checkout
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+  dependency-group: github-actions
+- dependency-name: pypa/gh-action-pypi-publish
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+  dependency-group: github-actions
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+---
+ .github/workflows/publish.yaml | 6 +++---
+ .github/workflows/tests.yaml   | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/.github/workflows/publish.yaml b/.github/workflows/publish.yaml
+index 503f502d97..eba5b36e3c 100644
+--- a/.github/workflows/publish.yaml
++++ b/.github/workflows/publish.yaml
+@@ -9,7 +9,7 @@ jobs:
+     outputs:
+       hash: ${{ steps.hash.outputs.hash }}
+     steps:
+-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
++      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+         with:
+           python-version: '3.x'
+@@ -64,10 +64,10 @@ jobs:
+       id-token: write
+     steps:
+       - uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+-      - uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # v1.8.14
++      - uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0
+         with:
+           repository-url: https://test.pypi.org/legacy/
+           packages-dir: artifact/
+-      - uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # v1.8.14
++      - uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0
+         with:
+           packages-dir: artifact/
+diff --git a/.github/workflows/tests.yaml b/.github/workflows/tests.yaml
+index bdb38a66ab..ede9308b1f 100644
+--- a/.github/workflows/tests.yaml
++++ b/.github/workflows/tests.yaml
+@@ -33,7 +33,7 @@ jobs:
+           - {name: Minimum Versions, python: '3.12', tox: py-min}
+           - {name: Development Versions, python: '3.8', tox: py-dev}
+     steps:
+-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
++      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+         with:
+           python-version: ${{ matrix.python }}
+@@ -45,7 +45,7 @@ jobs:
+   typing:
+     runs-on: ubuntu-latest
+     steps:
+-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
++      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
+         with:
+           python-version: '3.x'

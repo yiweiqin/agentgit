@@ -1,0 +1,18 @@
+{
+  "expected_divergences": [
+    {
+      "field": "counts.contested_entities",
+      "python": 1,
+      "typescript": 0,
+      "why": "coord_ledger.py counts file_read as an entity touch, so two sessions reading one file is contention there. The plugin counts only writes, because a read is not a conflict. Measured here so the boundary is a number rather than a comment."
+    },
+    {
+      "field": "top_contested_entities",
+      "python": "1 entry, touches=3",
+      "typescript": "0 entries",
+      "why": "Same cause as counts.contested_entities, at the detail level."
+    }
+  ],
+  "note": "Kind-coverage scenario. Both analyzers know `file_read`; only Python treats it as a touch. `write_settled` is the mirror case and is not emitted here because Python's loader tolerates unknown kinds, so the divergence would be invisible.",
+  "scenario": "kinds"
+}

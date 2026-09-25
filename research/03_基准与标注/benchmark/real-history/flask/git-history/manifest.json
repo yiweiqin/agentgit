@@ -1,0 +1,12 @@
+{
+  "repository": "pallets/flask",
+  "source": "local Git object graph cloned from public repository",
+  "commit_limit": 120,
+  "pr_like_merge_rows": 80,
+  "candidate_pairs": 805,
+  "skipped_merges": 40,
+  "retrieved_at_utc": "2026-09-13T17:53:01.214507+00:00",
+  "data_status": "real_public_git_metadata_candidate",
+  "ground_truth": "not_available; requires Gate A human annotation",
+  "source_policy": "commit metadata and path lists only; no source files copied into output"
+}

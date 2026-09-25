@@ -1,0 +1,135 @@
+{
+  "repo": "D:\\AI小工具制作\\AI原生变更协调研究\\03_基准与标注\\benchmark\\real-history\\flask\\repo",
+  "status": "baseline_estimate_only_not_the_agent_driven_failure_state",
+  "commits_total": 5557,
+  "merges_total": 1027,
+  "history_span": {
+    "first_commit": "2010-04-06",
+    "last_commit": "2026-09-08"
+  },
+  "lambda_merged_per_hour": 0.007184412427370895,
+  "lambda_merged_per_day": 0.17242589825690147,
+  "tip_age_hours": {
+    "n": 1027,
+    "min": 0.001388888888888889,
+    "p25": 0.04972222222222222,
+    "median": 0.22194444444444444,
+    "p75": 5.568611111111111,
+    "p90": 113.81555555555556,
+    "p99": 1373.9141666666667,
+    "max": 17208.658055555556,
+    "share_below_1h": 0.6445959104186952
+  },
+  "w_floor_hours_median": 0.22194444444444444,
+  "wip_floor_changes": 0.0015945404248525958,
+  "per_year": {
+    "2010": {
+      "commits": 555,
+      "merges": 34,
+      "n_tip_age": 34,
+      "median_tip_age_hours": 0.9627777777777777
+    },
+    "2011": {
+      "commits": 450,
+      "merges": 40,
+      "n_tip_age": 40,
+      "median_tip_age_hours": 6.470833333333333
+    },
+    "2012": {
+      "commits": 345,
+      "merges": 37,
+      "n_tip_age": 37,
+      "median_tip_age_hours": 34.303333333333335
+    },
+    "2013": {
+      "commits": 321,
+      "merges": 41,
+      "n_tip_age": 41,
+      "median_tip_age_hours": 54.090555555555554
+    },
+    "2014": {
+      "commits": 451,
+      "merges": 107,
+      "n_tip_age": 107,
+      "median_tip_age_hours": 10.702222222222222
+    },
+    "2015": {
+      "commits": 264,
+      "merges": 41,
+      "n_tip_age": 41,
+      "median_tip_age_hours": 2.0683333333333334
+    },
+    "2016": {
+      "commits": 312,
+      "merges": 0,
+      "n_tip_age": 0,
+      "median_tip_age_hours": null
+    },
+    "2017": {
+      "commits": 436,
+      "merges": 65,
+      "n_tip_age": 65,
+      "median_tip_age_hours": 0.31972222222222224
+    },
+    "2018": {
+      "commits": 300,
+      "merges": 87,
+      "n_tip_age": 87,
+      "median_tip_age_hours": 0.2608333333333333
+    },
+    "2019": {
+      "commits": 365,
+      "merges": 101,
+      "n_tip_age": 101,
+      "median_tip_age_hours": 0.18694444444444444
+    },
+    "2020": {
+      "commits": 264,
+      "merges": 83,
+      "n_tip_age": 83,
+      "median_tip_age_hours": 0.059722222222222225
+    },
+    "2021": {
+      "commits": 458,
+      "merges": 117,
+      "n_tip_age": 117,
+      "median_tip_age_hours": 0.10083333333333333
+    },
+    "2022": {
+      "commits": 369,
+      "merges": 89,
+      "n_tip_age": 89,
+      "median_tip_age_hours": 0.07694444444444444
+    },
+    "2023": {
+      "commits": 324,
+      "merges": 96,
+      "n_tip_age": 96,
+      "median_tip_age_hours": 0.11277777777777778
+    },
+    "2024": {
+      "commits": 172,
+      "merges": 50,
+      "n_tip_age": 50,
+      "median_tip_age_hours": 0.10027777777777777
+    },
+    "2025": {
+      "commits": 90,
+      "merges": 17,
+      "n_tip_age": 17,
+      "median_tip_age_hours": 0.023055555555555555
+    },
+    "2026": {
+      "commits": 81,
+      "merges": 22,
+      "n_tip_age": 22,
+      "median_tip_age_hours": 0.06180555555555556
+    }
+  },
+  "interpretation_guards": [
+    "lambda_merged counts only changes that REACHED the mainline. The produced-change arrival rate is strictly larger, and the difference is the backlog this framework is about. Git history cannot observe the backlog by construction: unreconciled work is, by definition, not in the commit graph.",
+    "Therefore this script CANNOT produce evidence for the lambda > R failure state. It can only calibrate the healthy baseline and demonstrate the measurement obstacle.",
+    "tip_age is a lower bound on W (time in system): it excludes the writing time of the branch. A small tip_age must not be read as 'changes are cheap to reconcile', only as 'they do not queue before merge'.",
+    "This repository is a mature project whose throughput is DECLINING. A declining lambda with a collapsing tip_age is the expected signature of a converging project, not of the multi-session agent failure mode."
+  ]
+}

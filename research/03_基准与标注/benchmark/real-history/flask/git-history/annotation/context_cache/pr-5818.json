@@ -1,0 +1,54 @@
+{
+  "fetcher_version": "1.0",
+  "repository": "pallets/flask",
+  "pr_number": 5818,
+  "retrieved_at_utc": "2026-09-14T08:34:38Z",
+  "fetched": {
+    "pull": {
+      "ok": true,
+      "status": 200,
+      "bytes": 19815
+    },
+    "review_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    },
+    "issue_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    }
+  },
+  "request_urls": {
+    "pull": "https://api.github.com/repos/pallets/flask/pulls/5818",
+    "review_comments": "https://api.github.com/repos/pallets/flask/pulls/5818/comments?per_page=100",
+    "issue_comments": "https://api.github.com/repos/pallets/flask/issues/5818/comments?per_page=100"
+  },
+  "response_sha256": {
+    "pull": "596d1ed1dd9098d9d5c6619c19f0278dc9d83f608f6ad1220151adabc8d2c37c",
+    "review_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "issue_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "data": {
+    "pull": {
+      "title": "pass context through dispatch methods",
+      "body": "The current `AppContext` object is passed through the various request dispatch methods, rather than each method accessing the proxies. closes #5815 \r\n\r\n@pgjones first proposed this in #5229 as a way to speed up dispatch especially for Quart and async views. This PR applies to more methods, and also implements compatibility during a deprecation period.\r\n\r\nDispatch methods now take `ctx: AppContext` as the first parameter. The following `Flask` methods were changed:\r\n\r\n- `update_template_context`\r\n- `handle_http_exception`\r\n- `handle_user_exception`\r\n- `handle_exception`\r\n- `log_exception`\r\n- `dispatch_request`\r\n- `full_dispatch_request`\r\n- `finalize_request`\r\n- `make_default_options_response`\r\n- `preprocess_request`\r\n- `process_response`\r\n- `do_teardown_request`\r\n- `do_teardown_appcontext`\r\n\r\n`url_for` and `make_response` were not changed, as it's much more likely that these are called from user code that only has access to the proxy.\r\n\r\nAn `__init_subclass__` class method is added to detect old signatures on subclasses of `Flask`. The second parameter is inspected (first is self). If it is not annotated, it must be named `ctx`. If it is annotated, it must either be the string or class `AppContext`. If an old signature is detected, the method is wrapped to remove the argument when other `Flask` methods call it during dispatch. The base method is also wrapped to inject the argument so that `super().base_method` from the overridden method will continue to work.\r\n\r\nI did not apply the compat wrapper to every base `Flask` method, only the ones that a subclass overrides. Therefore, if user code is directly calling these internal dispatch methods, they will get a `TypeError`. This is only likely (and unlikely at that) to happen during testing. I did this over concern that the wrapper would be unnecessary and a performance hit for most applications. If we get bug reports we can consider adding the wrapper.",
+      "state": "closed",
+      "merged_at": "2025-11-17T16:49:53Z",
+      "created_at": "2025-09-20T00:47:44Z",
+      "base_sha": "adf363679da2d9a5ddc564bb2da563c7ca083916",
+      "head_sha": "6a64969009bf1898bd302e6a9633f71942523f7f",
+      "merge_commit_sha": "70d04b5a2620705011e65f79ccfd52caa86f5d6a",
+      "changed_files": 6,
+      "additions": 167,
+      "deletions": 72,
+      "labels": [],
+      "author": "davidism"
+    },
+    "review_comments": [],
+    "issue_comments": []
+  },
+  "degraded": false,
+  "availability_note": "Enriched from the public GitHub API; task text is upstream-authored, not researcher-authored."
+}

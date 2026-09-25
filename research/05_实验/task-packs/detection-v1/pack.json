@@ -1,0 +1,109 @@
+{
+  "pack": "detection-v1",
+  "schemaVersion": "coord-taskpack-0.1",
+  "description": "E2 detection pack. Ground truth is authored here, by hand, and never inferred from the detector's output. Contains the four required structures: true collision, semantic duplicate (same purpose, different words), independent control (must not be flagged), and hidden dependency (a real collision no entity-overlap detector can see). Tuned to be HARD on purpose: a pack the detector passes tells us nothing, and the plan anticipates E2 failing first (trigger I3). Whether a proposal overlaps prior work is NOT declared here - the evaluator derives it from priorEvents and refuses to score a pack whose labels contradict its own events.",
+  "priorEvents": [
+    { "minute": 0, "kind": "task_registered", "sessionId": "sA", "taskId": "T-shared-lexical" },
+    { "minute": 1, "kind": "task_registered", "sessionId": "sB", "taskId": "T-dup-semantic" },
+    { "minute": 2, "kind": "task_registered", "sessionId": "sC", "taskId": "T-dup-identifier" },
+    { "minute": 3, "kind": "task_registered", "sessionId": "sD", "taskId": "T-control-same-entity" },
+    { "minute": 4, "kind": "task_registered", "sessionId": "sE", "taskId": "T-hidden-upstream" },
+
+    { "minute": 10, "kind": "file_write", "sessionId": "sA", "taskId": "T-shared-lexical", "entityPath": "flask/app.py", "intentText": "add jsonify helper to the view function" },
+    { "minute": 11, "kind": "file_write", "sessionId": "sA", "taskId": "T-shared-lexical", "entityPath": "flask/json/__init__.py", "intentText": "add jsonify helper for serialising dicts" },
+
+    { "minute": 20, "kind": "file_write", "sessionId": "sB", "taskId": "T-dup-semantic", "entityPath": "flask/helpers.py", "intentText": "make the endpoint hand back a JSON document instead of a rendered page" },
+    { "minute": 21, "kind": "file_write", "sessionId": "sB", "taskId": "T-dup-semantic", "entityPath": "flask/blueprints.py", "intentText": "reuse the existing serialiser rather than writing another one" },
+
+    { "minute": 30, "kind": "file_write", "sessionId": "sC", "taskId": "T-dup-identifier", "entityPath": "flask/views.py", "intentText": "wire up make_response so the view returns structured output" },
+    { "minute": 31, "kind": "file_write", "sessionId": "sC", "taskId": "T-dup-identifier", "entityPath": "flask/sessions.py", "intentText": "limit make_response to a single call site" },
+
+    { "minute": 40, "kind": "file_write", "sessionId": "sD", "taskId": "T-control-same-entity", "entityPath": "flask/config.py", "intentText": "validate that the secret key is set before the app starts" },
+    { "minute": 41, "kind": "file_write", "sessionId": "sD", "taskId": "T-control-same-entity", "entityPath": "flask/logging.py", "intentText": "add a rotating file handler for the request logger" },
+
+    { "minute": 50, "kind": "file_write", "sessionId": "sE", "taskId": "T-hidden-upstream", "entityPath": "flask/cli.py", "intentText": "add a shell command that prints the resolved configuration" },
+    { "minute": 51, "kind": "file_write", "sessionId": "sE", "taskId": "T-hidden-upstream", "entityPath": "flask/typing.py", "intentText": "narrow the config value type to a union" }
+  ],
+  "proposals": [
+    {
+      "id": "p-lexical-near-duplicate",
+      "sessionId": "sX",
+      "taskId": "T-new-lexical",
+      "entityPath": "flask/app.py",
+      "intentText": "add a jsonify helper to the view",
+      "truth": "collision",
+      "truthKind": "true-collision",
+      "why": "Same file and near-identical wording as T-shared-lexical. This is the case the lexical baseline is built to catch; failing it would mean the detector is broken rather than limited."
+    },
+    {
+      "id": "p-identifier-dup",
+      "sessionId": "sX",
+      "taskId": "T-new-identifier",
+      "entityPath": "flask/views.py",
+      "intentText": "use make_response in the view",
+      "truth": "collision",
+      "truthKind": "true-collision",
+      "why": "Same file, shares the make_response identifier. Identifier overlap is the strongest lexical signal available, so this must be caught."
+    },
+    {
+      "id": "p-semantic-different-words",
+      "sessionId": "sX",
+      "taskId": "T-new-semantic",
+      "entityPath": "flask/helpers.py",
+      "intentText": "return a JSON payload from the handler rather than HTML",
+      "truth": "collision",
+      "truthKind": "semantic-duplicate",
+      "why": "The same purpose as T-dup-semantic, stated in different words. Shared entity makes it reachable, so a miss would be a genuine matcher limitation rather than a structural one. This is the hardest semantic case in the pack."
+    },
+    {
+      "id": "p-semantic-different-words-shared-identifier",
+      "sessionId": "sX",
+      "taskId": "T-new-semantic-ident",
+      "entityPath": "flask/blueprints.py",
+      "intentText": "avoid duplicating the serializer by calling the existing helper",
+      "truth": "collision",
+      "truthKind": "semantic-duplicate",
+      "why": "Same purpose as T-dup-semantic on the same file, with disjoint wording but the shared word serializer. Included to separate 'paraphrase' from 'paraphrase that happens to share a term', which decides whether I3 needs a better matcher or better intent capture."
+    },
+    {
+      "id": "p-control-untouched-file",
+      "sessionId": "sX",
+      "taskId": "T-new-control",
+      "entityPath": "flask/testing.py",
+      "intentText": "add a context manager for the test client",
+      "truth": "independent",
+      "truthKind": "independent-control",
+      "why": "Nobody else touched this file and the intent is unrelated. Must never be flagged: this is the false-positive floor, and the accuracy gate is meaningless without it."
+    },
+    {
+      "id": "p-control-same-entity-different-purpose",
+      "sessionId": "sX",
+      "taskId": "T-new-control-2",
+      "entityPath": "flask/config.py",
+      "intentText": "support loading configuration from a TOML file",
+      "truth": "independent",
+      "truthKind": "independent-control",
+      "why": "Overlaps T-control-same-entity on flask/config.py but for unrelated reasons: validity checking versus a new loader, sharing almost no content words. Counted as a false positive deliberately, per H9 - entity overlap alone is not evidence of a coordination failure. Under A3 this costs tokens only; under A4 it refuses legitimate work."
+    },
+    {
+      "id": "p-hidden-dependency",
+      "sessionId": "sX",
+      "taskId": "T-new-hidden",
+      "entityPath": "flask/signals.py",
+      "intentText": "emit the config-loaded signal from the new accessor",
+      "truth": "collision",
+      "truthKind": "hidden-dependency",
+      "why": "Depends on T-hidden-upstream's change in flask/cli.py and flask/typing.py, and shares no entity with any in-flight work. A real collision that no entity-key detector can reach. Present to establish the recall ceiling rather than to score against it."
+    },
+    {
+      "id": "p-control-different-entity-close-words",
+      "sessionId": "sX",
+      "taskId": "T-new-control-3",
+      "entityPath": "flask/templating.py",
+      "intentText": "validate that the secret key is set before the app starts",
+      "truth": "independent",
+      "truthKind": "independent-control",
+      "why": "Nearly the same wording as T-control-same-entity's change to flask/config.py, but on a file where nobody else is working. Guards the opposite error from the overlap control: text similarity must not be sufficient on its own when the entity is untouched."
+    }
+  ]
+}

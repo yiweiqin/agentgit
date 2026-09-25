@@ -1,0 +1,650 @@
+{
+  "packet_version": "1.1",
+  "scenario_id": "flask-pr-5898-pr-5808",
+  "provenance": {
+    "repository": "pallets/flask",
+    "data_status": "real_public_git_metadata_plus_public_patch_plus_public_pr_context",
+    "license_note": "Flask reports BSD-3-Clause. PR bodies, comments and patches are upstream-authored public content; verify LICENSE before redistribution.",
+    "generator": {
+      "script": "build_annotation_packets.py",
+      "version": "1.1"
+    },
+    "sources": [
+      "temporal_candidates.jsonl (commit-graph screening)",
+      "candidate_patch_manifest.json (patch SHA-256 pins)",
+      "merge_rows.jsonl (local commit graph)",
+      "merge_replay.jsonl (recorded-history replay)",
+      "context_cache/pr-5898.json",
+      "context_cache/pr-5808.json"
+    ],
+    "screening_lineage": "Git commit-graph screening only; no semantic or duplicate-work label is inferred.",
+    "ground_truth_absent": "This packet contains no ACCD label values. Screening opinions and single-researcher adjudications were not read by the builder."
+  },
+  "prediction_view": {
+    "view_instructions": "Fill phase_1 using ONLY this object. Do not open result_view before phase_1 is locked.",
+    "baseline": {
+      "merge_base_commit": "85793d6c223dd845e8f218403a5ced83041d37e1",
+      "merge_base_subject": "release version 3.1.2 (#5800)",
+      "source": "git merge-base of the two PR head commits",
+      "command": "git merge-base eca5fd1dfdc614c2df876cc32018a7d71f84ea82 dbd4c2882593f6118103120aa96fa9acdf7deedb",
+      "left_head_commit": "eca5fd1dfdc614c2df876cc32018a7d71f84ea82",
+      "right_head_commit": "dbd4c2882593f6118103120aa96fa9acdf7deedb"
+    },
+    "tasks": {
+      "A": {
+        "source_pr": 5898,
+        "source_url": "https://github.com/pallets/flask/pull/5898",
+        "title": "redirect defaults to 303",
+        "description_text": "closes #5895 ",
+        "description_status": "available",
+        "description_truncated_in_packet": false,
+        "description_full_char_count": 13,
+        "acceptance_criteria": [],
+        "acceptance_criteria_status": "not_declared",
+        "acceptance_criteria_note": "Flask PRs frequently declare no acceptance criteria. `not_declared` means the upstream text contains none; it must not be read as `no overlap`.",
+        "declared_labels": [],
+        "author": "davidism",
+        "created_at": "2026-01-25T00:51:47Z",
+        "merged_at": "2026-01-25T01:18:35Z",
+        "changed_files_upstream": 4,
+        "additions_upstream": 14,
+        "deletions_upstream": 3,
+        "discussion": {
+          "review_comments": [],
+          "issue_comments": [],
+          "discussion_status": "none_upstream"
+        },
+        "change_set_stats_from_patch": {
+          "files_changed": 4,
+          "additions": 14,
+          "deletions": 3,
+          "hunks": 6
+        }
+      },
+      "B": {
+        "source_pr": 5808,
+        "source_url": "https://github.com/pallets/flask/pull/5808",
+        "title": "fix annotation for select_jinja_autoescape",
+        "description_text": "Inside the code of the method the filename is checked against a None value and returns True, but the static annotated type is a str. I have changed the static annotation type to `str` to `str | None`.",
+        "description_status": "available",
+        "description_truncated_in_packet": false,
+        "description_full_char_count": 200,
+        "acceptance_criteria": [],
+        "acceptance_criteria_status": "not_declared",
+        "acceptance_criteria_note": "Flask PRs frequently declare no acceptance criteria. `not_declared` means the upstream text contains none; it must not be read as `no overlap`.",
+        "declared_labels": [],
+        "author": "subhajitsaha01",
+        "created_at": "2025-09-06T16:33:44Z",
+        "merged_at": "2026-01-25T02:25:31Z",
+        "changed_files_upstream": 1,
+        "additions_upstream": 1,
+        "deletions_upstream": 1,
+        "discussion": {
+          "review_comments": [],
+          "issue_comments": [
+            {
+              "author": "subhajitsaha01",
+              "created_at": "2025-09-22T18:40:33Z",
+              "path": null,
+              "body": "Is there anything required from my end to close this particular pull request"
+            },
+            {
+              "author": "subhajitsaha01",
+              "created_at": "2025-10-29T01:47:37Z",
+              "path": null,
+              "body": "Hi Maintainers, is there anything I could do to get this PR resolved"
+            }
+          ],
+          "discussion_status": "available"
+        },
+        "change_set_stats_from_patch": {
+          "files_changed": 1,
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        }
+      }
+    },
+    "change_sets": {
+      "A": {
+        "change_set": "A",
+        "source_pr": 5898,
+        "patch_relative_path": "candidate_patches/pr-5898.patch",
+        "patch_sha256": "04ae810d4310a61e2e14284f64fa88fcb7209f592b8ded3cec20e466d5360c02",
+        "files": [
+          {
+            "path": "CHANGES.rst",
+            "additions": 5,
+            "deletions": 0,
+            "hunk_count": 1,
+            "is_production_path": false
+          },
+          {
+            "path": "docs/api.rst",
+            "additions": 1,
+            "deletions": 1,
+            "hunk_count": 1,
+            "is_production_path": false
+          },
+          {
+            "path": "src/flask/helpers.py",
+            "additions": 4,
+            "deletions": 1,
+            "hunk_count": 2,
+            "is_production_path": true
+          },
+          {
+            "path": "src/flask/sansio/app.py",
+            "additions": 4,
+            "deletions": 1,
+            "hunk_count": 2,
+            "is_production_path": true
+          }
+        ],
+        "diff_hunks": [
+          {
+            "file": "b/CHANGES.rst",
+            "header": "@@ -16,6 +16,11 @@ Unreleased",
+            "added": [
+              "-   ``redirect`` returns a ``303`` status code by default instead of ``302``.",
+              "    This tells the client to always switch to ``GET``, rather than only",
+              "    switching ``POST`` to ``GET``. This preserves the current behavior of",
+              "    ``GET`` and ``POST`` redirects, and is also correct for frontend libraries",
+              "    such as HTMX. :issue:`5895`"
+            ],
+            "removed": []
+          },
+          {
+            "file": "b/docs/api.rst",
+            "header": "@@ -596,7 +596,7 @@ This specifies that ``/users/`` will be the URL for page one and",
+            "added": [
+              "form with a 308 redirect. In the above example, ``/users/page/1`` will"
+            ],
+            "removed": [
+              "form with a 301 redirect. In the above example, ``/users/page/1`` will"
+            ]
+          },
+          {
+            "file": "b/src/flask/helpers.py",
+            "header": "@@ -239,7 +239,7 @@ def url_for(",
+            "added": [
+              "    location: str, code: int = 303, Response: type[BaseResponse] | None = None"
+            ],
+            "removed": [
+              "    location: str, code: int = 302, Response: type[BaseResponse] | None = None"
+            ]
+          },
+          {
+            "file": "b/src/flask/helpers.py",
+            "header": "@@ -252,6 +252,9 @@ def redirect(",
+            "added": [
+              "    .. versionchanged:: 3.2",
+              "        ``code`` defaults to ``303`` instead of ``302``.",
+              ""
+            ],
+            "removed": []
+          },
+          {
+            "file": "b/src/flask/sansio/app.py",
+            "header": "@@ -932,7 +932,7 @@ def should_ignore_error(self, error: BaseException | None) -> bool:",
+            "added": [
+              "    def redirect(self, location: str, code: int = 303) -> BaseResponse:"
+            ],
+            "removed": [
+              "    def redirect(self, location: str, code: int = 302) -> BaseResponse:"
+            ]
+          },
+          {
+            "file": "b/src/flask/sansio/app.py",
+            "header": "@@ -941,6 +941,9 @@ def redirect(self, location: str, code: int = 302) -> BaseResponse:",
+            "added": [
+              "        .. versionchanged:: 3.2",
+              "            ``code`` defaults to ``303`` instead of ``302``.",
+              ""
+            ],
+            "removed": []
+          }
+        ],
+        "touched_symbols": [
+          {
+            "file": "src/flask/sansio/app.py",
+            "symbol": "redirect",
+            "change": "added",
+            "hunk_header": "@@ -932,7 +932,7 @@ def should_ignore_error(self, error: BaseException | None) -> bool:",
+            "evidence_kind": "lexical_extraction_screening_signal"
+          },
+          {
+            "file": "src/flask/sansio/app.py",
+            "symbol": "redirect",
+            "change": "removed",
+            "hunk_header": "@@ -932,7 +932,7 @@ def should_ignore_error(self, error: BaseException | None) -> bool:",
+            "evidence_kind": "lexical_extraction_screening_signal"
+          }
+        ],
+        "stats": {
+          "files_changed": 4,
+          "additions": 14,
+          "deletions": 3,
+          "hunks": 6
+        },
+        "changed_paths": [
+          "CHANGES.rst",
+          "docs/api.rst",
+          "src/flask/helpers.py",
+          "src/flask/sansio/app.py"
+        ],
+        "diff_integrity": {
+          "full_diff_in_packet": true,
+          "note": "All added/removed lines present in the public patch are reproduced inline. Hunk context lines (unchanged surrounding code) are not included; read the frozen patch file hash-pinned by patch_sha256 for full context."
+        }
+      },
+      "B": {
+        "change_set": "B",
+        "source_pr": 5808,
+        "patch_relative_path": "candidate_patches/pr-5808.patch",
+        "patch_sha256": "f928af75998eaed70623d0eea4492e9795354d4e8c72d48a1e9fd0da3a80f9c1",
+        "files": [
+          {
+            "path": "src/flask/sansio/app.py",
+            "additions": 1,
+            "deletions": 1,
+            "hunk_count": 1,
+            "is_production_path": true
+          }
+        ],
+        "diff_hunks": [
+          {
+            "file": "b/src/flask/sansio/app.py",
+            "header": "@@ -533,7 +533,7 @@ def create_global_jinja_loader(self) -> DispatchingJinjaLoader:",
+            "added": [
+              "    def select_jinja_autoescape(self, filename: str | None) -> bool:"
+            ],
+            "removed": [
+              "    def select_jinja_autoescape(self, filename: str) -> bool:"
+            ]
+          }
+        ],
+        "touched_symbols": [
+          {
+            "file": "src/flask/sansio/app.py",
+            "symbol": "select_jinja_autoescape",
+            "change": "added",
+            "hunk_header": "@@ -533,7 +533,7 @@ def create_global_jinja_loader(self) -> DispatchingJinjaLoader:",
+            "evidence_kind": "lexical_extraction_screening_signal"
+          },
+          {
+            "file": "src/flask/sansio/app.py",
+            "symbol": "select_jinja_autoescape",
+            "change": "removed",
+            "hunk_header": "@@ -533,7 +533,7 @@ def create_global_jinja_loader(self) -> DispatchingJinjaLoader:",
+            "evidence_kind": "lexical_extraction_screening_signal"
+          }
+        ],
+        "stats": {
+          "files_changed": 1,
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        },
+        "changed_paths": [
+          "src/flask/sansio/app.py"
+        ],
+        "diff_integrity": {
+          "full_diff_in_packet": true,
+          "note": "All added/removed lines present in the public patch are reproduced inline. Hunk context lines (unchanged surrounding code) are not included; read the frozen patch file hash-pinned by patch_sha256 for full context."
+        }
+      }
+    },
+    "shared_entities": {
+      "files": [
+        "src/flask/sansio/app.py"
+      ],
+      "production_files": [
+        "src/flask/sansio/app.py"
+      ],
+      "symbols": [],
+      "overlap_scope": "file_only",
+      "evidence_kind": "path_and_lexical_symbol_overlap_screening_signal",
+      "guard": "File or symbol overlap is a screening signal only. It never implies RT/RI/CC/BC, and it never implies LF (H9)."
+    },
+    "repeated_touch_evidence": {
+      "status": "computed",
+      "evidence_kind": "path_level_proxy_for_repeated_touch",
+      "purpose": "Evidence support for the LF label only (manual §3.9). Not an LF label.",
+      "lf_judgeable_from_this_packet": false,
+      "lf_judgeability_verdict": "path_proxy_reaches_threshold_but_symbol_level_unestablished",
+      "lf_judgeability_reason": "Some symbols reach the three-touch threshold only through the path-level proxy, and no symbol is touched by both members of the pair. A path-level count cannot establish symbol-level repeated touch, so LF must be recorded as `uncertain`, never `yes` and never `no` (H9).",
+      "symbols_touched_by_both_packet_changes": [],
+      "symbols_reaching_threshold_on_path_proxy_only": [
+        "redirect",
+        "select_jinja_autoescape"
+      ],
+      "symbols": [
+        {
+          "symbol": "redirect",
+          "files": [
+            "src/flask/sansio/app.py"
+          ],
+          "in_packet_changes": [
+            "A"
+          ],
+          "in_packet_change_count": 1,
+          "touched_by_both_packet_changes": false,
+          "followup_merge_count": 3,
+          "followup_merges": [
+            {
+              "pr_number": 5899,
+              "merge_sha": "4b8bde97d4fa3486e18dce21c3c5f75570d50164",
+              "merge_time_utc": "2026-01-25T03:53:11+00:00",
+              "days_after_candidate": 0.06,
+              "shared_paths": [
+                "src/flask/sansio/app.py"
+              ],
+              "lexical_revert_signal": false,
+              "lexical_fix_signal": false
+            },
+            {
+              "pr_number": 5917,
+              "merge_sha": "12e95c93b488725f80753f34b2e0d24838ca4646",
+              "merge_time_utc": "2026-02-12T21:07:50+00:00",
+              "days_after_candidate": 18.78,
+              "shared_paths": [
+                "src/flask/sansio/app.py"
+              ],
+              "lexical_revert_signal": false,
+              "lexical_fix_signal": true
+            },
+            {
+              "pr_number": 6013,
+              "merge_sha": "dcbede0cb00df32e7f1895e19e37d5f40a75d1f6",
+              "merge_time_utc": "2026-05-02T03:58:56+00:00",
+              "days_after_candidate": 97.06,
+              "shared_paths": [
+                "src/flask/sansio/app.py"
+              ],
+              "lexical_revert_signal": false,
+              "lexical_fix_signal": false
+            }
+          ],
+          "distinct_touch_count_lower_bound_exact": 1,
+          "distinct_touch_count_upper_bound_path_proxy": 4,
+          "meets_three_touch_threshold_on_path_proxy": true,
+          "meets_three_touch_threshold_on_exact_evidence": false
+        },
+        {
+          "symbol": "select_jinja_autoescape",
+          "files": [
+            "src/flask/sansio/app.py"
+          ],
+          "in_packet_changes": [
+            "B"
+          ],
+          "in_packet_change_count": 1,
+          "touched_by_both_packet_changes": false,
+          "followup_merge_count": 3,
+          "followup_merges": [
+            {
+              "pr_number": 5899,
+              "merge_sha": "4b8bde97d4fa3486e18dce21c3c5f75570d50164",
+              "merge_time_utc": "2026-01-25T03:53:11+00:00",
+              "days_after_candidate": 0.06,
+              "shared_paths": [
+                "src/flask/sansio/app.py"
+              ],
+              "lexical_revert_signal": false,
+              "lexical_fix_signal": false
+            },
+            {
+              "pr_number": 5917,
+              "merge_sha": "12e95c93b488725f80753f34b2e0d24838ca4646",
+              "merge_time_utc": "2026-02-12T21:07:50+00:00",
+              "days_after_candidate": 18.78,
+              "shared_paths": [
+                "src/flask/sansio/app.py"
+              ],
+              "lexical_revert_signal": false,
+              "lexical_fix_signal": true
+            },
+            {
+              "pr_number": 6013,
+              "merge_sha": "dcbede0cb00df32e7f1895e19e37d5f40a75d1f6",
+              "merge_time_utc": "2026-05-02T03:58:56+00:00",
+              "days_after_candidate": 97.06,
+              "shared_paths": [
+                "src/flask/sansio/app.py"
+              ],
+              "lexical_revert_signal": false,
+              "lexical_fix_signal": false
+            }
+          ],
+          "distinct_touch_count_lower_bound_exact": 1,
+          "distinct_touch_count_upper_bound_path_proxy": 4,
+          "meets_three_touch_threshold_on_path_proxy": true,
+          "meets_three_touch_threshold_on_exact_evidence": false
+        }
+      ],
+      "exact_evidence_available_for": "the two in-packet change sets (A and B) only",
+      "proxy_limitation": "Follow-up history is recorded at path level, not symbol level, so followup_merge_count counts merges that touched a FILE containing this symbol. A merge touching the same file may have changed an unrelated symbol. Therefore `distinct_touch_count_upper_bound_path_proxy` is an upper bound, not a count of touches to this symbol, and `meets_three_touch_threshold_on_path_proxy = true` is a screening signal only. If symbol-level repeated touch cannot be established from the in-packet evidence, annotators must record `uncertain`, never `no` and never `yes` on the proxy alone (H9).",
+      "window_truncated_by_data": false,
+      "window_note": "If window_truncated_by_data is true, missing follow-up merges are an artifact of commit-graph coverage, not evidence that the symbol was touched only twice."
+    },
+    "temporal_context": {
+      "left_pr_merge_time_utc": "2026-01-25T01:18:35+00:00",
+      "right_pr_merge_time_utc": "2026-01-25T02:25:31+00:00",
+      "left_pr_branch_start_utc": "2026-01-25T01:16:38+00:00",
+      "right_pr_branch_start_utc": "2025-09-06T16:31:22+00:00",
+      "temporal_overlap": true,
+      "later_merged_pr": 5808,
+      "screening_definition_of_overlap": "Temporal overlap means the two PR branch lifecycles overlapped in the commit graph; it does not mean the two tasks were concurrent agent tasks."
+    },
+    "agent_context_summary": {
+      "status": "unavailable",
+      "reason": "These are human-authored PRs. There is no agent, prompt, retry, tool log or failure trace. Treat agent attribution as undecidable in this pilot.",
+      "evidence_kind": "not_collected"
+    },
+    "pre_change_test_state": {
+      "status": "not_executed",
+      "reason": "The local clone is a partial clone and the pilot environment does not install Flask test dependencies; pre-change test results were not executed offline.",
+      "available_proxy": "Upstream CI status is not captured in the cached context payloads."
+    }
+  },
+  "result_view": {
+    "view_instructions": "Only open after phase_1.locked_at is set. Record revisions in phase_2; never edit phase_1.",
+    "integration_outcome": {
+      "status": "computed",
+      "evidence_kind": "recorded_history",
+      "both_merges_landed_on_mainline": true,
+      "left_merge_sha": "809d5a8869d4ffe8656680b2438b10f7c8845613",
+      "right_merge_sha": "25642fd1fd65985fc98f95e64bc2c7ff353d6c2b",
+      "merges_were_sequential_on_mainline": true,
+      "note": "Both PRs were merged to mainline as separate events, so the recorded integration outcome is 'both landed', not a single joint merge."
+    },
+    "counterfactual_pair_merge": {
+      "status": "computed",
+      "evidence_kind": "counterfactual_replay",
+      "command": "git merge-tree --write-tree eca5fd1dfdc614c2df876cc32018a7d71f84ea82 dbd4c2882593f6118103120aa96fa9acdf7deedb",
+      "exit_code": 0,
+      "auto_tree": "ebd01d9771a81235f5d375e42bcc2bde66300eb3",
+      "textual_conflict_observed": false,
+      "conflict_lines": [],
+      "conflicted_files": [],
+      "note": "Counterfactual construction: the two PRs were merged into mainline sequentially, so this merge is not recorded history. It answers 'what would a direct three-way merge of the two branch heads produce', which is the scenario the study targets."
+    },
+    "per_pr_merge_replay": {
+      "5898": {
+        "status": "computed",
+        "evidence_kind": "recorded_history_replay",
+        "merge_sha": "809d5a8869d4ffe8656680b2438b10f7c8845613",
+        "auto_tree": "2c77303ade45f9b523814ab24dc08117891f6f22",
+        "actual_tree": "2c77303ade45f9b523814ab24dc08117891f6f22",
+        "tree_equal": true,
+        "conflict_lines": [],
+        "replay_status": "auto_clean_same_tree"
+      },
+      "5808": {
+        "status": "computed",
+        "evidence_kind": "recorded_history_replay",
+        "merge_sha": "25642fd1fd65985fc98f95e64bc2c7ff353d6c2b",
+        "auto_tree": "2209ad4afd4951ae7b3e61f91bf590f2c34125fc",
+        "actual_tree": "2209ad4afd4951ae7b3e61f91bf590f2c34125fc",
+        "tree_equal": true,
+        "conflict_lines": [],
+        "replay_status": "auto_clean_same_tree"
+      }
+    },
+    "post_integration_tests": {
+      "status": "not_executed",
+      "reason": "No offline run of the merged tree was performed. Absence of test results is 'unmeasured', not 'passed'.",
+      "consequence_for_labels": "AC guide: BC may only be `uncertain` without test or subsequent-repair evidence."
+    },
+    "repair_or_revert_history": {
+      "status": "computed",
+      "evidence_kind": "subsequent_mainline_history",
+      "window_days": 180,
+      "window_start_utc": "2026-01-25T02:25:31Z",
+      "window_end_utc": "2026-07-24T02:25:31Z",
+      "data_coverage_start_utc": "2024-04-23T23:52:13Z",
+      "data_coverage_end_utc": "2026-08-11T20:19:14Z",
+      "window_truncated_by_data": false,
+      "effective_observed_window_end_utc": "2026-07-24T02:25:31Z",
+      "coverage_guard": "The screened commit range ends at data_coverage_end_utc. If window_truncated_by_data is true, the absence of a follow-up fix after effective_observed_window_end_utc is an artifact of data coverage, not evidence that no repair was needed.",
+      "source": "merge_rows.jsonl (local commit graph, 80 PR-like merge rows in the screened window)",
+      "entry_count": 5,
+      "entries": [
+        {
+          "pr_number": 5899,
+          "merge_sha": "4b8bde97d4fa3486e18dce21c3c5f75570d50164",
+          "merge_time_utc": "2026-01-25T03:53:11+00:00",
+          "subject": "deprecate `should_ignore_error` (#5899)",
+          "days_after_candidate": 0.06,
+          "shared_paths": [
+            "CHANGES.rst",
+            "src/flask/sansio/app.py"
+          ],
+          "shared_with_change_set_a": [
+            "CHANGES.rst",
+            "src/flask/sansio/app.py"
+          ],
+          "shared_with_change_set_b": [
+            "src/flask/sansio/app.py"
+          ],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 5917,
+          "merge_sha": "12e95c93b488725f80753f34b2e0d24838ca4646",
+          "merge_time_utc": "2026-02-12T21:07:50+00:00",
+          "subject": "fix provide_automatic_options override (#5917)",
+          "days_after_candidate": 18.78,
+          "shared_paths": [
+            "CHANGES.rst",
+            "src/flask/sansio/app.py"
+          ],
+          "shared_with_change_set_a": [
+            "CHANGES.rst",
+            "src/flask/sansio/app.py"
+          ],
+          "shared_with_change_set_b": [
+            "src/flask/sansio/app.py"
+          ],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": true
+        },
+        {
+          "pr_number": 5924,
+          "merge_sha": "f00ad424ee3b050d382cc5b4aabb18afbb5e4ae7",
+          "merge_time_utc": "2026-02-19T05:01:53+00:00",
+          "subject": "release version 3.1.3 (#5924)",
+          "days_after_candidate": 25.11,
+          "shared_paths": [
+            "CHANGES.rst"
+          ],
+          "shared_with_change_set_a": [
+            "CHANGES.rst"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 5928,
+          "merge_sha": "c34d6e81fd8e405e6d4178bf24b364918811ef17",
+          "merge_time_utc": "2026-02-20T04:00:34+00:00",
+          "subject": "all teardown callbacks are called despite errors (#5928)",
+          "days_after_candidate": 26.07,
+          "shared_paths": [
+            "CHANGES.rst",
+            "src/flask/helpers.py"
+          ],
+          "shared_with_change_set_a": [
+            "CHANGES.rst",
+            "src/flask/helpers.py"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 6013,
+          "merge_sha": "dcbede0cb00df32e7f1895e19e37d5f40a75d1f6",
+          "merge_time_utc": "2026-05-02T03:58:56+00:00",
+          "subject": "autoescape selection uses case-insensitive comparison (#6013)",
+          "days_after_candidate": 97.06,
+          "shared_paths": [
+            "CHANGES.rst",
+            "src/flask/sansio/app.py"
+          ],
+          "shared_with_change_set_a": [
+            "CHANGES.rst",
+            "src/flask/sansio/app.py"
+          ],
+          "shared_with_change_set_b": [
+            "src/flask/sansio/app.py"
+          ],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        }
+      ],
+      "interpretation_guard": "`lexical_revert_signal` and `lexical_fix_signal` are keyword matches on merge subjects. They are candidate evidence for the annotator to inspect, not an ID/BC label. An empty entry list means no mainline merge in the window touched these paths in the screened commit range; it is not proof that no repair happened."
+    }
+  },
+  "label_ontology": {
+    "labels": [
+      "TC",
+      "BC",
+      "AC",
+      "RT",
+      "RI",
+      "CC",
+      "LF",
+      "UA",
+      "ID"
+    ],
+    "allowed_values": {
+      "default": [
+        "yes",
+        "no",
+        "uncertain",
+        null
+      ],
+      "ID": [
+        "yes",
+        "no",
+        "possible_ID",
+        "uncertain",
+        null
+      ]
+    },
+    "manual": "annotation/annotation_manual.md",
+    "preregistration": "annotation/preregistration.md"
+  },
+  "packet_integrity": {
+    "deterministic": true,
+    "contains_no_labels": true,
+    "patch_sha256_matches_manifest": {
+      "A": true,
+      "B": true
+    }
+  }
+}

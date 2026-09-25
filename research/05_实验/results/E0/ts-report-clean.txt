@@ -1,0 +1,10 @@
+ledger            : D:\AI灏忓伐鍏峰埗浣淺AI鍘熺敓鍙樻洿鍗忚皟鐮旂┒\05_瀹為獙\results\E0\synthetic\clean\events.jsonl
+capsules (tasks)  : 8
+open (= backlog)  : 6
+integrated        : 1
+decayed           : 1
+lambda_produced/h : 0.996
+integration_rate/h: 0.124
+contested entities: 3
+writes after context loss: 6
+state histogram   : {"integrated":1,"proposed":5,"stale":1,"validated":1}

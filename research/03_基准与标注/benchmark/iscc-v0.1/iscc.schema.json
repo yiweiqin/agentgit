@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/iscc/v0.1/schema.json",
+  "title": "Intent-Scoped Change Capsule v0.1",
+  "description": "A Git-compatible, task-centered metadata contract for an agent-produced change.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "capsule_id", "task", "agent", "scope", "change", "provenance", "validation", "lifecycle"],
+  "properties": {
+    "schema_version": {"const": "iscc-0.1"},
+    "capsule_id": {"type": "string", "pattern": "^iscc-[A-Za-z0-9][A-Za-z0-9._-]{2,127}$"},
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_id", "description", "acceptance"],
+      "properties": {
+        "task_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "description": {"type": "string", "minLength": 1},
+        "acceptance": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "depends_on": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "priority": {"enum": ["low", "normal", "high", "blocking"]}
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_id", "model", "run_id"],
+      "properties": {
+        "agent_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "model": {"type": "string", "minLength": 1, "maxLength": 300},
+        "run_id": {"type": "string", "minLength": 1, "maxLength": 300}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entities", "constraints"],
+      "properties": {
+        "entities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "identifier", "path"],
+            "properties": {
+              "kind": {"enum": ["file", "function", "class", "api", "schema", "config", "test", "doc", "unknown"]},
+              "identifier": {"type": "string", "minLength": 1},
+              "path": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "constraints": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["git_base", "patch_sha256", "patch_path"],
+      "properties": {
+        "git_base": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"},
+        "git_commits": {"type": "array", "items": {"type": "string", "pattern": "^[0-9a-f]{7,64}$"}},
+        "patch_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "patch_path": {"type": "string", "minLength": 1}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["created_at_utc", "events"],
+      "properties": {
+        "created_at_utc": {"type": "string", "format": "date-time"},
+        "parent_capsules": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["event_id", "kind", "timestamp_utc"],
+            "properties": {
+              "event_id": {"type": "string", "minLength": 1},
+              "kind": {"enum": ["task_registered", "file_read", "file_write", "command", "test", "review", "decision"]},
+              "timestamp_utc": {"type": "string", "format": "date-time"},
+              "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "summary": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "checks"],
+      "properties": {
+        "status": {"enum": ["not_run", "failed", "passed", "partial"]},
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["check_id", "kind", "status"],
+            "properties": {
+              "check_id": {"type": "string", "minLength": 1},
+              "kind": {"enum": ["unit_test", "integration_test", "static_analysis", "type_check", "human_review", "other"]},
+              "status": {"enum": ["passed", "failed", "not_run", "unknown"]},
+              "evidence_path": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": {"enum": ["proposed", "active", "validated", "integrated", "stale", "abandoned"]},
+        "updated_at_utc": {"type": "string", "format": "date-time"},
+        "relations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "target_capsule"],
+            "properties": {
+              "kind": {"enum": ["overlaps", "duplicates", "depends-on", "contradicts", "supersedes", "validated-by"]},
+              "target_capsule": {"type": "string", "minLength": 1},
+              "evidence": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "fetcher_version": "1.0",
+  "repository": "pallets/flask",
+  "pr_number": 5757,
+  "retrieved_at_utc": "2026-09-14T08:33:21Z",
+  "fetched": {
+    "pull": {
+      "ok": true,
+      "status": 200,
+      "bytes": 16442
+    },
+    "review_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    },
+    "issue_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    }
+  },
+  "request_urls": {
+    "pull": "https://api.github.com/repos/pallets/flask/pulls/5757",
+    "review_comments": "https://api.github.com/repos/pallets/flask/pulls/5757/comments?per_page=100",
+    "issue_comments": "https://api.github.com/repos/pallets/flask/issues/5757/comments?per_page=100"
+  },
+  "response_sha256": {
+    "pull": "71f2ed5f15b9758da595126e29b99bb7a28af5c13d593475978fce2e59583548",
+    "review_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "issue_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "data": {
+    "pull": {
+      "title": "svg logo",
+      "body": "Use SVG instead of PNG for the logo.",
+      "state": "closed",
+      "merged_at": "2025-06-09T21:33:26Z",
+      "created_at": "2025-06-09T21:32:15Z",
+      "base_sha": "f04c5e696400badaa52b3450ded53e9091c2078a",
+      "head_sha": "a758915893352f5986c6ee101cdf7e3b7a64fa28",
+      "merge_commit_sha": "a7b67c99f922f26b1071a90994e14261dc0a6df2",
+      "changed_files": 9,
+      "additions": 9,
+      "deletions": 3,
+      "labels": [],
+      "author": "davidism"
+    },
+    "review_comments": [],
+    "issue_comments": []
+  },
+  "degraded": false,
+  "availability_note": "Enriched from the public GitHub API; task text is upstream-authored, not researcher-authored."
+}

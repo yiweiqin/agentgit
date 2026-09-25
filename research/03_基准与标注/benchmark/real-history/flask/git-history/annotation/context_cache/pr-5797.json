@@ -1,0 +1,54 @@
+{
+  "fetcher_version": "1.0",
+  "repository": "pallets/flask",
+  "pr_number": 5797,
+  "retrieved_at_utc": "2026-09-14T08:33:40Z",
+  "fetched": {
+    "pull": {
+      "ok": true,
+      "status": 200,
+      "bytes": 18225
+    },
+    "review_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    },
+    "issue_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    }
+  },
+  "request_urls": {
+    "pull": "https://api.github.com/repos/pallets/flask/pulls/5797",
+    "review_comments": "https://api.github.com/repos/pallets/flask/pulls/5797/comments?per_page=100",
+    "issue_comments": "https://api.github.com/repos/pallets/flask/issues/5797/comments?per_page=100"
+  },
+  "response_sha256": {
+    "pull": "bffcb18bfd0fc3fe9df1c27930921c17c712019b7d1a815d5de3bbf19edecbc7",
+    "review_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "issue_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "data": {
+    "pull": {
+      "title": "push preserved contexts in correct order",
+      "body": "The test client asks the app to append contexts to a stack, in order to re-push them when using `with client`. However, they were being pushed in reverse order, resulting in the oldest context being seen as current. This PR pushes them in the correct order, meaning `session` will be in the correct state of the last response.\r\n\r\nfixes #5786 ",
+      "state": "closed",
+      "merged_at": "2025-08-18T16:56:39Z",
+      "created_at": "2025-08-18T16:48:05Z",
+      "base_sha": "5addaf833b2e8c7a616f89dd8ad5a44b07d7c000",
+      "head_sha": "53b8f08218796d95764c5252bccd8a50a173a6fb",
+      "merge_commit_sha": "24824ff666e096c4c07d0b75a889088571afe4a6",
+      "changed_files": 3,
+      "additions": 15,
+      "deletions": 23,
+      "labels": [],
+      "author": "davidism"
+    },
+    "review_comments": [],
+    "issue_comments": []
+  },
+  "degraded": false,
+  "availability_note": "Enriched from the public GitHub API; task text is upstream-authored, not researcher-authored."
+}

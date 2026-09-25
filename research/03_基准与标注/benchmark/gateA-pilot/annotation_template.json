@@ -1,0 +1,17 @@
+{
+  "scenario_id": "",
+  "annotator_id": "",
+  "manual_version": "GateA-v1",
+  "view_stage": "pre_view_or_result_view",
+  "labels": {
+    "TC": {"value": null, "evidence": [], "confidence": null},
+    "BC": {"value": null, "evidence": [], "confidence": null},
+    "AC": {"value": null, "evidence": [], "confidence": null},
+    "RT": {"value": null, "evidence": [], "confidence": null},
+    "RI": {"value": null, "evidence": [], "confidence": null},
+    "CC": {"value": null, "evidence": [], "confidence": null},
+    "UA": {"value": null, "evidence": [], "confidence": null},
+    "ID": {"value": null, "evidence": [], "confidence": null}
+  },
+  "notes": "引用具体任务、实体、测试或后续修复证据；无法证明时填写 uncertain，而不是猜测。"
+}

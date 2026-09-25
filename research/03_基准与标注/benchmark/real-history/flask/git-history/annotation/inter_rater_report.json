@@ -1,0 +1,1186 @@
+{
+  "report_version": "1.0",
+  "generated_at_utc": "2026-09-15T12:59:27.947266Z",
+  "sheet": "D:\\AI小工具制作\\AI原生变更协调研究\\03_基准与标注\\benchmark\\real-history\\flask\\git-history\\annotation\\labels_v1.blank.jsonl",
+  "sheet_sha256": "23ec87b1cfbb13b9e77286cbe32ef50da7c5b3230eb27c7124465d7b00f496c9",
+  "packet_index": "annotation/packets/index.json",
+  "packet_index_sheet": "1.1",
+  "status": "not_yet_computable",
+  "claim_allowed": false,
+  "claim_blockers": [
+    "标注表中没有任何一个标签被两名标注者同时填写；本脚本不会用缺失值代替阴性，因此不计算任何一致性数值。"
+  ],
+  "counts": {
+    "scenarios": 7,
+    "label_pairs_total": 63,
+    "label_pairs_complete": 0,
+    "label_pairs_pending": 63,
+    "label_pairs_disagreement": 0,
+    "label_pairs_adjudicated": 0
+  },
+  "packet_integrity": {
+    "ok": true,
+    "issues": []
+  },
+  "bootstrap": {
+    "iterations": 10000,
+    "seed": 20260914,
+    "resampling_unit": "scenario"
+  },
+  "metrics": {
+    "phase_1": {
+      "TC": {
+        "label": "TC",
+        "phase": "phase_1",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "BC": {
+        "label": "BC",
+        "phase": "phase_1",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "AC": {
+        "label": "AC",
+        "phase": "phase_1",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "RT": {
+        "label": "RT",
+        "phase": "phase_1",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "RI": {
+        "label": "RI",
+        "phase": "phase_1",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "CC": {
+        "label": "CC",
+        "phase": "phase_1",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "LF": {
+        "label": "LF",
+        "phase": "phase_1",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "UA": {
+        "label": "UA",
+        "phase": "phase_1",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "ID": {
+        "label": "ID",
+        "phase": "phase_1",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      }
+    },
+    "phase_2": {
+      "TC": {
+        "label": "TC",
+        "phase": "phase_2",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "BC": {
+        "label": "BC",
+        "phase": "phase_2",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "AC": {
+        "label": "AC",
+        "phase": "phase_2",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "RT": {
+        "label": "RT",
+        "phase": "phase_2",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "RI": {
+        "label": "RI",
+        "phase": "phase_2",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "CC": {
+        "label": "CC",
+        "phase": "phase_2",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "LF": {
+        "label": "LF",
+        "phase": "phase_2",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "UA": {
+        "label": "UA",
+        "phase": "phase_2",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      },
+      "ID": {
+        "label": "ID",
+        "phase": "phase_2",
+        "scenarios_in_sheet": 7,
+        "scenarios_with_two_values": 0,
+        "scenarios_missing_at_least_one_value": 7,
+        "missing_scenarios": [
+          "flask-pr-5516-pr-5514",
+          "flask-pr-5754-pr-5723",
+          "flask-pr-5757-pr-5723",
+          "flask-pr-5797-pr-5723",
+          "flask-pr-5812-pr-5808",
+          "flask-pr-5818-pr-5808",
+          "flask-pr-5898-pr-5808"
+        ],
+        "raw_agreement": null,
+        "raw_agreement_reason_if_none": "no_complete_pairs",
+        "cohen_kappa_yes_vs_rest": null,
+        "cohen_kappa_undefined_reason": "no_complete_pairs",
+        "krippendorff_alpha_nominal": null,
+        "krippendorff_undefined_reason": "no_units_with_two_or_more_ratings",
+        "gwet_ac1_nominal": null,
+        "gwet_ac1_undefined_reason": "no_complete_pairs",
+        "uncertain_share_of_recorded_values": null,
+        "high_confidence_subset": {
+          "scenarios": 0,
+          "raw_agreement": null,
+          "evidence_complete_rate": null
+        },
+        "disagreement_count": 0,
+        "disagreements": [],
+        "bootstrap": {
+          "raw_agreement": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "cohen_kappa_yes_vs_rest": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "krippendorff_alpha_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          },
+          "gwet_ac1_nominal": {
+            "iterations": 0,
+            "low": null,
+            "high": null,
+            "valid_resamples": 0,
+            "reason": "disabled"
+          }
+        }
+      }
+    }
+  },
+  "gates": [],
+  "lf_conflict_cooccurrence": {
+    "status": "computed",
+    "agreed_LF_yes": 0,
+    "LF_yes_without_any_conflict": 0,
+    "LF_yes_with_conflict": 0,
+    "conflict_without_LF_yes": 0,
+    "verdict": "not_yet_computable_no_agreed_LF_yes",
+    "independence_supported": null,
+    "rows": [],
+    "guard": "`LF_yes_without_any_conflict` is the only cell that shows LF is not a restatement of TC/BC/AC. If it is zero while `LF_yes_with_conflict` is non-zero, the preregistration requires merging or withdrawing LF rather than reporting it as an independent dimension."
+  },
+  "adjudication_queue": [],
+  "adjudication_queue_path": "annotation/adjudication_queue.jsonl",
+  "method_notes": [
+    "原始一致率在两名标注者都填写了值的场景上计算；缺一方填写的场景计为 missing，不计为阴性。",
+    "Cohen's κ 使用预注册的二元化：`yes` 为阳性，`no`/`uncertain`/`possible_ID` 为阴性；`possible_ID` 因此在二元分析中为阴性，其在三分分析中的信息由 α 与 AC1 保留。",
+    "Krippendorff α 由一致矩阵计算（名义度量），允许只被一方评分的单元存在。",
+    "Gwet AC1 作为流行率不敏感的对照指标与 κ 同时报告，两者均呈现，不做选择性报告。",
+    "α / κ / AC1 在边际分布退化（例如全部标签都是同一个值）时**数学上未定义**；本报告把它们记为 `n/a` 并给出原因，绝不把「未定义」写成「一致性高」。",
+    "结果视图依赖性是预注册要求：phase_1 与 phase_2 的分数必须同时报告。",
+    "`LF` 与 `TC`/`BC`/`AC` 用不同证据：本报告单独给出共现矩阵（§5），因为「行为兼容但语义归属被稀释」在定义上不依赖任何冲突发生。"
+  ],
+  "preregistration_deviations": [
+    "预注册 §6 写的是「标注者对层面的 bootstrap」。本试点只有 2 名标注者，标注者层面的重采样退化为单一抽样单元，因此实现为**场景（脚本单元）层面的重采样**；该替换必须登记到 `adjudication_log.md` 的「预注册变更」小节，并在论文中声明区间反映的是场景抽样不确定性。",
+    "本脚本生成报告不代表标注已完成；在两名标注者独立完成 phase_1/phase_2 之前，报告状态恒为`not_yet_computable` 或 `partial_no_claim`。",
+    "`LF` 的可判定性受样本结构限制：本试点每个样本只是一对 PR，`prediction_view.repeated_touch_evidence` 中的 follow-up 计数是**路径级代理**，不能证明符号级反复触碰。`LF` 的高 `uncertain` 比例可能来自该限制而非构念不可判定（手册 §7 威胁 5）。"
+  ],
+  "guards": [
+    "本报告不提供 ACCD 发生率、检测器准确率或治理效果的任何结论。",
+    "本报告不读取也不包含任何筛选器初审意见，符合 H7。",
+    "n = 7，不做推断统计。",
+    "`LF` 是探索性标签；本报告在任何情况下都不把它计入核心标签的成败判定。"
+  ]
+}

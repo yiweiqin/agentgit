@@ -1,0 +1,79 @@
+{
+  "fetcher_version": "1.0",
+  "repository": "pallets/flask",
+  "pr_number": 5812,
+  "retrieved_at_utc": "2026-09-14T08:34:20Z",
+  "fetched": {
+    "pull": {
+      "ok": true,
+      "status": 200,
+      "bytes": 21416
+    },
+    "review_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    },
+    "issue_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 7181
+    }
+  },
+  "request_urls": {
+    "pull": "https://api.github.com/repos/pallets/flask/pulls/5812",
+    "review_comments": "https://api.github.com/repos/pallets/flask/pulls/5812/comments?per_page=100",
+    "issue_comments": "https://api.github.com/repos/pallets/flask/issues/5812/comments?per_page=100"
+  },
+  "response_sha256": {
+    "pull": "f354c722f9339fce959595bb83728b6f71bb65af1e8fd5ec97ddbd0e07b41b8b",
+    "review_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "issue_comments": "dd9af7839c39095acbc90ff53fa179ec12fac47908874cfb102881b0007b5bbe"
+  },
+  "data": {
+    "pull": {
+      "title": "merge app and request context",
+      "body": "Merges the `RequestContext` class into the `AppContext` class. closes #5639\r\n\r\nA lot of the size of this PR is rewriting or cleaning up docs related to the contexts. See `ctx.py` for the bulk of the work, and even there it's pretty much no new code, mostly deduplication. The \"request context\" still exists, but what data is available on the context object is what distinguishes it from an \"app context\" now.\r\n\r\nHow the user works with the context is pretty much unchanged. For example, `teardown_request` and `teardown_appcontext` still both exist, `app.app_context` and `app.test_request_context`, etc. All the same global proxies, `current_app`, `g`, `request`, and `session` still exist and are still available. in the same situations they were before.\r\n\r\nThe difference is that we no longer have to track whether an app context is already pushed when pushing a request context. This was already sort of an artificial behavior, it was not something that would ever happen under intended/documented request or testing scenarios. Now, every request always sets the app, and the request if request data is given. This greatly simplifies the internal data, as we simply need to record the previous value of the context var to restore on pop.\r\n\r\nSome code in app internals was changed to use the contextvar directly, which code was already doing. This probably gains some tiny bit of performance rather than going through the proxies. When we go ahead with #5229 and beyond, we'll be passing around the context objects directly and won't even need to use the contextvar.\r\n\r\n---\r\n\r\nThere are a few implications for testing that may have used `with app.app_context()` around a test client request. I've already highly discouraged this practice in issues over the years because it was already causing other issues. None of these patterns were in our docs.\r\n\r\nWith the old behavior, an app context was not pushed if one was already pushed when pushing a request context. Therefore,  `teardown_app` functions would only run once the `with` block exited rather than when the request exited. Along with using `with client` around everything, this was already the source of occasional bug reports and questions. The docs also say that no assumptions should be made about how many times a teardown function will be called or what data will be set for them.\r\n\r\nAlso, `g` was part of the app context, not the request context. Data could be set on `g` ahead of the request, because a new app context wouldn't be pushed. This was never documented, I don't know where I saw it.\r\n\r\n```python\r\n# do not do this, for example only\r\nwith app.app_context():\r\n    g.user = test_user\r\n    r = client.get(\"/secret\")\r\n```\r\n\r\nIt's not in Flask's docs or tests. The docs show making a request to login before making the request being tested, relying on the session to persist across requests. If you _really_ wanted to set up `g` beforehand, the signal docs show using the `appcontext_pushed` signal to modify the current context's `g` once it's created.\r\n\r\nA project may run into some failed tests when upgrading, if they were relying on this. However, the failure would indicate patterns that were already unsound and should be fixed, so I don't see this as a blocker.\r\n\r\nInterestingly, `copy_current_request_context` was already not copying `g`. I thought about changing this, but concluded that it was a good thing, because `g` is often used to store connections/caches that are not concurrent safe, such as Flask-SQLAlchemy's `db.session`.",
+      "state": "closed",
+      "merged_at": "2025-09-19T23:45:27Z",
+      "created_at": "2025-09-12T22:45:00Z",
+      "base_sha": "330123258e8c3dc391cbe55ab1ed94891ca83af3",
+      "head_sha": "c2705ffd9ce1dc8476cb29eaf5ff5d4c719852d9",
+      "merge_commit_sha": "adf363679da2d9a5ddc564bb2da563c7ca083916",
+      "changed_files": 36,
+      "additions": 779,
+      "deletions": 1007,
+      "labels": [],
+      "author": "davidism"
+    },
+    "review_comments": [],
+    "issue_comments": [
+      {
+        "author": "davidism",
+        "created_at": "2025-09-12T22:55:46Z",
+        "path": null,
+        "body": "Would be great if some people could test their apps with this branch. I'll plan to merge it a week from now."
+      },
+      {
+        "author": "ThiefMaster",
+        "created_at": "2025-09-17T14:21:02Z",
+        "path": null,
+        "body": "after `uv pip install 'git+https://github.com/pallets/flask@merge-contexts'` on [indico `master`](https://github.com/indico/indico):\r\n\r\n- no errors at import time\r\n- no errors when running the repl w/ all the indico stuff imported (`indico shell`)\r\n- no errors accessing it via web (custom wrapper running the flask dev server)\r\n- all tests still passing"
+      },
+      {
+        "author": "davidism",
+        "created_at": "2025-09-19T23:36:15Z",
+        "path": null,
+        "body": "Thanks to those who tested and left a 🚀 or commented on Mastodon. Having a big app like Indico pass unchanged is a good sign as well. Time to merge this."
+      },
+      {
+        "author": "davidism",
+        "created_at": "2026-05-02T03:37:13Z",
+        "path": null,
+        "body": "06ea505ce2b2042af26e96d35ebf159af7c0869d updates `copy_current_request_context` to copy the context on each call to the decorated function. A single context copy used across threads was causing issues with the push counter."
+      }
+    ]
+  },
+  "degraded": false,
+  "availability_note": "Enriched from the public GitHub API; task text is upstream-authored, not researcher-authored."
+}

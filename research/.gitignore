@@ -1,0 +1,48 @@
+# 兜底拦截：任何密钥/凭据都不得入仓。
+#
+# 这一节是**最后一道**防线，不是第一道。第一道是：API key 只写进远程机的
+# ~/.dsh 与环境变量，永不写入本仓内的任何文件。预注册（05_实验/preregistration.md §7）
+# 已把它写成效度控制的一部分，因为一次泄漏会毁掉整个实验的可审计性。
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*credentials*
+*credential*.json
+*secret*
+*secrets*
+# 允许密钥扫描脚本本身被跟踪。注：gitignore 不支持行内注释，上面那行的
+# 行尾注释会让该模式永远匹配不上，所以这条 negation 单独成行。
+!*secret*scan*
+
+# DSH / 实验运行产物
+.agent-store/
+*.log
+
+# Node / TS 插件
+node_modules/
+*.tsbuildinfo
+
+# 类型校验用的 DSH 声明文件。
+#
+# 这棵树是**可再生的构建产物**（241 个包的 .d.ts，约 1.1 MB），由
+# `05_实验/harness/remote_bundle_types.sh` 打包、`remote.py get` 取回，所以不入仓。
+# 真正需要入仓的是它的**版本清单** `05_实验/harness/dsh-types-manifest.txt`，
+# 那才是锁定 SDK 版本、保证类型校验可复现的东西。
+05_实验/harness/typecheck/vendor/
+05_实验/harness/typecheck/dsh-types.tgz
+
+# 实验原始数据中的临时与本地工作区。
+# 注意：05_实验/results/ 下的**汇总证据必须入仓**（它是可审计性的载体），
+# 因此只忽略逐轮的临时工作区，不忽略 results 本身。
+05_实验/results/**/worktrees/
+05_实验/results/**/*.tmp
+05_实验/results/**/.DSH_HOME/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/

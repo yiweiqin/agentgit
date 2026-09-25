@@ -1,0 +1,54 @@
+{
+  "fetcher_version": "1.0",
+  "repository": "pallets/flask",
+  "pr_number": 5898,
+  "retrieved_at_utc": "2026-09-14T08:34:57Z",
+  "fetched": {
+    "pull": {
+      "ok": true,
+      "status": 200,
+      "bytes": 17826
+    },
+    "review_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    },
+    "issue_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    }
+  },
+  "request_urls": {
+    "pull": "https://api.github.com/repos/pallets/flask/pulls/5898",
+    "review_comments": "https://api.github.com/repos/pallets/flask/pulls/5898/comments?per_page=100",
+    "issue_comments": "https://api.github.com/repos/pallets/flask/issues/5898/comments?per_page=100"
+  },
+  "response_sha256": {
+    "pull": "35a0b5b19f38f53cdda9a60ae399e3f1b73a7643eba73d53d33b95fc8befbebb",
+    "review_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "issue_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "data": {
+    "pull": {
+      "title": "redirect defaults to 303",
+      "body": "closes #5895 ",
+      "state": "closed",
+      "merged_at": "2026-01-25T01:18:35Z",
+      "created_at": "2026-01-25T00:51:47Z",
+      "base_sha": "eb58d862cc4a8f31a369b6e9ad1724e9e642f13f",
+      "head_sha": "eca5fd1dfdc614c2df876cc32018a7d71f84ea82",
+      "merge_commit_sha": "809d5a8869d4ffe8656680b2438b10f7c8845613",
+      "changed_files": 4,
+      "additions": 14,
+      "deletions": 3,
+      "labels": [],
+      "author": "davidism"
+    },
+    "review_comments": [],
+    "issue_comments": []
+  },
+  "degraded": false,
+  "availability_note": "Enriched from the public GitHub API; task text is upstream-authored, not researcher-authored."
+}

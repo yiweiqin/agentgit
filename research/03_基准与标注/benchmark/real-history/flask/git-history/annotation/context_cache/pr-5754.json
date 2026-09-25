@@ -1,0 +1,54 @@
+{
+  "fetcher_version": "1.0",
+  "repository": "pallets/flask",
+  "pr_number": 5754,
+  "retrieved_at_utc": "2026-09-14T08:32:44Z",
+  "fetched": {
+    "pull": {
+      "ok": true,
+      "status": 200,
+      "bytes": 16500
+    },
+    "review_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    },
+    "issue_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    }
+  },
+  "request_urls": {
+    "pull": "https://api.github.com/repos/pallets/flask/pulls/5754",
+    "review_comments": "https://api.github.com/repos/pallets/flask/pulls/5754/comments?per_page=100",
+    "issue_comments": "https://api.github.com/repos/pallets/flask/issues/5754/comments?per_page=100"
+  },
+  "response_sha256": {
+    "pull": "d6cb0fe9f5dcd4a6f6cbda7cb3c56abfd94aec7e86b5a8ae2fb5a730d10bf7b2",
+    "review_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "issue_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "data": {
+    "pull": {
+      "title": "remove slsa provenance",
+      "body": "PyPI and trusted publishing has built-in attestation support now.",
+      "state": "closed",
+      "merged_at": "2025-06-08T16:47:45Z",
+      "created_at": "2025-06-08T16:44:14Z",
+      "base_sha": "a42c4d54a3e5cd56c0700479ede75157a748acd6",
+      "head_sha": "adeea0070700671230733879846417c80f4e62b1",
+      "merge_commit_sha": "c07b201ce336c3e49ae3b6fa81aaf4fb871d90ba",
+      "changed_files": 2,
+      "additions": 3,
+      "deletions": 26,
+      "labels": [],
+      "author": "davidism"
+    },
+    "review_comments": [],
+    "issue_comments": []
+  },
+  "degraded": false,
+  "availability_note": "Enriched from the public GitHub API; task text is upstream-authored, not researcher-authored."
+}

@@ -1,0 +1,526 @@
+{
+  "packet_version": "1.1",
+  "scenario_id": "flask-pr-5516-pr-5514",
+  "provenance": {
+    "repository": "pallets/flask",
+    "data_status": "real_public_git_metadata_plus_public_patch_plus_public_pr_context",
+    "license_note": "Flask reports BSD-3-Clause. PR bodies, comments and patches are upstream-authored public content; verify LICENSE before redistribution.",
+    "generator": {
+      "script": "build_annotation_packets.py",
+      "version": "1.1"
+    },
+    "sources": [
+      "temporal_candidates.jsonl (commit-graph screening)",
+      "candidate_patch_manifest.json (patch SHA-256 pins)",
+      "merge_rows.jsonl (local commit graph)",
+      "merge_replay.jsonl (recorded-history replay)",
+      "context_cache/pr-5516.json",
+      "context_cache/pr-5514.json"
+    ],
+    "screening_lineage": "Git commit-graph screening only; no semantic or duplicate-work label is inferred.",
+    "ground_truth_absent": "This packet contains no ACCD label values. Screening opinions and single-researcher adjudications were not read by the builder."
+  },
+  "prediction_view": {
+    "view_instructions": "Fill phase_1 using ONLY this object. Do not open result_view before phase_1 is locked.",
+    "baseline": {
+      "merge_base_commit": "d718ecf6d3dfc4656d262154c59672437c1ea075",
+      "merge_base_subject": "Provide a configuration option to control automatic option responses",
+      "source": "git merge-base of the two PR head commits",
+      "command": "git merge-base 7621b3d96ac2d53846c4df211bc05c5e13420028 e165f3aef4dbede5d7e3f71c336c89a268753ae9",
+      "left_head_commit": "7621b3d96ac2d53846c4df211bc05c5e13420028",
+      "right_head_commit": "e165f3aef4dbede5d7e3f71c336c89a268753ae9"
+    },
+    "tasks": {
+      "A": {
+        "source_pr": 5516,
+        "source_url": "https://github.com/pallets/flask/pull/5516",
+        "title": "Bump the github-actions group with 2 updates",
+        "description_text": "Bumps the github-actions group with 2 updates: [actions/checkout](https://github.com/actions/checkout) and [pypa/gh-action-pypi-publish](https://github.com/pypa/gh-action-pypi-publish).\n\nUpdates `actions/checkout` from 4.1.6 to 4.1.7\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/actions/checkout/releases\">actions/checkout's releases</a>.</em></p>\n<blockquote>\n<h2>v4.1.7</h2>\n<h2>What's Changed</h2>\n<ul>\n<li>Bump the minor-npm-dependencies group across 1 directory with 4 updates by <a href=\"https://github.com/dependabot\"><code>@​dependabot</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1739\">actions/checkout#1739</a></li>\n<li>Bump actions/checkout from 3 to 4 by <a href=\"https://github.com/dependabot\"><code>@​dependabot</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1697\">actions/checkout#1697</a></li>\n<li>Check out other refs/* by commit by <a href=\"https://github.com/orhantoy\"><code>@​orhantoy</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1774\">actions/checkout#1774</a></li>\n<li>Pin actions/checkout's own workflows to a known, good, stable version. by <a href=\"https://github.com/jww3\"><code>@​jww3</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1776\">actions/checkout#1776</a></li>\n</ul>\n<h2>New Contributors</h2>\n<ul>\n<li><a href=\"https://github.com/orhantoy\"><code>@​orhantoy</code></a> made their first contribution in <a href=\"https://redirect.github.com/actions/checkout/pull/1774\">actions/checkout#1774</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a href=\"https://github.com/actions/checkout/compare/v4.1.6...v4.1.7\">https://github.com/actions/checkout/compare/v4.1.6...v4.1.7</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/actions/checkout/blob/main/CHANGELOG.md\">actions/checkout's changelog</a>.</em></p>\n<blockquote>\n<h1>Changelog</h1>\n<h2>v4.1.7</h2>\n<ul>\n<li>Bump the minor-npm-dependencies group across 1 directory with 4 updates by <a href=\"https://github.com/dependabot\"><code>@​dependabot</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1739\">actions/checkout#1739</a></li>\n<li>Bump actions/checkout from 3 to 4 by <a href=\"https://github.com/dependabot\"><code>@​dependabot</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1697\">actions/checkout#1697</a></li>\n<li>Check out other refs/* by commit by <a href=\"https://github.com/orhantoy\"><code>@​orhantoy</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1774\">actions/checkout#1774</a></li>\n<li>Pin actions/checkout's own workflows to a known, good, stable version. by <a href=\"https://github.com/jww3\"><code>@​jww3</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1776\">actions/checkout#1776</a></li>\n</ul>\n<h2>v4.1.6</h2>\n<ul>\n<li>Check platform to set archive extension appropriately by <a href=\"https://github.com/cory-miller\"><code>@​cory-miller</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1732\">actions/checkout#1732</a></li>\n</ul>\n<h2>v4.1.5</h2>\n<ul>\n<li>Update NPM dependencies by <a href=\"https://github.com/cory-miller\"><code>@​cory-miller</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1703\">actions/checkout#1703</a></li>\n<li>Bump github/codeql-action from 2 to 3 by <a href=\"https://github.com/dependabot\"><code>@​dependabot</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1694\">actions/checkout#1694</a></li>\n<li>Bump actions/setup-node from 1 to 4 by <a href=\"https://github.com/dependabot\"><code>@​dependabot</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1696\">actions/checkout#1696</a></li>\n<li>Bump actions/upload-artifact from 2 to 4 by <a href=\"https://github.com/dependabot\"><code>@​dependabot</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1695\">actions/checkout#1695</a></li>\n<li>README: Suggest <code>user.email</code> to be <code>41898282+github-actions[bot]@users.noreply.github.com</code> by <a href=\"https://github.com/cory-miller\"><code>@​cory-miller</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1707\">actions/checkout#1707</a></li>\n</ul>\n<h2>v4.1.4</h2>\n<ul>\n<li>Disable <code>extensions.worktreeConfig</code> when disabling <code>sparse-checkout</code> by <a href=\"https://github.com/jww3\"><code>@​jww3</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1692\">actions/checkout#1692</a></li>\n<li>Add dependabot config by <a href=\"https://github.com/cory-miller\"><code>@​cory-miller</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1688\">actions/checkout#1688</a></li>\n<li>Bump the minor-actions-dependencies group with 2 updates by <a href=\"https://github.com/dependabot\"><code>@​dependabot</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1693\">actions/checkout#1693</a></li>\n<li>Bump word-wrap from 1.2.3 to 1.2.5 by <a href=\"https://github.com/dependabot\"><code>@​dependabot</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1643\">actions/checkout#1643</a></li>\n</ul>\n<h2>v4.1.3</h2>\n<ul>\n<li>Check git version before attempting to disable <code>sparse-checkout</code> by <a href=\"https://github.com/jww3\"><code>@​jww3</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1656\">actions/checkout#1656</a></li>\n<li>Add SSH user parameter by <a href=\"https://github.com/cory-miller\"><code>@​cory-miller</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1685\">actions/checkout#1685</a></li>\n<li>Update <code>actions/checkout</code> version in <code>update-main-version.yml</code> by <a href=\"https://github.com/jww3\"><code>@​jww3</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1650\">actions/checkout#1650</a></li>\n</ul>\n<h2>v4.1.2</h2>\n<ul>\n<li>Fix: Disable sparse checkout whenever <code>sparse-checkout</code> option is not present <a href=\"https://github.com/dscho\"><code>@​dscho</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1598\">actions/checkout#1598</a></li>\n</ul>\n<h2>v4.1.1</h2>\n<ul>\n<li>Correct link to GitHub Docs by <a href=\"https://github.com/peterbe\"><code>@​peterbe</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1511\">actions/checkout#1511</a></li>\n<li>Link to release page from what's new section by <a href=\"https://github.com/cory-miller\"><code>@​cory-miller</code></a> in <a href=\"https://redirect.github.com/actions/checkout/pull/1514\">actions/checkout#1514</a></li>\n</ul>\n<h2>v4.1.0</h2>\n<ul>\n<li><a href=\"https://redirect.github.com/actions/checkout/pull/1396\">Add support for partial checkout filters</a></li>\n</ul>\n<h2>v4.0.0</h2>\n<ul>\n<li><a href=\"https://redirect.github.com/actions/checkout/pull/1067\">Support fetching without the --progress option</a></li>\n<li><a href=\"https://redirect.github.com/actions/checkout/pull/1436\">Update to node20</a></li>\n</ul>\n<h2>v3.6.0</h2>\n<ul>\n<li><a href=\"https://redirect.github.com/actions/checkout/pull/1377\">Fix: Mark test scripts with Bash'isms to be run via Bash</a></li>\n<li><a href=\"https://redirect.github.com/actions/checkout/pull/579\">Add option to fetch tags even if fetch-depth &gt; 0</a></li>\n</ul>\n<h2>v3.5.3</h2>\n<ul>\n<li><a href=\"https://redirect.github.com/actions/checkout/pull/1196\">Fix: Checkout fail in self-hosted runners when faulty submodule are checked-in</a></li>\n<li><a href=\"https://redirect.github.com/actions/checkout/pull/1287\">Fix typos found by codespell</a></li>\n</ul>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/actions/checkout/commit/692973e3d937129bcbf40652eb9f2f61becf3332\"><code>692973e</code></a> Prepare 4.1.7 release (<a href=\"https://redirect.github.com/actions/checkout/issues/1775\">#1775</a>)</li>\n<li><a href=\"https://github.com/actions/checkout/commit/6ccd57f4c5d15bdc2fef309bd9fb6cc9db2ef1c6\"><code>6ccd57f</code></a> Pin actions/checkout's own workflows to a known, good, stable version. (<a href=\"https://redirect.github.com/actions/checkout/issues/1776\">#1776</a>)</li>\n<li><a href=\"https://github.com/actions/checkout/commit/b17fe1e4d59a9d1d95a7aead5e6fcd13e50939a5\"><code>b17fe1e</code></a> Handle hidden refs (<a href=\"https://redirect.github.com/actions/checkout/issues/1774\">#1774</a>)</li>\n<li><a href=\"https://github.com/actions/checkout/commit/b80ff79f1755d06ba70441c368a6fe801f5f3a62\"><code>b80ff79</code></a> Bump actions/checkout from 3 to 4 (<a href=\"https://redirect.github.com/actions/checkout/issues/1697\">#1697</a>)</li>\n<li><a href=\"https://github.com/actions/checkout/commit/b1ec3021b8fa02164da82ca1557d017d83b0e179\"><code>b1ec302</code></a> Bump the minor-npm-dependencies group across 1 directory with 4 updates (<a href=\"https://redirect.github.com/actions/checkout/issues/1739\">#1739</a>)</li>\n<li>See full diff in <a href=\"https://github.com/actions/checkout/compare/a5ac7e51b41094c92402da3b24376905380afc29...692973e3d937129bcbf40652eb9f2f61becf3332\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `pypa/gh-action-pypi-publish` from 1.8.14 to 1.9.0\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/pypa/gh-action-pypi-publish/releases\">pypa/gh-action-pypi-publish's releases</a>.</em></p>\n<blockquote>\n<h2>v1.9.0</h2>\n<h2>💅 Cosmetic Output Improvements</h2>\n<ul>\n<li><a href=\"https://github.com/woodruffw\"><code>@​woodruffw</code></a><a href=\"https://github.com/sponsors/woodruffw\">💰</a> updated the tense on password nudge in <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/234\">#234</a></li>\n<li><a href=\"https://github.com/shenxianpeng\"><code>@​shenxianpeng</code></a><a href=\"https://github.com/sponsors/shenxianpeng\">💰</a> helped us disable the progress bar that was being produced by the <code>twine upload</code> command via <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/231\">#231</a></li>\n<li><a href=\"https://github.com/woodruffw\"><code>@​woodruffw</code></a><a href=\"https://github.com/sponsors/woodruffw\">💰</a> also linked the PyPI status dashboard in the trusted publishing error message via <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/pull/243\">pypa/gh-action-pypi-publish#243</a></li>\n</ul>\n<h2>🛠️ Internal Dependencies</h2>\n<ul>\n<li>pre-commit linters got auto-updated @ <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/225\">#225</a></li>\n<li>some notable dependency bumps include\n<ul>\n<li><code>cryptography == 42.0.7</code></li>\n<li><code>id == 1.4.0</code></li>\n<li><code>idna == 3.7</code> via <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/228\">#228</a></li>\n<li><code>requests == 2.32.0</code> via <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/240\">#240</a></li>\n<li><code>Twine == 5.1.0</code></li>\n</ul>\n</li>\n</ul>\n<h2>⚙️ Secret Stuff</h2>\n<p>In <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/241\">#241</a>, <a href=\"https://github.com/br3ndonland\"><code>@​br3ndonland</code></a><a href=\"https://github.com/sponsors/br3ndonland\">💰</a> added a Docker label linking the container image to this repository for GHCR to display it nicely. This is preparatory work for a big performance-focused refactoring he's working on in <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/230\">#230</a>.</p>\n<h2>💪 New Contributors</h2>\n<ul>\n<li><a href=\"https://github.com/shenxianpeng\"><code>@​shenxianpeng</code></a> made their first contribution in <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/pull/231\">pypa/gh-action-pypi-publish#231</a></li>\n<li><a href=\"https://github.com/br3ndonland\"><code>@​br3ndonland</code></a> made their first contribution in <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/pull/241\">pypa/gh-action-pypi-publish#241</a></li>\n</ul>\n<p><strong>🪞 Full Diff</strong>: <a href=\"https://github.com/pypa/gh-action-pypi-publish/compare/v1.8.14...v1.9.0\">https://github.com/pypa/gh-action-pypi-publish/compare/v1.8.14...v1.9.0</a></p>\n<p><strong>🧔‍♂️ Release Manager:</strong> <a href=\"https://github.com/sponsors/webknjaz\"><code>@​webknjaz 🇺🇦</code></a></p>\n<p><strong>🙏 Special Thanks</strong> to <a href=\"https://github.com/pradyunsg\"><code>@​pradyunsg</code></a><a href=\"https://github.com/sponsors/pradyunsg\">💰</a> for promptly unblocking this release to Marketplace as GitHub started asking for yet another developer agreement signature from the organization admins.</p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0\"><code>ec4db0b</code></a> Merge PR <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/243\">#243</a> into unstable/v1</li>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/e7908444c66f5eb9b434207e3ecfef975ea3294e\"><code>e790844</code></a> oidc-exchange: link to status dashboard</li>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/87b624f8716b1150d93f45fa364e49eceebf3ffd\"><code>87b624f</code></a> 💅Update homepage @ Dockerfile to GH Marketplace</li>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/da2f9bb91e4befc116f611d2977e267bfc852706\"><code>da2f9bb</code></a> Merge pull request <a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/241\">#241</a> from br3ndonland/ghcr-label</li>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/abbea2dd5c5802d41c4b6d88c355c64e10207278\"><code>abbea2d</code></a> Add Docker label for GHCR</li>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/2734d07314198e3efbc2a559db0dd8ee41311611\"><code>2734d07</code></a> build(deps): bump requests from 2.31.0 to 2.32.0 in /requirements (<a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/240\">#240</a>)</li>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/a54b9b8952a40829f62ac2bc7855f676d46f9738\"><code>a54b9b8</code></a> ---</li>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/699cd6103f50bf5c3b2f070c70712d109c168e6c\"><code>699cd61</code></a> ⇪📦 Bump the runtime dep lockfile</li>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/8414fc245772bb111cb480a62446d4bdfff3ddb0\"><code>8414fc2</code></a> [pre-commit.ci] pre-commit autoupdate (<a href=\"https://redirect.github.com/pypa/gh-action-pypi-publish/issues/225\">#225</a>)</li>\n<li><a href=\"https://github.com/pypa/gh-action-pypi-publish/commit/67a07ebbede58a32f17e8cae6b08094c1f2a5c95\"><code>67a07eb</code></a> Disable the progress bar when running <code>twine upload</code></li>\n<li>Additional commits viewable in <a href=\"https://github.com/pypa/gh-action-pypi-publish/compare/81e9d935c883d0b210363ab89cf05f3894778450...ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0\">compare view</a></li>\n</ul>\n</details>\n<br />\n\n\nDependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it\n- `@dependabot merge` will merge this PR after your CI passes on it\n- `@dependabot squash and merge` will squash and merge this PR after your CI passes on it\n- `@dependabot cancel merge` will cancel a previously requested merge and block automerging\n- `@dependabot reopen` will reopen this PR if it is closed\n- `@dependabot close` will close this PR and stop Dependabot recreating it. You can achieve the same result by closing it manually\n- `@dependabot show <dependency name> ignore conditions` will show all of the ignore conditions of the specified dependency\n- `@dependabot ignore <dependency name> major version` will close this group update PR and stop Dependabot creating any more for the specific dependency's major version (unless you unignore this specific dependency's major version or upgrade to it yourself)\n- `@dependabot ignore <dependency name> minor version` will close this group update PR and stop Dependabot creating any more for the specific dependency's minor version (unless you unignore this specific dependency's minor version or upgrade to it yourself)\n- `@dependabot ignore <dependency name>` will close this group update PR and stop Dependabot creating any more for the specific dependency (unless you unignore this specific dependency or upgrade to it yourself)\n- `@dependabot unignore <dependency name>` will remove all of the ignore conditions of the specified dependency\n- `@dependabot unignore <dependency name> <ignore condition>` will remove the ignore condition of the specified dependency and ignore conditions\n\n\n</details>",
+        "description_status": "available",
+        "description_truncated_in_packet": false,
+        "description_full_char_count": 17251,
+        "acceptance_criteria": [],
+        "acceptance_criteria_status": "not_declared",
+        "acceptance_criteria_note": "Flask PRs frequently declare no acceptance criteria. `not_declared` means the upstream text contains none; it must not be read as `no overlap`.",
+        "declared_labels": [
+          "dependencies",
+          "github_actions"
+        ],
+        "author": "dependabot[bot]",
+        "created_at": "2024-07-01T15:56:21Z",
+        "merged_at": "2024-07-01T19:47:02Z",
+        "changed_files_upstream": 2,
+        "additions_upstream": 5,
+        "deletions_upstream": 5,
+        "discussion": {
+          "review_comments": [],
+          "issue_comments": [],
+          "discussion_status": "none_upstream"
+        },
+        "change_set_stats_from_patch": {
+          "files_changed": 2,
+          "additions": 5,
+          "deletions": 5,
+          "hunks": 4
+        }
+      },
+      "B": {
+        "source_pr": 5514,
+        "source_url": "https://github.com/pallets/flask/pull/5514",
+        "title": "Bump the python-requirements group in /requirements with 5 updates",
+        "description_text": "Bumps the python-requirements group in /requirements with 5 updates:\n\n| Package | From | To |\n| --- | --- | --- |\n| [cryptography](https://github.com/pyca/cryptography) | `42.0.7` | `42.0.8` |\n| [mypy](https://github.com/python/mypy) | `1.10.0` | `1.10.1` |\n| [pyright](https://github.com/RobertCraigie/pyright-python) | `1.1.365` | `1.1.369` |\n| [pytest](https://github.com/pytest-dev/pytest) | `8.2.1` | `8.2.2` |\n| [tox](https://github.com/tox-dev/tox) | `4.15.0` | `4.15.1` |\n\nUpdates `cryptography` from 42.0.7 to 42.0.8\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/pyca/cryptography/blob/main/CHANGELOG.rst\">cryptography's changelog</a>.</em></p>\n<blockquote>\n<p>42.0.8 - 2024-06-04</p>\n<pre><code>\n* Updated Windows, macOS, and Linux wheels to be compiled with OpenSSL 3.2.2.\n<p>.. _v42-0-7:<br />\n</code></pre></p>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/pyca/cryptography/commit/761ef4b955697c63e83734096f672224224082e1\"><code>761ef4b</code></a> bump for 42.0.8 release (<a href=\"https://redirect.github.com/pyca/cryptography/issues/11072\">#11072</a>)</li>\n<li>See full diff in <a href=\"https://github.com/pyca/cryptography/compare/42.0.7...42.0.8\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `mypy` from 1.10.0 to 1.10.1\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/python/mypy/blob/master/CHANGELOG.md\">mypy's changelog</a>.</em></p>\n<blockquote>\n<h4>Mypy 1.10.1</h4>\n<ul>\n<li>Fix error reporting on cached run after uninstallation of third party library (Shantanu, PR <a href=\"https://redirect.github.com/python/mypy/pull/17420\">17420</a>)</li>\n</ul>\n<h4>Acknowledgements</h4>\n<p>Thanks to all mypy contributors who contributed to this release:</p>\n<ul>\n<li>Alex Waygood</li>\n<li>Ali Hamdan</li>\n<li>Edward Paget</li>\n<li>Evgeniy Slobodkin</li>\n<li>Hashem</li>\n<li>hesam</li>\n<li>Hugo van Kemenade</li>\n<li>Ihor</li>\n<li>James Braza</li>\n<li>Jelle Zijlstra</li>\n<li>jhance</li>\n<li>Jukka Lehtosalo</li>\n<li>Loïc Simon</li>\n<li>Marc Mueller</li>\n<li>Matthieu Devlin</li>\n<li>Michael R. Crusoe</li>\n<li>Nikita Sobolev</li>\n<li>Oskari Lehto</li>\n<li>Riccardo Di Maio</li>\n<li>Richard Si</li>\n<li>roberfi</li>\n<li>Roman Solomatin</li>\n<li>Sam Xifaras</li>\n<li>Shantanu</li>\n<li>Spencer Brown</li>\n<li>Srinivas Lade</li>\n<li>Tamir Duberstein</li>\n<li>youkaichao</li>\n</ul>\n<p>I’d also like to thank my employer, Dropbox, for supporting mypy development.</p>\n<h2>Mypy 1.9</h2>\n<p>We’ve just uploaded mypy 1.9 to the Python Package Index (<a href=\"https://pypi.org/project/mypy/\">PyPI</a>). Mypy is a static type checker for Python. This release includes new features, performance improvements and bug fixes. You can install it as follows:</p>\n<pre><code>python3 -m pip install -U mypy\n</code></pre>\n<p>You can read the full documentation for this release on <a href=\"http://mypy.readthedocs.io\">Read the Docs</a>.</p>\n<h4>Breaking Changes</h4>\n<p>Because the version of typeshed we use in mypy 1.9 doesn't support 3.7, neither does mypy 1.9. (Jared Hance, PR <a href=\"https://redirect.github.com/python/mypy/pull/16883\">16883</a>)</p>\n<!-- raw HTML omitted -->\n</blockquote>\n<p>... (truncated)</p>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/python/mypy/commit/c28b5257b528f65a028e7d0dbecbcd81c7997356\"><code>c28b525</code></a> [1.10 backport] Fix error reporting on cached run after uninstallation of thi...</li>\n<li>See full diff in <a href=\"https://github.com/python/mypy/compare/v1.10.0...v1.10.1\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `pyright` from 1.1.365 to 1.1.369\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/RobertCraigie/pyright-python/commit/903dbc65aaae3fd5db91db637f35d6ad5ab1ed75\"><code>903dbc6</code></a> chore(ci): enable workflow_dispatch for releasing</li>\n<li><a href=\"https://github.com/RobertCraigie/pyright-python/commit/82d28c784faec6219b3cf3b7c00bd160912a8846\"><code>82d28c7</code></a> chore(internal): pin twine dependency</li>\n<li><a href=\"https://github.com/RobertCraigie/pyright-python/commit/ffa917f5173f703503b4f7ef1a5e8ec1a793b928\"><code>ffa917f</code></a> [pyright updated to 1.1.369] Update Version (<a href=\"https://redirect.github.com/RobertCraigie/pyright-python/issues/279\">#279</a>)</li>\n<li><a href=\"https://github.com/RobertCraigie/pyright-python/commit/604a0a0b620825aac310af9cce25c0fc569a3a60\"><code>604a0a0</code></a> [pyright updated to 1.1.368] Update Version (<a href=\"https://redirect.github.com/RobertCraigie/pyright-python/issues/278\">#278</a>)</li>\n<li><a href=\"https://github.com/RobertCraigie/pyright-python/commit/dd680bad2637799e57aa285c18bf942316473dc9\"><code>dd680ba</code></a> Pyright NPM Package update to 1.1.367 (<a href=\"https://redirect.github.com/RobertCraigie/pyright-python/issues/277\">#277</a>)</li>\n<li><a href=\"https://github.com/RobertCraigie/pyright-python/commit/d337bcf583c3e82def58bf73d3da5da30e81d190\"><code>d337bcf</code></a> [pyright updated to 1.1.366] Update Version (<a href=\"https://redirect.github.com/RobertCraigie/pyright-python/issues/276\">#276</a>)</li>\n<li>See full diff in <a href=\"https://github.com/RobertCraigie/pyright-python/compare/v1.1.365...v1.1.369\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `pytest` from 8.2.1 to 8.2.2\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/pytest-dev/pytest/releases\">pytest's releases</a>.</em></p>\n<blockquote>\n<h2>8.2.2</h2>\n<h1>pytest 8.2.2 (2024-06-04)</h1>\n<h2>Bug Fixes</h2>\n<ul>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12355\">#12355</a>: Fix possible catastrophic performance slowdown on a certain parametrization pattern involving many higher-scoped parameters.</li>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12367\">#12367</a>: Fix a regression in pytest 8.2.0 where unittest class instances (a fresh one is created for each test) were not released promptly on test teardown but only on session teardown.</li>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12381\">#12381</a>: Fix possible &quot;Directory not empty&quot; crashes arising from concurent cache dir (<code>.pytest_cache</code>) creation. Regressed in pytest 8.2.0.</li>\n</ul>\n<h2>Improved Documentation</h2>\n<ul>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12290\">#12290</a>: Updated Sphinx theme to use Furo instead of Flask, enabling Dark mode theme.</li>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12356\">#12356</a>: Added a subsection to the documentation for debugging flaky tests to mention\nlack of thread safety in pytest as a possible source of flakyness.</li>\n<li><a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12363\">#12363</a>: The documentation webpages now links to a canonical version to reduce outdated documentation in search engine results.</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/329d3712146e69c471be3e30883d54bdde2f76cb\"><code>329d371</code></a> Prepare release version 8.2.2</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/214d098fcce88940f5ce9353786b3cc8f0bd3938\"><code>214d098</code></a> Merge pull request <a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12414\">#12414</a> from bluetech/backport-12409</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/153a436bc40c9e89d90d62255ef5a89e9a762dca\"><code>153a436</code></a> [8.2.x] fixtures: fix catastrophic performance problem in <code>reorder_items</code></li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/b41d5a52bbb808780ab310456d71e5ce509fd402\"><code>b41d5a5</code></a> Merge pull request <a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12412\">#12412</a> from pytest-dev/backport-12408-to-8.2.x</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/9bb73d734ff40f52d7bbebd708b5e3ab1ba20798\"><code>9bb73d7</code></a> [8.2.x] cacheprovider: fix &quot;Directory not empty&quot; crash from cache directory c...</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/4569a01e3d20d64811d48b0b09539596520ea5a6\"><code>4569a01</code></a> [8.2.x] doc: Update trainings/events (<a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12402\">#12402</a>)</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/1d103e5cdc1cb08f332e61a5b20fb205fa5228e7\"><code>1d103e5</code></a> [8.2.x] Clarify pytest_ignore_collect docs (<a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12386\">#12386</a>)</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/240a252d34fff26efad5b3a92e62be4c9af94b70\"><code>240a252</code></a> [8.2.x] Add html_baseurl to sphinx conf.py (<a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12372\">#12372</a>)</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/a5ee3c41268199c2c0af59c33050326b1c4a342e\"><code>a5ee3c4</code></a> Merge pull request <a href=\"https://redirect.github.com/pytest-dev/pytest/issues/12370\">#12370</a> from pytest-dev/backport-12368-to-8.2.x</li>\n<li><a href=\"https://github.com/pytest-dev/pytest/commit/f7358aec2884720b4de4594ffd0811b46316514c\"><code>f7358ae</code></a> [8.2.x] unittest: fix class instances no longer released on test teardown sin...</li>\n<li>Additional commits viewable in <a href=\"https://github.com/pytest-dev/pytest/compare/8.2.1...8.2.2\">compare view</a></li>\n</ul>\n</details>\n<br />\n\nUpdates `tox` from 4.15.0 to 4.15.1\n<details>\n<summary>Release notes</summary>\n<p><em>Sourced from <a href=\"https://github.com/tox-dev/tox/releases\">tox's releases</a>.</em></p>\n<blockquote>\n<h2>4.15.1</h2>\n<!-- raw HTML omitted -->\n<h2>What's Changed</h2>\n<ul>\n<li>fix skip with package = wheel by <a href=\"https://github.com/MarcinKonowalczyk\"><code>@​MarcinKonowalczyk</code></a> in <a href=\"https://redirect.github.com/tox-dev/tox/pull/3269\">tox-dev/tox#3269</a></li>\n<li>Fixed typo in user guide. by <a href=\"https://github.com/carltongibson\"><code>@​carltongibson</code></a> in <a href=\"https://redirect.github.com/tox-dev/tox/pull/3277\">tox-dev/tox#3277</a></li>\n<li>Fix broad build privileges @ GHA release workflow by <a href=\"https://github.com/webknjaz\"><code>@​webknjaz</code></a> in <a href=\"https://redirect.github.com/tox-dev/tox/pull/3281\">tox-dev/tox#3281</a></li>\n<li>Allow <code>ConfigSet.add_config</code> to receive parameterized generics for <code>of_type</code>. by <a href=\"https://github.com/ssbarnea\"><code>@​ssbarnea</code></a> in <a href=\"https://redirect.github.com/tox-dev/tox/pull/3288\">tox-dev/tox#3288</a></li>\n<li>Fix section substitution with setenv by <a href=\"https://github.com/JJLLWW\"><code>@​JJLLWW</code></a> in <a href=\"https://redirect.github.com/tox-dev/tox/pull/3289\">tox-dev/tox#3289</a></li>\n</ul>\n<h2>New Contributors</h2>\n<ul>\n<li><a href=\"https://github.com/MarcinKonowalczyk\"><code>@​MarcinKonowalczyk</code></a> made their first contribution in <a href=\"https://redirect.github.com/tox-dev/tox/pull/3269\">tox-dev/tox#3269</a></li>\n<li><a href=\"https://github.com/carltongibson\"><code>@​carltongibson</code></a> made their first contribution in <a href=\"https://redirect.github.com/tox-dev/tox/pull/3277\">tox-dev/tox#3277</a></li>\n<li><a href=\"https://github.com/JJLLWW\"><code>@​JJLLWW</code></a> made their first contribution in <a href=\"https://redirect.github.com/tox-dev/tox/pull/3289\">tox-dev/tox#3289</a></li>\n</ul>\n<p><strong>Full Changelog</strong>: <a href=\"https://github.com/tox-dev/tox/compare/4.15.0...4.15.1\">https://github.com/tox-dev/tox/compare/4.15.0...4.15.1</a></p>\n</blockquote>\n</details>\n<details>\n<summary>Changelog</summary>\n<p><em>Sourced from <a href=\"https://github.com/tox-dev/tox/blob/main/docs/changelog.rst\">tox's changelog</a>.</em></p>\n<blockquote>\n<h2>v4.15.1 (2024-06-05)</h2>\n<p>Features - 4.15.1</p>\n<pre><code>- Fix ``skip_missing_interpreters`` option for ``package = wheel`` (:issue:`3269`)\n<p>Bugfixes - 4.15.1\n</code></pre></p>\n<ul>\n<li>Fix section substitution with setenv. (:issue:<code>3262</code>)</li>\n<li>Allow <code>ConfigSet.add_config</code> to receive parameterized generics for <code>of_type</code>. (:issue:<code>3288</code>)</li>\n</ul>\n</blockquote>\n</details>\n<details>\n<summary>Commits</summary>\n<ul>\n<li><a href=\"https://github.com/tox-dev/tox/commit/079000fe80bb9baa3eb0e7f8f53f932810942d14\"><code>079000f</code></a> release 4.15.1</li>\n<li><a href=\"https://github.com/tox-dev/tox/commit/489ad821e5b9c6d5aff500e1b3abc4292f52a2dc\"><code>489ad82</code></a> Fix section substitution with setenv (<a href=\"https://redirect.github.com/tox-dev/tox/issues/3289\">#3289</a>)</li>\n<li><a href=\"https://github.com/tox-dev/tox/commit/7317225d179a7bd70cbe409f5273d6aa3ffac488\"><code>7317225</code></a> Allow <code>ConfigSet.add_config</code> to receive parameterized generics for <code>of_type</code>....</li>\n<li><a href=\"https://github.com/tox-dev/tox/commit/406f80887f757ba430c79280ad767492cf046296\"><code>406f808</code></a> [pre-commit.ci] pre-commit autoupdate (<a href=\"https://redirect.github.com/tox-dev/tox/issues/3283\">#3283</a>)</li>\n<li><a href=\"https://github.com/tox-dev/tox/commit/5c28d9c180679ee712a2974f4bb7d4765295bd48\"><code>5c28d9c</code></a> [pre-commit.ci] pre-commit autoupdate (<a href=\"https://redirect.github.com/tox-dev/tox/issues/3279\">#3279</a>)</li>\n<li><a href=\"https://github.com/tox-dev/tox/commit/f4e257c3a4ea000e07d5b670836d439f5e11fce6\"><code>f4e257c</code></a> Fix broad build privileges @ GHA release workflow (<a href=\"https://redirect.github.com/tox-dev/tox/issues/3281\">#3281</a>)</li>\n<li><a href=\"https://github.com/tox-dev/tox/commit/77564a1aa04300a8b2cecf8f871864d60019d645\"><code>77564a1</code></a> Fixed typo in user guide.</li>\n<li><a href=\"https://github.com/tox-dev/tox/commit/e2f66b1b890f57a468c639c8c5ce7993d98ce447\"><code>e2f66b1</code></a> [pre-commit.ci] auto fixes from pre-commit.com hooks</li>\n<li><a href=\"https://github.com/tox-dev/tox/commit/9afc9cba99ed0f1b163a1a96727a3bf231a4f951\"><code>9afc9cb</code></a> [pre-commit.ci] pre-commit autoupdate</li>\n<li><a href=\"https://github.com/tox-dev/tox/commit/3db98229ac0730e204b832c911861249d389070c\"><code>3db9822</code></a> fix skip with package = wheel (<a href=\"https://redirect.github.com/tox-dev/tox/issues/3269\">#3269</a>)</li>\n<li>See full diff in <a href=\"https://github.com/tox-dev/tox/compare/4.15.0...4.15.1\">compare view</a></li>\n</ul>\n</details>\n<br />\n\n\nDependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.\n\n[//]: # (dependabot-automerge-start)\n[//]: # (dependabot-automerge-end)\n\n---\n\n<details>\n<summary>Dependabot commands and options</summary>\n<br />\n\nYou can trigger Dependabot actions by commenting on this PR:\n- `@dependabot rebase` will rebase this PR\n- `@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it\n- `@dependabot merge` will merge this PR after your CI passes on it\n- `@dependabot squash and merge` will squash and merge this PR after your CI passes on it\n- `@dependabot cancel merge` will cancel a previously requested merge and block automerging\n- `@dependabot reopen` will reopen this PR if it is closed\n- `@dependabot close` will close this PR and stop Dependabot recreating it. You can achieve the same result by closing it manually\n- `@dependabot show <dependency name> ignore conditions` will show all of the ignore conditions of the specified dependency\n- `@dependabot ignore <dependency name> major version` will close this group update PR and stop Dependabot creating any more for the specific dependency's major version (unless you unignore this specific dependency's major version or upgrade to it yourself)\n- `@dependabot ignore <dependency name> minor version` will close this group update PR and stop Dependabot creating any more for the specific dependency's minor version (unless you unignore this specific dependency's minor version or upgrade to it yourself)\n- `@dependabot ignore <dependency name>` will close this group update PR and stop Dependabot creating any more for the specific dependency (unless you unignore this specific dependency or upgrade to it yourself)\n- `@dependabot unignore <dependency name>` will remove all of the ignore conditions of the specified dependency\n- `@dependabot unignore <dependency name> <ignore condition>` will remove the ignore condition of the specified dependency and ignore conditions\n\n\n</details>",
+        "description_status": "available",
+        "description_truncated_in_packet": false,
+        "description_full_char_count": 16617,
+        "acceptance_criteria": [],
+        "acceptance_criteria_status": "not_declared",
+        "acceptance_criteria_note": "Flask PRs frequently declare no acceptance criteria. `not_declared` means the upstream text contains none; it must not be read as `no overlap`.",
+        "declared_labels": [
+          "dependencies",
+          "python"
+        ],
+        "author": "dependabot[bot]",
+        "created_at": "2024-07-01T15:28:18Z",
+        "merged_at": "2024-07-01T23:14:08Z",
+        "changed_files_upstream": 3,
+        "additions_upstream": 10,
+        "deletions_upstream": 10,
+        "discussion": {
+          "review_comments": [],
+          "issue_comments": [],
+          "discussion_status": "none_upstream"
+        },
+        "change_set_stats_from_patch": {
+          "files_changed": 3,
+          "additions": 10,
+          "deletions": 10,
+          "hunks": 7
+        }
+      }
+    },
+    "change_sets": {
+      "A": {
+        "change_set": "A",
+        "source_pr": 5516,
+        "patch_relative_path": "candidate_patches/pr-5516.patch",
+        "patch_sha256": "76e689c8a563add736cc9ff4e644277989e0a70f3c535ea3c8d4abab333b19cc",
+        "files": [
+          {
+            "path": ".github/workflows/publish.yaml",
+            "additions": 3,
+            "deletions": 3,
+            "hunk_count": 2,
+            "is_production_path": false
+          },
+          {
+            "path": ".github/workflows/tests.yaml",
+            "additions": 2,
+            "deletions": 2,
+            "hunk_count": 2,
+            "is_production_path": false
+          }
+        ],
+        "diff_hunks": [
+          {
+            "file": "b/.github/workflows/publish.yaml",
+            "header": "@@ -9,7 +9,7 @@ jobs:",
+            "added": [
+              "      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7"
+            ],
+            "removed": [
+              "      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6"
+            ]
+          },
+          {
+            "file": "b/.github/workflows/publish.yaml",
+            "header": "@@ -64,10 +64,10 @@ jobs:",
+            "added": [
+              "      - uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0",
+              "      - uses: pypa/gh-action-pypi-publish@ec4db0b4ddc65acdf4bff5fa45ac92d78b56bdf0 # v1.9.0"
+            ],
+            "removed": [
+              "      - uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # v1.8.14",
+              "      - uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # v1.8.14"
+            ]
+          },
+          {
+            "file": "b/.github/workflows/tests.yaml",
+            "header": "@@ -33,7 +33,7 @@ jobs:",
+            "added": [
+              "      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7"
+            ],
+            "removed": [
+              "      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6"
+            ]
+          },
+          {
+            "file": "b/.github/workflows/tests.yaml",
+            "header": "@@ -45,7 +45,7 @@ jobs:",
+            "added": [
+              "      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7"
+            ],
+            "removed": [
+              "      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6"
+            ]
+          }
+        ],
+        "touched_symbols": [],
+        "stats": {
+          "files_changed": 2,
+          "additions": 5,
+          "deletions": 5,
+          "hunks": 4
+        },
+        "changed_paths": [
+          ".github/workflows/publish.yaml",
+          ".github/workflows/tests.yaml"
+        ],
+        "diff_integrity": {
+          "full_diff_in_packet": true,
+          "note": "All added/removed lines present in the public patch are reproduced inline. Hunk context lines (unchanged surrounding code) are not included; read the frozen patch file hash-pinned by patch_sha256 for full context."
+        }
+      },
+      "B": {
+        "change_set": "B",
+        "source_pr": 5514,
+        "patch_relative_path": "candidate_patches/pr-5514.patch",
+        "patch_sha256": "ed2126ee8d496417e756cdc3fbd758dda49a7aed1939ec0744e26f27f6a767d4",
+        "files": [
+          {
+            "path": "requirements/dev.txt",
+            "additions": 5,
+            "deletions": 5,
+            "hunk_count": 4,
+            "is_production_path": false
+          },
+          {
+            "path": "requirements/tests.txt",
+            "additions": 1,
+            "deletions": 1,
+            "hunk_count": 1,
+            "is_production_path": false
+          },
+          {
+            "path": "requirements/typing.txt",
+            "additions": 4,
+            "deletions": 4,
+            "hunk_count": 2,
+            "is_production_path": false
+          }
+        ],
+        "diff_hunks": [
+          {
+            "file": "b/requirements/dev.txt",
+            "header": "@@ -36,7 +36,7 @@ charset-normalizer==3.3.2",
+            "added": [
+              "cryptography==42.0.8"
+            ],
+            "removed": [
+              "cryptography==42.0.7"
+            ]
+          },
+          {
+            "file": "b/requirements/dev.txt",
+            "header": "@@ -72,7 +72,7 @@ markupsafe==2.1.5",
+            "added": [
+              "mypy==1.10.1"
+            ],
+            "removed": [
+              "mypy==1.10.0"
+            ]
+          },
+          {
+            "file": "b/requirements/dev.txt",
+            "header": "@@ -118,9 +118,9 @@ pygments==2.17.2",
+            "added": [
+              "pyright==1.1.369",
+              "pytest==8.2.2"
+            ],
+            "removed": [
+              "pyright==1.1.365",
+              "pytest==8.2.1"
+            ]
+          },
+          {
+            "file": "b/requirements/dev.txt",
+            "header": "@@ -172,7 +172,7 @@ sphinxcontrib-serializinghtml==1.1.10",
+            "added": [
+              "tox==4.15.1"
+            ],
+            "removed": [
+              "tox==4.15.0"
+            ]
+          },
+          {
+            "file": "b/requirements/tests.txt",
+            "header": "@@ -12,7 +12,7 @@ packaging==24.0",
+            "added": [
+              "pytest==8.2.2"
+            ],
+            "removed": [
+              "pytest==8.2.1"
+            ]
+          },
+          {
+            "file": "b/requirements/typing.txt",
+            "header": "@@ -8,11 +8,11 @@ asgiref==3.8.1",
+            "added": [
+              "cryptography==42.0.8",
+              "mypy==1.10.1"
+            ],
+            "removed": [
+              "cryptography==42.0.7",
+              "mypy==1.10.0"
+            ]
+          },
+          {
+            "file": "b/requirements/typing.txt",
+            "header": "@@ -24,9 +24,9 @@ pluggy==1.5.0",
+            "added": [
+              "pyright==1.1.369",
+              "pytest==8.2.2"
+            ],
+            "removed": [
+              "pyright==1.1.365",
+              "pytest==8.2.1"
+            ]
+          }
+        ],
+        "touched_symbols": [],
+        "stats": {
+          "files_changed": 3,
+          "additions": 10,
+          "deletions": 10,
+          "hunks": 7
+        },
+        "changed_paths": [
+          "requirements/dev.txt",
+          "requirements/tests.txt",
+          "requirements/typing.txt"
+        ],
+        "diff_integrity": {
+          "full_diff_in_packet": true,
+          "note": "All added/removed lines present in the public patch are reproduced inline. Hunk context lines (unchanged surrounding code) are not included; read the frozen patch file hash-pinned by patch_sha256 for full context."
+        }
+      }
+    },
+    "shared_entities": {
+      "files": [],
+      "production_files": [],
+      "symbols": [],
+      "overlap_scope": "none",
+      "evidence_kind": "path_and_lexical_symbol_overlap_screening_signal",
+      "guard": "File or symbol overlap is a screening signal only. It never implies RT/RI/CC/BC, and it never implies LF (H9)."
+    },
+    "repeated_touch_evidence": {
+      "status": "computed",
+      "evidence_kind": "path_level_proxy_for_repeated_touch",
+      "purpose": "Evidence support for the LF label only (manual §3.9). Not an LF label.",
+      "lf_judgeable_from_this_packet": false,
+      "lf_judgeability_verdict": "no_symbol_level_evidence_available",
+      "lf_judgeability_reason": "Neither patch in this pair declares any touched symbol that this builder can extract, so repeated touch cannot even be enumerated. LF is not judgeable from this packet.",
+      "symbols_touched_by_both_packet_changes": [],
+      "symbols_reaching_threshold_on_path_proxy_only": [],
+      "symbols": [],
+      "exact_evidence_available_for": "the two in-packet change sets (A and B) only",
+      "proxy_limitation": "Follow-up history is recorded at path level, not symbol level, so followup_merge_count counts merges that touched a FILE containing this symbol. A merge touching the same file may have changed an unrelated symbol. Therefore `distinct_touch_count_upper_bound_path_proxy` is an upper bound, not a count of touches to this symbol, and `meets_three_touch_threshold_on_path_proxy = true` is a screening signal only. If symbol-level repeated touch cannot be established from the in-packet evidence, annotators must record `uncertain`, never `no` and never `yes` on the proxy alone (H9).",
+      "window_truncated_by_data": false,
+      "window_note": "If window_truncated_by_data is true, missing follow-up merges are an artifact of commit-graph coverage, not evidence that the symbol was touched only twice."
+    },
+    "temporal_context": {
+      "left_pr_merge_time_utc": "2024-07-01T19:47:02+00:00",
+      "right_pr_merge_time_utc": "2024-07-01T23:14:08+00:00",
+      "left_pr_branch_start_utc": "2024-07-01T15:56:20+00:00",
+      "right_pr_branch_start_utc": "2024-07-01T15:28:16+00:00",
+      "temporal_overlap": true,
+      "later_merged_pr": 5514,
+      "screening_definition_of_overlap": "Temporal overlap means the two PR branch lifecycles overlapped in the commit graph; it does not mean the two tasks were concurrent agent tasks."
+    },
+    "agent_context_summary": {
+      "status": "unavailable",
+      "reason": "These are human-authored PRs. There is no agent, prompt, retry, tool log or failure trace. Treat agent attribution as undecidable in this pilot.",
+      "evidence_kind": "not_collected"
+    },
+    "pre_change_test_state": {
+      "status": "not_executed",
+      "reason": "The local clone is a partial clone and the pilot environment does not install Flask test dependencies; pre-change test results were not executed offline.",
+      "available_proxy": "Upstream CI status is not captured in the cached context payloads."
+    }
+  },
+  "result_view": {
+    "view_instructions": "Only open after phase_1.locked_at is set. Record revisions in phase_2; never edit phase_1.",
+    "integration_outcome": {
+      "status": "computed",
+      "evidence_kind": "recorded_history",
+      "both_merges_landed_on_mainline": true,
+      "left_merge_sha": "088b58dbceb09b3234926af8488c016227bd7c0e",
+      "right_merge_sha": "926ab92118006c74a0a33bcb8f770522d007349a",
+      "merges_were_sequential_on_mainline": true,
+      "note": "Both PRs were merged to mainline as separate events, so the recorded integration outcome is 'both landed', not a single joint merge."
+    },
+    "counterfactual_pair_merge": {
+      "status": "computed",
+      "evidence_kind": "counterfactual_replay",
+      "command": "git merge-tree --write-tree 7621b3d96ac2d53846c4df211bc05c5e13420028 e165f3aef4dbede5d7e3f71c336c89a268753ae9",
+      "exit_code": 0,
+      "auto_tree": "b8a02731bd55de994eb9bd08c5fdb90c1bc672e4",
+      "textual_conflict_observed": false,
+      "conflict_lines": [],
+      "conflicted_files": [],
+      "note": "Counterfactual construction: the two PRs were merged into mainline sequentially, so this merge is not recorded history. It answers 'what would a direct three-way merge of the two branch heads produce', which is the scenario the study targets."
+    },
+    "per_pr_merge_replay": {
+      "5516": {
+        "status": "computed",
+        "evidence_kind": "recorded_history_replay",
+        "merge_sha": "088b58dbceb09b3234926af8488c016227bd7c0e",
+        "auto_tree": "966b66b25bb96048f00bdeffe17dc146ce08b320",
+        "actual_tree": "966b66b25bb96048f00bdeffe17dc146ce08b320",
+        "tree_equal": true,
+        "conflict_lines": [],
+        "replay_status": "auto_clean_same_tree"
+      },
+      "5514": {
+        "status": "computed",
+        "evidence_kind": "recorded_history_replay",
+        "merge_sha": "926ab92118006c74a0a33bcb8f770522d007349a",
+        "auto_tree": "b8a02731bd55de994eb9bd08c5fdb90c1bc672e4",
+        "actual_tree": "b8a02731bd55de994eb9bd08c5fdb90c1bc672e4",
+        "tree_equal": true,
+        "conflict_lines": [],
+        "replay_status": "auto_clean_same_tree"
+      }
+    },
+    "post_integration_tests": {
+      "status": "not_executed",
+      "reason": "No offline run of the merged tree was performed. Absence of test results is 'unmeasured', not 'passed'.",
+      "consequence_for_labels": "AC guide: BC may only be `uncertain` without test or subsequent-repair evidence."
+    },
+    "repair_or_revert_history": {
+      "status": "computed",
+      "evidence_kind": "subsequent_mainline_history",
+      "window_days": 180,
+      "window_start_utc": "2024-07-01T23:14:08Z",
+      "window_end_utc": "2024-12-28T23:14:08Z",
+      "data_coverage_start_utc": "2024-04-23T23:52:13Z",
+      "data_coverage_end_utc": "2026-08-11T20:19:14Z",
+      "window_truncated_by_data": false,
+      "effective_observed_window_end_utc": "2024-12-28T23:14:08Z",
+      "coverage_guard": "The screened commit range ends at data_coverage_end_utc. If window_truncated_by_data is true, the absence of a follow-up fix after effective_observed_window_end_utc is an artifact of data coverage, not evidence that no repair was needed.",
+      "source": "merge_rows.jsonl (local commit graph, 80 PR-like merge rows in the screened window)",
+      "entry_count": 4,
+      "entries": [
+        {
+          "pr_number": 5539,
+          "merge_sha": "a791997041b94b8a5effebc296cb427fde8e0ee5",
+          "merge_time_utc": "2024-08-03T14:28:45+00:00",
+          "subject": "Bump the github-actions group with 3 updates (#5539)",
+          "days_after_candidate": 32.64,
+          "shared_paths": [
+            ".github/workflows/publish.yaml",
+            ".github/workflows/tests.yaml"
+          ],
+          "shared_with_change_set_a": [
+            ".github/workflows/publish.yaml",
+            ".github/workflows/tests.yaml"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 5615,
+          "merge_sha": "d273f87a41e72db8ef1387f469ffa1c6eed39730",
+          "merge_time_utc": "2024-10-18T20:22:45+00:00",
+          "subject": "use python 3.9 to test dev versions (#5615)",
+          "days_after_candidate": 108.88,
+          "shared_paths": [
+            ".github/workflows/tests.yaml"
+          ],
+          "shared_with_change_set_a": [
+            ".github/workflows/tests.yaml"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 5623,
+          "merge_sha": "99ce7ed0e40686ec2583f90bd1cca37a207b4ea7",
+          "merge_time_utc": "2024-10-31T19:32:10+00:00",
+          "subject": "drop support for Python 3.8 (#5623)",
+          "days_after_candidate": 121.85,
+          "shared_paths": [
+            ".github/workflows/tests.yaml"
+          ],
+          "shared_with_change_set_a": [
+            ".github/workflows/tests.yaml"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 5624,
+          "merge_sha": "62c56e08c43f5eb174d15dd050591cfba9aed548",
+          "merge_time_utc": "2024-10-31T20:15:29+00:00",
+          "subject": "update minimum dependencies (#5624)",
+          "days_after_candidate": 121.88,
+          "shared_paths": [
+            ".github/workflows/publish.yaml",
+            "requirements/dev.txt",
+            "requirements/typing.txt"
+          ],
+          "shared_with_change_set_a": [
+            ".github/workflows/publish.yaml"
+          ],
+          "shared_with_change_set_b": [
+            "requirements/dev.txt",
+            "requirements/typing.txt"
+          ],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        }
+      ],
+      "interpretation_guard": "`lexical_revert_signal` and `lexical_fix_signal` are keyword matches on merge subjects. They are candidate evidence for the annotator to inspect, not an ID/BC label. An empty entry list means no mainline merge in the window touched these paths in the screened commit range; it is not proof that no repair happened."
+    }
+  },
+  "label_ontology": {
+    "labels": [
+      "TC",
+      "BC",
+      "AC",
+      "RT",
+      "RI",
+      "CC",
+      "LF",
+      "UA",
+      "ID"
+    ],
+    "allowed_values": {
+      "default": [
+        "yes",
+        "no",
+        "uncertain",
+        null
+      ],
+      "ID": [
+        "yes",
+        "no",
+        "possible_ID",
+        "uncertain",
+        null
+      ]
+    },
+    "manual": "annotation/annotation_manual.md",
+    "preregistration": "annotation/preregistration.md"
+  },
+  "packet_integrity": {
+    "deterministic": true,
+    "contains_no_labels": true,
+    "patch_sha256_matches_manifest": {
+      "A": true,
+      "B": true
+    }
+  }
+}

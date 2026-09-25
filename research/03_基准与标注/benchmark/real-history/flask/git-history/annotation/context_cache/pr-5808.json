@@ -1,0 +1,67 @@
+{
+  "fetcher_version": "1.0",
+  "repository": "pallets/flask",
+  "pr_number": 5808,
+  "retrieved_at_utc": "2026-09-14T08:34:01Z",
+  "fetched": {
+    "pull": {
+      "ok": true,
+      "status": 200,
+      "bytes": 18456
+    },
+    "review_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    },
+    "issue_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 3483
+    }
+  },
+  "request_urls": {
+    "pull": "https://api.github.com/repos/pallets/flask/pulls/5808",
+    "review_comments": "https://api.github.com/repos/pallets/flask/pulls/5808/comments?per_page=100",
+    "issue_comments": "https://api.github.com/repos/pallets/flask/issues/5808/comments?per_page=100"
+  },
+  "response_sha256": {
+    "pull": "efa4f58607823d87db132f86fef80e748746adceddf643c7a5067405d8c5f0e0",
+    "review_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "issue_comments": "1b85be29531cef2c8451f513ef57e06f31f369d939aa1d761a1a9f994b58e49e"
+  },
+  "data": {
+    "pull": {
+      "title": "fix annotation for select_jinja_autoescape",
+      "body": "Inside the code of the method the filename is checked against a None value and returns True, but the static annotated type is a str. I have changed the static annotation type to `str` to `str | None`.",
+      "state": "closed",
+      "merged_at": "2026-01-25T02:25:31Z",
+      "created_at": "2025-09-06T16:33:44Z",
+      "base_sha": "85793d6c223dd845e8f218403a5ced83041d37e1",
+      "head_sha": "dbd4c2882593f6118103120aa96fa9acdf7deedb",
+      "merge_commit_sha": "25642fd1fd65985fc98f95e64bc2c7ff353d6c2b",
+      "changed_files": 1,
+      "additions": 1,
+      "deletions": 1,
+      "labels": [],
+      "author": "subhajitsaha01"
+    },
+    "review_comments": [],
+    "issue_comments": [
+      {
+        "author": "subhajitsaha01",
+        "created_at": "2025-09-22T18:40:33Z",
+        "path": null,
+        "body": "Is there anything required from my end to close this particular pull request"
+      },
+      {
+        "author": "subhajitsaha01",
+        "created_at": "2025-10-29T01:47:37Z",
+        "path": null,
+        "body": "Hi Maintainers, is there anything I could do to get this PR resolved"
+      }
+    ]
+  },
+  "degraded": false,
+  "availability_note": "Enriched from the public GitHub API; task text is upstream-authored, not researcher-authored."
+}

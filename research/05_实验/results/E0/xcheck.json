@@ -1,0 +1,54 @@
+{
+  "status": "pass",
+  "scenarios": [
+    {
+      "scenario": "clean",
+      "events": 64,
+      "capsules": 8,
+      "checked_fields": 16,
+      "expected_divergences": [],
+      "failures": [],
+      "has_ground_truth": true
+    },
+    {
+      "scenario": "clean-with-reads",
+      "events": 65,
+      "capsules": 8,
+      "checked_fields": 16,
+      "expected_divergences": [
+        "top_contested_entities"
+      ],
+      "failures": [],
+      "has_ground_truth": true
+    },
+    {
+      "scenario": "kinds",
+      "events": 5,
+      "capsules": 2,
+      "checked_fields": 16,
+      "expected_divergences": [
+        "counts.contested_entities",
+        "top_contested_entities"
+      ],
+      "failures": [],
+      "has_ground_truth": false
+    },
+    {
+      "scenario": "ties",
+      "events": 8,
+      "capsules": 2,
+      "checked_fields": 16,
+      "expected_divergences": [],
+      "failures": [],
+      "has_ground_truth": false
+    }
+  ],
+  "total_checks": 64,
+  "exact_match_rate": 1.0,
+  "divergence_notes": [
+    "clean-with-reads: contested_entities python=3 typescript=3; coord_ledger.py counts file_read as an entity touch, the plugin does not, because a read is not a conflict",
+    "kinds: contested_entities python=1 typescript=0; coord_ledger.py counts file_read as an entity touch, the plugin does not, because a read is not a conflict",
+    "ties: same-instant events resolved identically by both analyzers, so the (timestamp_utc, event_id) tie-break is shared, not approximated"
+  ],
+  "failures": []
+}

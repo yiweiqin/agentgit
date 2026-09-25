@@ -1,0 +1,88 @@
+{
+  "repository": "pallets/flask",
+  "retrieved_at_utc": "2026-09-13T18:37:40.682863+00:00",
+  "source": "public pull/<number>.patch URLs",
+  "records": [
+    {
+      "pr_number": 5514,
+      "url": "https://github.com/pallets/flask/pull/5514.patch",
+      "status": "downloaded",
+      "bytes": 4810,
+      "sha256": "ed2126ee8d496417e756cdc3fbd758dda49a7aed1939ec0744e26f27f6a767d4",
+      "error": null
+    },
+    {
+      "pr_number": 5516,
+      "url": "https://github.com/pallets/flask/pull/5516.patch",
+      "status": "downloaded",
+      "bytes": 3882,
+      "sha256": "76e689c8a563add736cc9ff4e644277989e0a70f3c535ea3c8d4abab333b19cc",
+      "error": null
+    },
+    {
+      "pr_number": 5723,
+      "url": "https://github.com/pallets/flask/pull/5723.patch",
+      "status": "downloaded",
+      "bytes": 933,
+      "sha256": "1b4119ac1eb46cd0cf18cb15462403496226ccc8f903213849f80ad9d3164966",
+      "error": null
+    },
+    {
+      "pr_number": 5754,
+      "url": "https://github.com/pallets/flask/pull/5754.patch",
+      "status": "downloaded",
+      "bytes": 2800,
+      "sha256": "6577a8f55c93cc775daeb54f7b055af943df5db4add004e4e0967f3ab33e0407",
+      "error": null
+    },
+    {
+      "pr_number": 5757,
+      "url": "https://github.com/pallets/flask/pull/5757.patch",
+      "status": "downloaded",
+      "bytes": 74524,
+      "sha256": "b1b7afbd7170e5b3eef1d1e7c313b50289b1d3de7b279012128bd401135d9ff5",
+      "error": null
+    },
+    {
+      "pr_number": 5797,
+      "url": "https://github.com/pallets/flask/pull/5797.patch",
+      "status": "downloaded",
+      "bytes": 2837,
+      "sha256": "184632136b13491db17977a79f37a0699cb06df50c7a8eb6b72fb5688cf49a94",
+      "error": null
+    },
+    {
+      "pr_number": 5808,
+      "url": "https://github.com/pallets/flask/pull/5808.patch",
+      "status": "downloaded",
+      "bytes": 943,
+      "sha256": "f928af75998eaed70623d0eea4492e9795354d4e8c72d48a1e9fd0da3a80f9c1",
+      "error": null
+    },
+    {
+      "pr_number": 5812,
+      "url": "https://github.com/pallets/flask/pull/5812.patch",
+      "status": "downloaded",
+      "bytes": 123946,
+      "sha256": "4eb4817da732de7cf6922facc113c9e4123fe5f154d3c69c11025ea44308195a",
+      "error": null
+    },
+    {
+      "pr_number": 5818,
+      "url": "https://github.com/pallets/flask/pull/5818.patch",
+      "status": "downloaded",
+      "bytes": 23881,
+      "sha256": "0990eff9c5c20b2284586cc4ad3766889aa1b88967448d39420893dacd958474",
+      "error": null
+    },
+    {
+      "pr_number": 5898,
+      "url": "https://github.com/pallets/flask/pull/5898.patch",
+      "status": "downloaded",
+      "bytes": 3485,
+      "sha256": "04ae810d4310a61e2e14284f64fa88fcb7209f592b8ded3cec20e466d5360c02",
+      "error": null
+    }
+  ],
+  "ground_truth": "not_available; patches are evidence for independent annotation"
+}

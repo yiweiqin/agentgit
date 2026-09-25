@@ -1,0 +1,15 @@
+ledger            : results\E0\synthetic\clean\events.jsonl
+capsules (tasks)  : 8
+open (= backlog)  : 6
+integrated        : 1
+decayed (stale/abandoned): 1
+lambda_produced/h : 0.996
+integration_rate/h: 0.124
+observed_hours    : 8.033
+contested entities: 3
+writes after context loss: 6
+state histogram   : {'integrated': 1, 'proposed': 5, 'stale': 1, 'validated': 1}
+top contested entities:
+  file::pkg/core/s0.py: tasks=2 sessions=2 touches=2
+  file::pkg/core/s1.py: tasks=2 sessions=2 touches=2
+  file::pkg/core/s2.py: tasks=2 sessions=2 touches=2

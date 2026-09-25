@@ -1,0 +1,74 @@
+{
+  "backlog_series": [
+    {
+      "open_capsules": 1,
+      "timestamp_utc": "2026-03-01T00:10:00Z"
+    },
+    {
+      "open_capsules": 2,
+      "timestamp_utc": "2026-03-01T00:25:00Z"
+    },
+    {
+      "open_capsules": 3,
+      "timestamp_utc": "2026-03-01T00:40:00Z"
+    },
+    {
+      "open_capsules": 4,
+      "timestamp_utc": "2026-03-01T00:55:00Z"
+    },
+    {
+      "open_capsules": 5,
+      "timestamp_utc": "2026-03-01T01:10:00Z"
+    },
+    {
+      "open_capsules": 6,
+      "timestamp_utc": "2026-03-01T01:25:00Z"
+    },
+    {
+      "open_capsules": 7,
+      "timestamp_utc": "2026-03-01T01:40:00Z"
+    },
+    {
+      "open_capsules": 8,
+      "timestamp_utc": "2026-03-01T01:55:00Z"
+    },
+    {
+      "open_capsules": 7,
+      "timestamp_utc": "2026-03-01T07:50:00Z"
+    },
+    {
+      "open_capsules": 6,
+      "timestamp_utc": "2026-03-01T07:55:00Z"
+    }
+  ],
+  "contested_keys": [
+    "file::pkg/core/s0.py",
+    "file::pkg/core/s1.py",
+    "file::pkg/core/s2.py"
+  ],
+  "counts": {
+    "capsules": 8,
+    "contested_entities": 3,
+    "decayed_capsules": 1,
+    "events": 64,
+    "integrated_capsules": 1,
+    "open_capsules": 6,
+    "sessions_with_context_loss": 3,
+    "unreconciled_capsules": 6
+  },
+  "note": "Ground truth is the plan above, not the output of any analyzer. contested_entities counts shared files, each written by exactly two distinct tasks.",
+  "rates": {
+    "integration_rate_per_hour": 0.12448132780082988,
+    "lambda_produced_per_hour": 0.995850622406639,
+    "observed_hours": 8.033333333333333,
+    "rate_is_meaningful": true
+  },
+  "scenario": "clean",
+  "state_histogram": {
+    "integrated": 1,
+    "proposed": 5,
+    "stale": 1,
+    "validated": 1
+  },
+  "writes_after_context_loss": 6
+}

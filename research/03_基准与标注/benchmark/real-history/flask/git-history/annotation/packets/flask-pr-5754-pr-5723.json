@@ -1,0 +1,442 @@
+{
+  "packet_version": "1.1",
+  "scenario_id": "flask-pr-5754-pr-5723",
+  "provenance": {
+    "repository": "pallets/flask",
+    "data_status": "real_public_git_metadata_plus_public_patch_plus_public_pr_context",
+    "license_note": "Flask reports BSD-3-Clause. PR bodies, comments and patches are upstream-authored public content; verify LICENSE before redistribution.",
+    "generator": {
+      "script": "build_annotation_packets.py",
+      "version": "1.1"
+    },
+    "sources": [
+      "temporal_candidates.jsonl (commit-graph screening)",
+      "candidate_patch_manifest.json (patch SHA-256 pins)",
+      "merge_rows.jsonl (local commit graph)",
+      "merge_replay.jsonl (recorded-history replay)",
+      "context_cache/pr-5754.json",
+      "context_cache/pr-5723.json"
+    ],
+    "screening_lineage": "Git commit-graph screening only; no semantic or duplicate-work label is inferred.",
+    "ground_truth_absent": "This packet contains no ACCD label values. Screening opinions and single-researcher adjudications were not read by the builder."
+  },
+  "prediction_view": {
+    "view_instructions": "Fill phase_1 using ONLY this object. Do not open result_view before phase_1 is locked.",
+    "baseline": {
+      "merge_base_commit": "a42c4d54a3e5cd56c0700479ede75157a748acd6",
+      "merge_base_subject": "Fix global CONTRIBUTING link (#5737)",
+      "source": "git merge-base of the two PR head commits",
+      "command": "git merge-base adeea0070700671230733879846417c80f4e62b1 7bf3be8dfa5832ef03a3fd8f07f6736e770440e4",
+      "left_head_commit": "adeea0070700671230733879846417c80f4e62b1",
+      "right_head_commit": "7bf3be8dfa5832ef03a3fd8f07f6736e770440e4"
+    },
+    "tasks": {
+      "A": {
+        "source_pr": 5754,
+        "source_url": "https://github.com/pallets/flask/pull/5754",
+        "title": "remove slsa provenance",
+        "description_text": "PyPI and trusted publishing has built-in attestation support now.",
+        "description_status": "available",
+        "description_truncated_in_packet": false,
+        "description_full_char_count": 65,
+        "acceptance_criteria": [],
+        "acceptance_criteria_status": "not_declared",
+        "acceptance_criteria_note": "Flask PRs frequently declare no acceptance criteria. `not_declared` means the upstream text contains none; it must not be read as `no overlap`.",
+        "declared_labels": [],
+        "author": "davidism",
+        "created_at": "2025-06-08T16:44:14Z",
+        "merged_at": "2025-06-08T16:47:45Z",
+        "changed_files_upstream": 2,
+        "additions_upstream": 3,
+        "deletions_upstream": 26,
+        "discussion": {
+          "review_comments": [],
+          "issue_comments": [],
+          "discussion_status": "none_upstream"
+        },
+        "change_set_stats_from_patch": {
+          "files_changed": 2,
+          "additions": 3,
+          "deletions": 26,
+          "hunks": 3
+        }
+      },
+      "B": {
+        "source_pr": 5723,
+        "source_url": "https://github.com/pallets/flask/pull/5723",
+        "title": "Update macOS UI reference to “System Settings”",
+        "description_text": "made changes to rename system preferences to system settings according to new mac os name change\r\n\r\nDocs: Update macOS UI reference to “System Settings”\r\n\r\nThis PR updates the documentation in docs/server.rst to reflect the latest macOS UI terminology.\r\nSpecifically, it replaces the outdated term “System Preferences” with “System Settings”, aligning with macOS Ventura and later versions.\r\n\r\nWhat Changed\r\n• Line updated in instructions to disable AirPlay Receiver from:\r\n• \"System Preferences\" → \"System Settings\"\r\n\r\nNotes\r\n• No issue was created for this change, as it is a minor documentation correction.\r\n• This update does not affect any code or behavior.\r\n• No test or changelog entry required per contribution guidelines for doc typo-level fixes.",
+        "description_status": "available",
+        "description_truncated_in_packet": false,
+        "description_full_char_count": 755,
+        "acceptance_criteria": [],
+        "acceptance_criteria_status": "not_declared",
+        "acceptance_criteria_note": "Flask PRs frequently declare no acceptance criteria. `not_declared` means the upstream text contains none; it must not be read as `no overlap`.",
+        "declared_labels": [
+          "docs"
+        ],
+        "author": "abhiramk6",
+        "created_at": "2025-05-01T15:48:38Z",
+        "merged_at": "2025-08-18T17:08:08Z",
+        "changed_files_upstream": 1,
+        "additions_upstream": 1,
+        "deletions_upstream": 1,
+        "discussion": {
+          "review_comments": [],
+          "issue_comments": [],
+          "discussion_status": "none_upstream"
+        },
+        "change_set_stats_from_patch": {
+          "files_changed": 1,
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        }
+      }
+    },
+    "change_sets": {
+      "A": {
+        "change_set": "A",
+        "source_pr": 5754,
+        "patch_relative_path": "candidate_patches/pr-5754.patch",
+        "patch_sha256": "6577a8f55c93cc775daeb54f7b055af943df5db4add004e4e0967f3ab33e0407",
+        "files": [
+          {
+            "path": ".github/workflows/publish.yaml",
+            "additions": 3,
+            "deletions": 21,
+            "hunk_count": 2,
+            "is_production_path": false
+          },
+          {
+            "path": "pyproject.toml",
+            "additions": 0,
+            "deletions": 5,
+            "hunk_count": 1,
+            "is_production_path": false
+          }
+        ],
+        "diff_hunks": [
+          {
+            "file": "b/.github/workflows/publish.yaml",
+            "header": "@@ -5,8 +5,6 @@ on:",
+            "added": [],
+            "removed": [
+              "    outputs:",
+              "      hash: ${{ steps.hash.outputs.hash }}"
+            ]
+          },
+          {
+            "file": "b/.github/workflows/publish.yaml",
+            "header": "@@ -18,38 +16,22 @@ jobs:",
+            "added": [
+              "    needs: [build]",
+              "        run: gh release create --draft --repo ${{ github.repository }} ${{ github.ref_name }} artifact/*",
+              "    needs: [build]"
+            ],
+            "removed": [
+              "      - name: generate hash",
+              "        id: hash",
+              "        run: cd dist && echo \"hash=$(sha256sum * | base64 -w0)\" >> $GITHUB_OUTPUT",
+              "  provenance:",
+              "    needs: [build]",
+              "    permissions:",
+              "      actions: read",
+              "      id-token: write",
+              "      contents: write",
+              "    # Can't pin with hash due to how this workflow works.",
+              "    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0",
+              "    with:",
+              "      base64-subjects: ${{ needs.build.outputs.hash }}",
+              "    needs: [provenance]",
+              "        run: >",
+              "          gh release create --draft --repo ${{ github.repository }}",
+              "          ${{ github.ref_name }}",
+              "          *.intoto.jsonl/* artifact/*",
+              "    needs: [provenance]"
+            ]
+          },
+          {
+            "file": "b/pyproject.toml",
+            "header": "@@ -166,11 +166,6 @@ select = [",
+            "added": [],
+            "removed": [
+              "[tool.gha-update]",
+              "tag-only = [",
+              "    \"slsa-framework/slsa-github-generator\",",
+              "]",
+              ""
+            ]
+          }
+        ],
+        "touched_symbols": [],
+        "stats": {
+          "files_changed": 2,
+          "additions": 3,
+          "deletions": 26,
+          "hunks": 3
+        },
+        "changed_paths": [
+          ".github/workflows/publish.yaml",
+          "pyproject.toml"
+        ],
+        "diff_integrity": {
+          "full_diff_in_packet": true,
+          "note": "All added/removed lines present in the public patch are reproduced inline. Hunk context lines (unchanged surrounding code) are not included; read the frozen patch file hash-pinned by patch_sha256 for full context."
+        }
+      },
+      "B": {
+        "change_set": "B",
+        "source_pr": 5723,
+        "patch_relative_path": "candidate_patches/pr-5723.patch",
+        "patch_sha256": "1b4119ac1eb46cd0cf18cb15462403496226ccc8f903213849f80ad9d3164966",
+        "files": [
+          {
+            "path": "docs/server.rst",
+            "additions": 1,
+            "deletions": 1,
+            "hunk_count": 1,
+            "is_production_path": false
+          }
+        ],
+        "diff_hunks": [
+          {
+            "file": "b/docs/server.rst",
+            "header": "@@ -77,7 +77,7 @@ following example shows that process id 6847 is using port 5000.",
+            "added": [
+              "searching for \"AirPlay Receiver\" in System Settings and toggling it off."
+            ],
+            "removed": [
+              "searching for \"AirPlay Receiver\" in System Preferences and toggling it off."
+            ]
+          }
+        ],
+        "touched_symbols": [],
+        "stats": {
+          "files_changed": 1,
+          "additions": 1,
+          "deletions": 1,
+          "hunks": 1
+        },
+        "changed_paths": [
+          "docs/server.rst"
+        ],
+        "diff_integrity": {
+          "full_diff_in_packet": true,
+          "note": "All added/removed lines present in the public patch are reproduced inline. Hunk context lines (unchanged surrounding code) are not included; read the frozen patch file hash-pinned by patch_sha256 for full context."
+        }
+      }
+    },
+    "shared_entities": {
+      "files": [],
+      "production_files": [],
+      "symbols": [],
+      "overlap_scope": "none",
+      "evidence_kind": "path_and_lexical_symbol_overlap_screening_signal",
+      "guard": "File or symbol overlap is a screening signal only. It never implies RT/RI/CC/BC, and it never implies LF (H9)."
+    },
+    "repeated_touch_evidence": {
+      "status": "computed",
+      "evidence_kind": "path_level_proxy_for_repeated_touch",
+      "purpose": "Evidence support for the LF label only (manual §3.9). Not an LF label.",
+      "lf_judgeable_from_this_packet": false,
+      "lf_judgeability_verdict": "no_symbol_level_evidence_available",
+      "lf_judgeability_reason": "Neither patch in this pair declares any touched symbol that this builder can extract, so repeated touch cannot even be enumerated. LF is not judgeable from this packet.",
+      "symbols_touched_by_both_packet_changes": [],
+      "symbols_reaching_threshold_on_path_proxy_only": [],
+      "symbols": [],
+      "exact_evidence_available_for": "the two in-packet change sets (A and B) only",
+      "proxy_limitation": "Follow-up history is recorded at path level, not symbol level, so followup_merge_count counts merges that touched a FILE containing this symbol. A merge touching the same file may have changed an unrelated symbol. Therefore `distinct_touch_count_upper_bound_path_proxy` is an upper bound, not a count of touches to this symbol, and `meets_three_touch_threshold_on_path_proxy = true` is a screening signal only. If symbol-level repeated touch cannot be established from the in-packet evidence, annotators must record `uncertain`, never `no` and never `yes` on the proxy alone (H9).",
+      "window_truncated_by_data": false,
+      "window_note": "If window_truncated_by_data is true, missing follow-up merges are an artifact of commit-graph coverage, not evidence that the symbol was touched only twice."
+    },
+    "temporal_context": {
+      "left_pr_merge_time_utc": "2025-06-08T16:47:45+00:00",
+      "right_pr_merge_time_utc": "2025-08-18T17:08:07+00:00",
+      "left_pr_branch_start_utc": "2025-06-08T16:43:05+00:00",
+      "right_pr_branch_start_utc": "2025-06-05T00:24:45+00:00",
+      "temporal_overlap": true,
+      "later_merged_pr": 5723,
+      "screening_definition_of_overlap": "Temporal overlap means the two PR branch lifecycles overlapped in the commit graph; it does not mean the two tasks were concurrent agent tasks."
+    },
+    "agent_context_summary": {
+      "status": "unavailable",
+      "reason": "These are human-authored PRs. There is no agent, prompt, retry, tool log or failure trace. Treat agent attribution as undecidable in this pilot.",
+      "evidence_kind": "not_collected"
+    },
+    "pre_change_test_state": {
+      "status": "not_executed",
+      "reason": "The local clone is a partial clone and the pilot environment does not install Flask test dependencies; pre-change test results were not executed offline.",
+      "available_proxy": "Upstream CI status is not captured in the cached context payloads."
+    }
+  },
+  "result_view": {
+    "view_instructions": "Only open after phase_1.locked_at is set. Record revisions in phase_2; never edit phase_1.",
+    "integration_outcome": {
+      "status": "computed",
+      "evidence_kind": "recorded_history",
+      "both_merges_landed_on_mainline": true,
+      "left_merge_sha": "c07b201ce336c3e49ae3b6fa81aaf4fb871d90ba",
+      "right_merge_sha": "7fea7cf15688b2a2712b01c45c9e3385ea382e67",
+      "merges_were_sequential_on_mainline": true,
+      "note": "Both PRs were merged to mainline as separate events, so the recorded integration outcome is 'both landed', not a single joint merge."
+    },
+    "counterfactual_pair_merge": {
+      "status": "computed",
+      "evidence_kind": "counterfactual_replay",
+      "command": "git merge-tree --write-tree adeea0070700671230733879846417c80f4e62b1 7bf3be8dfa5832ef03a3fd8f07f6736e770440e4",
+      "exit_code": 0,
+      "auto_tree": "ffc187ede57255a0e46c638ed0560eb0c9cbaf7c",
+      "textual_conflict_observed": false,
+      "conflict_lines": [],
+      "conflicted_files": [],
+      "note": "Counterfactual construction: the two PRs were merged into mainline sequentially, so this merge is not recorded history. It answers 'what would a direct three-way merge of the two branch heads produce', which is the scenario the study targets."
+    },
+    "per_pr_merge_replay": {
+      "5754": {
+        "status": "computed",
+        "evidence_kind": "recorded_history_replay",
+        "merge_sha": "c07b201ce336c3e49ae3b6fa81aaf4fb871d90ba",
+        "auto_tree": "d6ea5001ba6a0c5fff08c1681c0b1aed07adfb84",
+        "actual_tree": "d6ea5001ba6a0c5fff08c1681c0b1aed07adfb84",
+        "tree_equal": true,
+        "conflict_lines": [],
+        "replay_status": "auto_clean_same_tree"
+      },
+      "5723": {
+        "status": "computed",
+        "evidence_kind": "recorded_history_replay",
+        "merge_sha": "7fea7cf15688b2a2712b01c45c9e3385ea382e67",
+        "auto_tree": "980ee49f33f7b415ce4f531d1aaaa55b507d0128",
+        "actual_tree": "980ee49f33f7b415ce4f531d1aaaa55b507d0128",
+        "tree_equal": true,
+        "conflict_lines": [],
+        "replay_status": "auto_clean_same_tree"
+      }
+    },
+    "post_integration_tests": {
+      "status": "not_executed",
+      "reason": "No offline run of the merged tree was performed. Absence of test results is 'unmeasured', not 'passed'.",
+      "consequence_for_labels": "AC guide: BC may only be `uncertain` without test or subsequent-repair evidence."
+    },
+    "repair_or_revert_history": {
+      "status": "computed",
+      "evidence_kind": "subsequent_mainline_history",
+      "window_days": 180,
+      "window_start_utc": "2025-08-18T17:08:07Z",
+      "window_end_utc": "2026-02-14T17:08:07Z",
+      "data_coverage_start_utc": "2024-04-23T23:52:13Z",
+      "data_coverage_end_utc": "2026-08-11T20:19:14Z",
+      "window_truncated_by_data": false,
+      "effective_observed_window_end_utc": "2026-02-14T17:08:07Z",
+      "coverage_guard": "The screened commit range ends at data_coverage_end_utc. If window_truncated_by_data is true, the absence of a follow-up fix after effective_observed_window_end_utc is an artifact of data coverage, not evidence that no repair was needed.",
+      "source": "merge_rows.jsonl (local commit graph, 80 PR-like merge rows in the screened window)",
+      "entry_count": 4,
+      "entries": [
+        {
+          "pr_number": 5795,
+          "merge_sha": "1292419ddfc6a14fc7f85b5ed7efcc2d215f1ad3",
+          "merge_time_utc": "2025-08-19T20:56:49+00:00",
+          "subject": "Update GitHub Actions workflow for artifact handling (#5795)",
+          "days_after_candidate": 1.16,
+          "shared_paths": [
+            ".github/workflows/publish.yaml"
+          ],
+          "shared_with_change_set_a": [
+            ".github/workflows/publish.yaml"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 5800,
+          "merge_sha": "85793d6c223dd845e8f218403a5ced83041d37e1",
+          "merge_time_utc": "2025-08-19T21:03:43+00:00",
+          "subject": "release version 3.1.2 (#5800)",
+          "days_after_candidate": 1.16,
+          "shared_paths": [
+            "pyproject.toml"
+          ],
+          "shared_with_change_set_a": [
+            "pyproject.toml"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 5844,
+          "merge_sha": "5559ef42b5334075cbde82b2870ca725ac606fa4",
+          "merge_time_utc": "2026-01-25T03:00:23+00:00",
+          "subject": "pre-commit: Add codespell (#5844)",
+          "days_after_candidate": 159.41,
+          "shared_paths": [
+            "pyproject.toml"
+          ],
+          "shared_with_change_set_a": [
+            "pyproject.toml"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        },
+        {
+          "pr_number": 5865,
+          "merge_sha": "4f79d5b59a56bc4356a97f2e81a35f98cb18d7b3",
+          "merge_time_utc": "2026-01-25T03:04:07+00:00",
+          "subject": "Increase required flit_core version to 3.11 (#5865)",
+          "days_after_candidate": 159.41,
+          "shared_paths": [
+            "pyproject.toml"
+          ],
+          "shared_with_change_set_a": [
+            "pyproject.toml"
+          ],
+          "shared_with_change_set_b": [],
+          "lexical_revert_signal": false,
+          "lexical_fix_signal": false
+        }
+      ],
+      "interpretation_guard": "`lexical_revert_signal` and `lexical_fix_signal` are keyword matches on merge subjects. They are candidate evidence for the annotator to inspect, not an ID/BC label. An empty entry list means no mainline merge in the window touched these paths in the screened commit range; it is not proof that no repair happened."
+    }
+  },
+  "label_ontology": {
+    "labels": [
+      "TC",
+      "BC",
+      "AC",
+      "RT",
+      "RI",
+      "CC",
+      "LF",
+      "UA",
+      "ID"
+    ],
+    "allowed_values": {
+      "default": [
+        "yes",
+        "no",
+        "uncertain",
+        null
+      ],
+      "ID": [
+        "yes",
+        "no",
+        "possible_ID",
+        "uncertain",
+        null
+      ]
+    },
+    "manual": "annotation/annotation_manual.md",
+    "preregistration": "annotation/preregistration.md"
+  },
+  "packet_integrity": {
+    "deterministic": true,
+    "contains_no_labels": true,
+    "patch_sha256_matches_manifest": {
+      "A": true,
+      "B": true
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "schema_version": "iscc-0.1",
+  "capsule_id": "iscc-orders-idempotency-a1",
+  "task": {
+    "task_id": "T17",
+    "description": "为订单创建接口增加幂等重试",
+    "acceptance": [
+      "同一幂等键不会产生两个订单",
+      "重试次数可配置"
+    ],
+    "depends_on": [],
+    "priority": "normal"
+  },
+  "agent": {
+    "agent_id": "agent-a1",
+    "model": "example-model@version",
+    "run_id": "run-2026-09-14-001"
+  },
+  "scope": {
+    "entities": [
+      {"kind": "api", "identifier": "OrderService.create", "path": "src/orders/service.py"},
+      {"kind": "schema", "identifier": "OrderRequest.idempotency_key", "path": "src/orders/schema.py"},
+      {"kind": "test", "identifier": "test_idempotent_create", "path": "tests/test_orders.py"}
+    ],
+    "constraints": ["one idempotency key maps to at most one order"]
+  },
+  "change": {
+    "git_base": "a1b2c3d4e5f6",
+    "git_commits": ["b2c3d4e5f6a7"],
+    "patch_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "patch_path": "changes/iscc-orders-idempotency-a1.patch"
+  },
+  "provenance": {
+    "created_at_utc": "2026-09-14T01:00:00Z",
+    "parent_capsules": [],
+    "events": [
+      {"event_id": "e1", "kind": "task_registered", "timestamp_utc": "2026-09-14T00:55:00Z", "summary": "registered T17"},
+      {"event_id": "e2", "kind": "file_read", "timestamp_utc": "2026-09-14T00:56:00Z", "artifact_sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789", "summary": "read service.py"},
+      {"event_id": "e3", "kind": "file_write", "timestamp_utc": "2026-09-14T00:59:00Z", "summary": "wrote idempotency implementation"}
+    ]
+  },
+  "validation": {
+    "status": "passed",
+    "checks": [
+      {"check_id": "pytest-orders", "kind": "unit_test", "status": "passed", "evidence_path": "tests/results/orders.xml"}
+    ]
+  },
+  "lifecycle": {
+    "state": "validated",
+    "updated_at_utc": "2026-09-14T01:05:00Z",
+    "relations": []
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "fetcher_version": "1.0",
+  "repository": "pallets/flask",
+  "pr_number": 5723,
+  "retrieved_at_utc": "2026-09-14T08:32:26Z",
+  "fetched": {
+    "pull": {
+      "ok": true,
+      "status": 200,
+      "bytes": 17404
+    },
+    "review_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    },
+    "issue_comments": {
+      "ok": true,
+      "status": 200,
+      "bytes": 2
+    }
+  },
+  "request_urls": {
+    "pull": "https://api.github.com/repos/pallets/flask/pulls/5723",
+    "review_comments": "https://api.github.com/repos/pallets/flask/pulls/5723/comments?per_page=100",
+    "issue_comments": "https://api.github.com/repos/pallets/flask/issues/5723/comments?per_page=100"
+  },
+  "response_sha256": {
+    "pull": "68bb963863f51ec5c7de4e0bf0ca01c71842ed19140b581b22949b9129c94faf",
+    "review_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "issue_comments": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "data": {
+    "pull": {
+      "title": "Update macOS UI reference to “System Settings”",
+      "body": "made changes to rename system preferences to system settings according to new mac os name change\r\n\r\nDocs: Update macOS UI reference to “System Settings”\r\n\r\nThis PR updates the documentation in docs/server.rst to reflect the latest macOS UI terminology.\r\nSpecifically, it replaces the outdated term “System Preferences” with “System Settings”, aligning with macOS Ventura and later versions.\r\n\r\nWhat Changed\r\n• Line updated in instructions to disable AirPlay Receiver from:\r\n• \"System Preferences\" → \"System Settings\"\r\n\r\nNotes\r\n• No issue was created for this change, as it is a minor documentation correction.\r\n• This update does not affect any code or behavior.\r\n• No test or changelog entry required per contribution guidelines for doc typo-level fixes.",
+      "state": "closed",
+      "merged_at": "2025-08-18T17:08:08Z",
+      "created_at": "2025-05-01T15:48:38Z",
+      "base_sha": "a42c4d54a3e5cd56c0700479ede75157a748acd6",
+      "head_sha": "7bf3be8dfa5832ef03a3fd8f07f6736e770440e4",
+      "merge_commit_sha": "7fea7cf15688b2a2712b01c45c9e3385ea382e67",
+      "changed_files": 1,
+      "additions": 1,
+      "deletions": 1,
+      "labels": [
+        "docs"
+      ],
+      "author": "abhiramk6"
+    },
+    "review_comments": [],
+    "issue_comments": []
+  },
+  "degraded": false,
+  "availability_note": "Enriched from the public GitHub API; task text is upstream-authored, not researcher-authored."
+}

@@ -1,0 +1,23 @@
+From dbd4c2882593f6118103120aa96fa9acdf7deedb Mon Sep 17 00:00:00 2001
+From: subhajitsaha01 <subhajitsaha.formal@gmail.com>
+Date: Sat, 6 Sep 2025 22:01:22 +0530
+Subject: [PATCH] Changed the static annotated type of select_jinja_autoescape
+ method in src/flask/sansio/app.py
+
+---
+ src/flask/sansio/app.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/flask/sansio/app.py b/src/flask/sansio/app.py
+index a2592fe4bd..58cb873062 100644
+--- a/src/flask/sansio/app.py
++++ b/src/flask/sansio/app.py
+@@ -533,7 +533,7 @@ def create_global_jinja_loader(self) -> DispatchingJinjaLoader:
+         """
+         return DispatchingJinjaLoader(self)
+ 
+-    def select_jinja_autoescape(self, filename: str) -> bool:
++    def select_jinja_autoescape(self, filename: str | None) -> bool:
+         """Returns ``True`` if autoescaping should be active for the given
+         template name. If no template name is given, returns `True`.
+ 

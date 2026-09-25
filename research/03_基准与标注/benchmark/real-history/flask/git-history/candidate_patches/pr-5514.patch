@@ -1,0 +1,156 @@
+From e165f3aef4dbede5d7e3f71c336c89a268753ae9 Mon Sep 17 00:00:00 2001
+From: "dependabot[bot]" <49699333+dependabot[bot]@users.noreply.github.com>
+Date: Mon, 1 Jul 2024 15:28:16 +0000
+Subject: [PATCH] Bump the python-requirements group in /requirements with 5
+ updates
+
+Bumps the python-requirements group in /requirements with 5 updates:
+
+| Package | From | To |
+| --- | --- | --- |
+| [cryptography](https://github.com/pyca/cryptography) | `42.0.7` | `42.0.8` |
+| [mypy](https://github.com/python/mypy) | `1.10.0` | `1.10.1` |
+| [pyright](https://github.com/RobertCraigie/pyright-python) | `1.1.365` | `1.1.369` |
+| [pytest](https://github.com/pytest-dev/pytest) | `8.2.1` | `8.2.2` |
+| [tox](https://github.com/tox-dev/tox) | `4.15.0` | `4.15.1` |
+
+
+Updates `cryptography` from 42.0.7 to 42.0.8
+- [Changelog](https://github.com/pyca/cryptography/blob/main/CHANGELOG.rst)
+- [Commits](https://github.com/pyca/cryptography/compare/42.0.7...42.0.8)
+
+Updates `mypy` from 1.10.0 to 1.10.1
+- [Changelog](https://github.com/python/mypy/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/python/mypy/compare/v1.10.0...v1.10.1)
+
+Updates `pyright` from 1.1.365 to 1.1.369
+- [Release notes](https://github.com/RobertCraigie/pyright-python/releases)
+- [Commits](https://github.com/RobertCraigie/pyright-python/compare/v1.1.365...v1.1.369)
+
+Updates `pytest` from 8.2.1 to 8.2.2
+- [Release notes](https://github.com/pytest-dev/pytest/releases)
+- [Changelog](https://github.com/pytest-dev/pytest/blob/main/CHANGELOG.rst)
+- [Commits](https://github.com/pytest-dev/pytest/compare/8.2.1...8.2.2)
+
+Updates `tox` from 4.15.0 to 4.15.1
+- [Release notes](https://github.com/tox-dev/tox/releases)
+- [Changelog](https://github.com/tox-dev/tox/blob/main/docs/changelog.rst)
+- [Commits](https://github.com/tox-dev/tox/compare/4.15.0...4.15.1)
+
+---
+updated-dependencies:
+- dependency-name: cryptography
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+  dependency-group: python-requirements
+- dependency-name: mypy
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+  dependency-group: python-requirements
+- dependency-name: pyright
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+  dependency-group: python-requirements
+- dependency-name: pytest
+  dependency-type: direct:production
+  update-type: version-update:semver-patch
+  dependency-group: python-requirements
+- dependency-name: tox
+  dependency-type: direct:development
+  update-type: version-update:semver-patch
+  dependency-group: python-requirements
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+---
+ requirements/dev.txt    | 10 +++++-----
+ requirements/tests.txt  |  2 +-
+ requirements/typing.txt |  8 ++++----
+ 3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/requirements/dev.txt b/requirements/dev.txt
+index 0fa339ecf7..dc50959656 100644
+--- a/requirements/dev.txt
++++ b/requirements/dev.txt
+@@ -36,7 +36,7 @@ charset-normalizer==3.3.2
+     #   requests
+ colorama==0.4.6
+     # via tox
+-cryptography==42.0.7
++cryptography==42.0.8
+     # via -r typing.txt
+ distlib==0.3.8
+     # via virtualenv
+@@ -72,7 +72,7 @@ markupsafe==2.1.5
+     # via
+     #   -r docs.txt
+     #   jinja2
+-mypy==1.10.0
++mypy==1.10.1
+     # via -r typing.txt
+ mypy-extensions==1.0.0
+     # via
+@@ -118,9 +118,9 @@ pygments==2.17.2
+     #   sphinx-tabs
+ pyproject-api==1.6.1
+     # via tox
+-pyright==1.1.365
++pyright==1.1.369
+     # via -r typing.txt
+-pytest==8.2.1
++pytest==8.2.2
+     # via
+     #   -r tests.txt
+     #   -r typing.txt
+@@ -172,7 +172,7 @@ sphinxcontrib-serializinghtml==1.1.10
+     # via
+     #   -r docs.txt
+     #   sphinx
+-tox==4.15.0
++tox==4.15.1
+     # via -r dev.in
+ types-contextvars==2.4.7.3
+     # via -r typing.txt
+diff --git a/requirements/tests.txt b/requirements/tests.txt
+index 202325de2b..b2d01531f5 100644
+--- a/requirements/tests.txt
++++ b/requirements/tests.txt
+@@ -12,7 +12,7 @@ packaging==24.0
+     # via pytest
+ pluggy==1.5.0
+     # via pytest
+-pytest==8.2.1
++pytest==8.2.2
+     # via -r tests.in
+ python-dotenv==1.0.1
+     # via -r tests.in
+diff --git a/requirements/typing.txt b/requirements/typing.txt
+index 833a5d1b3c..cd08335ff7 100644
+--- a/requirements/typing.txt
++++ b/requirements/typing.txt
+@@ -8,11 +8,11 @@ asgiref==3.8.1
+     # via -r typing.in
+ cffi==1.16.0
+     # via cryptography
+-cryptography==42.0.7
++cryptography==42.0.8
+     # via -r typing.in
+ iniconfig==2.0.0
+     # via pytest
+-mypy==1.10.0
++mypy==1.10.1
+     # via -r typing.in
+ mypy-extensions==1.0.0
+     # via mypy
+@@ -24,9 +24,9 @@ pluggy==1.5.0
+     # via pytest
+ pycparser==2.22
+     # via cffi
+-pyright==1.1.365
++pyright==1.1.369
+     # via -r typing.in
+-pytest==8.2.1
++pytest==8.2.2
+     # via -r typing.in
+ python-dotenv==1.0.1
+     # via -r typing.in

@@ -23,3 +23,15 @@ playground/*
 # Python bytecode from the parity test suite
 __pycache__/
 *.pyc
+
+# The research directory keeps two things out on purpose.
+#
+# Third-party publications under `原文PDF/` and `原文文本/` are for local
+# verification only; the research README states they are not redistributed with
+# the output, so they must not reach a commit by a later `git add -A`.
+#
+# The Flask partial clone is an external data source, not this repository's
+# content, and it carries its own `.git` which a parent repository must not adopt.
+research/**/原文PDF/
+research/**/原文文本/
+research/03_基准与标注/benchmark/real-history/flask/repo/

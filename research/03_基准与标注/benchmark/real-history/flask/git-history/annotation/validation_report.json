@@ -1,0 +1,15 @@
+{
+  "status": "blank_or_partial",
+  "stats": {
+    "sheet": "D:\\AI小工具制作\\AI原生变更协调研究\\03_基准与标注\\benchmark\\real-history\\flask\\git-history\\annotation\\labels_v1.blank.jsonl",
+    "records": 7,
+    "label_pairs_complete": 0,
+    "label_pairs_pending": 63,
+    "disagreements": 0,
+    "adjudicated": 0,
+    "errors": 0,
+    "warnings": 0
+  },
+  "errors": [],
+  "warnings": []
+}

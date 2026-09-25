@@ -1,0 +1,399 @@
+{
+  "pack": "task-packs\\detection-v1\\pack.json",
+  "status": "measured",
+  "arms": {
+    "A1-instrument": {
+      "n": 8,
+      "tp": 4,
+      "fp": 1,
+      "fn": 1,
+      "tn": 2,
+      "precision": 0.8,
+      "recall": 0.8,
+      "f1": 0.8000000000000002,
+      "controlFlagRate": 0.3333333333333333,
+      "falseRejectionRate": 0,
+      "entityVisibleCeiling": 0.8,
+      "recallWithinCeiling": 1,
+      "byTruthKind": {
+        "true-collision": {
+          "n": 2,
+          "detected": 2
+        },
+        "semantic-duplicate": {
+          "n": 2,
+          "detected": 2
+        },
+        "independent-control": {
+          "n": 3,
+          "detected": 1
+        },
+        "hidden-dependency": {
+          "n": 1,
+          "detected": 0
+        }
+      },
+      "outcomes": [
+        {
+          "id": "p-lexical-near-duplicate",
+          "truthKind": "true-collision",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "duplicate-intent",
+          "similarity": 0.75
+        },
+        {
+          "id": "p-identifier-dup",
+          "truthKind": "true-collision",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "duplicate-intent",
+          "similarity": 0.6428571428571428
+        },
+        {
+          "id": "p-semantic-different-words",
+          "truthKind": "semantic-duplicate",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "cross-task-conflict",
+          "similarity": 0.2857142857142857
+        },
+        {
+          "id": "p-semantic-different-words-shared-identifier",
+          "truthKind": "semantic-duplicate",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "cross-task-conflict",
+          "similarity": 0.08333333333333333
+        },
+        {
+          "id": "p-control-untouched-file",
+          "truthKind": "independent-control",
+          "truth": "independent",
+          "overlapsPriorWork": false,
+          "detected": false,
+          "detection": "no-contention",
+          "similarity": null
+        },
+        {
+          "id": "p-control-same-entity-different-purpose",
+          "truthKind": "independent-control",
+          "truth": "independent",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "cross-task-conflict",
+          "similarity": 0
+        },
+        {
+          "id": "p-hidden-dependency",
+          "truthKind": "hidden-dependency",
+          "truth": "collision",
+          "overlapsPriorWork": false,
+          "detected": false,
+          "detection": "no-contention",
+          "similarity": null
+        },
+        {
+          "id": "p-control-different-entity-close-words",
+          "truthKind": "independent-control",
+          "truth": "independent",
+          "overlapsPriorWork": false,
+          "detected": false,
+          "detection": "no-contention",
+          "similarity": null
+        }
+      ],
+      "verdict": {
+        "met": true,
+        "checks": {
+          "recall": {
+            "value": 0.8,
+            "threshold": ">= 0.6",
+            "met": true,
+            "trigger": "I3 (signal insufficient for the detector to fire)"
+          },
+          "precision": {
+            "value": 0.8,
+            "threshold": ">= 0.8",
+            "met": true,
+            "trigger": "I4 (too many false alarms; raise the evidence required)"
+          },
+          "falseRejectionRate": {
+            "value": 0,
+            "threshold": "<= 0.05",
+            "met": true,
+            "trigger": "I4 (legitimate work refused; H9 violation)"
+          }
+        },
+        "triggers": []
+      }
+    },
+    "A3-advisory": {
+      "n": 8,
+      "tp": 4,
+      "fp": 1,
+      "fn": 1,
+      "tn": 2,
+      "precision": 0.8,
+      "recall": 0.8,
+      "f1": 0.8000000000000002,
+      "controlFlagRate": 0.3333333333333333,
+      "falseRejectionRate": 0,
+      "entityVisibleCeiling": 0.8,
+      "recallWithinCeiling": 1,
+      "byTruthKind": {
+        "true-collision": {
+          "n": 2,
+          "detected": 2
+        },
+        "semantic-duplicate": {
+          "n": 2,
+          "detected": 2
+        },
+        "independent-control": {
+          "n": 3,
+          "detected": 1
+        },
+        "hidden-dependency": {
+          "n": 1,
+          "detected": 0
+        }
+      },
+      "outcomes": [
+        {
+          "id": "p-lexical-near-duplicate",
+          "truthKind": "true-collision",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "duplicate-intent",
+          "similarity": 0.75
+        },
+        {
+          "id": "p-identifier-dup",
+          "truthKind": "true-collision",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "duplicate-intent",
+          "similarity": 0.6428571428571428
+        },
+        {
+          "id": "p-semantic-different-words",
+          "truthKind": "semantic-duplicate",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "cross-task-conflict",
+          "similarity": 0.2857142857142857
+        },
+        {
+          "id": "p-semantic-different-words-shared-identifier",
+          "truthKind": "semantic-duplicate",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "cross-task-conflict",
+          "similarity": 0.08333333333333333
+        },
+        {
+          "id": "p-control-untouched-file",
+          "truthKind": "independent-control",
+          "truth": "independent",
+          "overlapsPriorWork": false,
+          "detected": false,
+          "detection": "no-contention",
+          "similarity": null
+        },
+        {
+          "id": "p-control-same-entity-different-purpose",
+          "truthKind": "independent-control",
+          "truth": "independent",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "cross-task-conflict",
+          "similarity": 0
+        },
+        {
+          "id": "p-hidden-dependency",
+          "truthKind": "hidden-dependency",
+          "truth": "collision",
+          "overlapsPriorWork": false,
+          "detected": false,
+          "detection": "no-contention",
+          "similarity": null
+        },
+        {
+          "id": "p-control-different-entity-close-words",
+          "truthKind": "independent-control",
+          "truth": "independent",
+          "overlapsPriorWork": false,
+          "detected": false,
+          "detection": "no-contention",
+          "similarity": null
+        }
+      ],
+      "verdict": {
+        "met": true,
+        "checks": {
+          "recall": {
+            "value": 0.8,
+            "threshold": ">= 0.6",
+            "met": true,
+            "trigger": "I3 (signal insufficient for the detector to fire)"
+          },
+          "precision": {
+            "value": 0.8,
+            "threshold": ">= 0.8",
+            "met": true,
+            "trigger": "I4 (too many false alarms; raise the evidence required)"
+          },
+          "falseRejectionRate": {
+            "value": 0,
+            "threshold": "<= 0.05",
+            "met": true,
+            "trigger": "I4 (legitimate work refused; H9 violation)"
+          }
+        },
+        "triggers": []
+      }
+    },
+    "A4-gated": {
+      "n": 8,
+      "tp": 4,
+      "fp": 1,
+      "fn": 1,
+      "tn": 2,
+      "precision": 0.8,
+      "recall": 0.8,
+      "f1": 0.8000000000000002,
+      "controlFlagRate": 0.3333333333333333,
+      "falseRejectionRate": 0.3333333333333333,
+      "entityVisibleCeiling": 0.8,
+      "recallWithinCeiling": 1,
+      "byTruthKind": {
+        "true-collision": {
+          "n": 2,
+          "detected": 2
+        },
+        "semantic-duplicate": {
+          "n": 2,
+          "detected": 2
+        },
+        "independent-control": {
+          "n": 3,
+          "detected": 1
+        },
+        "hidden-dependency": {
+          "n": 1,
+          "detected": 0
+        }
+      },
+      "outcomes": [
+        {
+          "id": "p-lexical-near-duplicate",
+          "truthKind": "true-collision",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "duplicate-intent",
+          "similarity": 0.75
+        },
+        {
+          "id": "p-identifier-dup",
+          "truthKind": "true-collision",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "duplicate-intent",
+          "similarity": 0.6428571428571428
+        },
+        {
+          "id": "p-semantic-different-words",
+          "truthKind": "semantic-duplicate",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "cross-task-conflict",
+          "similarity": 0.2857142857142857
+        },
+        {
+          "id": "p-semantic-different-words-shared-identifier",
+          "truthKind": "semantic-duplicate",
+          "truth": "collision",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "cross-task-conflict",
+          "similarity": 0.08333333333333333
+        },
+        {
+          "id": "p-control-untouched-file",
+          "truthKind": "independent-control",
+          "truth": "independent",
+          "overlapsPriorWork": false,
+          "detected": false,
+          "detection": "no-contention",
+          "similarity": null
+        },
+        {
+          "id": "p-control-same-entity-different-purpose",
+          "truthKind": "independent-control",
+          "truth": "independent",
+          "overlapsPriorWork": true,
+          "detected": true,
+          "detection": "cross-task-conflict",
+          "similarity": 0
+        },
+        {
+          "id": "p-hidden-dependency",
+          "truthKind": "hidden-dependency",
+          "truth": "collision",
+          "overlapsPriorWork": false,
+          "detected": false,
+          "detection": "no-contention",
+          "similarity": null
+        },
+        {
+          "id": "p-control-different-entity-close-words",
+          "truthKind": "independent-control",
+          "truth": "independent",
+          "overlapsPriorWork": false,
+          "detected": false,
+          "detection": "no-contention",
+          "similarity": null
+        }
+      ],
+      "verdict": {
+        "met": false,
+        "checks": {
+          "recall": {
+            "value": 0.8,
+            "threshold": ">= 0.6",
+            "met": true,
+            "trigger": "I3 (signal insufficient for the detector to fire)"
+          },
+          "precision": {
+            "value": 0.8,
+            "threshold": ">= 0.8",
+            "met": true,
+            "trigger": "I4 (too many false alarms; raise the evidence required)"
+          },
+          "falseRejectionRate": {
+            "value": 0.3333333333333333,
+            "threshold": "<= 0.05",
+            "met": false,
+            "trigger": "I4 (legitimate work refused; H9 violation)"
+          }
+        },
+        "triggers": [
+          "I4 (legitimate work refused; H9 violation)"
+        ]
+      }
+    }
+  },
+  "thresholds_met": false
+}

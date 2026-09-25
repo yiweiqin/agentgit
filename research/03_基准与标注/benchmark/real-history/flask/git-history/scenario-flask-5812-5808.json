@@ -1,0 +1,59 @@
+{
+  "scenario_id": "flask-pr-5812-pr-5808",
+  "data_status": "real_public_git_metadata_plus_public_patch",
+  "annotation_status": "awaiting_two_independent_annotators",
+  "repository": "pallets/flask",
+  "license_note": "Repository metadata reports BSD-3-Clause; verify LICENSE before redistribution.",
+  "baseline": {
+    "common_ancestor": "85793d6c223dd845e8f218403a5ced83041d37e1",
+    "description": "release version 3.1.2 (#5800)",
+    "source": "local Git object graph"
+  },
+  "branches": {
+    "left": {
+      "pr_number": 5812,
+      "head": "c2705ffd9ce1dc8476cb29eaf5ff5d4c719852d9",
+      "merge_commit": "adf363679da2d9a5ddc564bb2da563c7ca083916",
+      "subject": "merge app and request context",
+      "merge_time_utc": "2025-09-19T23:45:27Z",
+      "patch_path": "candidate_patches/pr-5812.patch",
+      "patch_sha256": "4eb4817da732de7cf6922facc113c9e4123fe5f154d3c69c11025ea44308195a",
+      "changed_files_count": 48,
+      "shared_production_file_entities": [
+        "src/flask/sansio/app.py:app_ctx_globals_class",
+        "src/flask/sansio/app.py:teardown_appcontext"
+      ]
+    },
+    "right": {
+      "pr_number": 5808,
+      "head": "dbd4c2882593f6118103120aa96fa9acdf7deedb",
+      "merge_commit": "25642fd1fd65985fc98f95e64bc2c7ff353d6c2b",
+      "subject": "fix annotation for select_jinja_autoescape",
+      "merge_time_utc": "2026-01-25T02:25:31Z",
+      "patch_path": "candidate_patches/pr-5808.patch",
+      "patch_sha256": "f928af75998eaed70623d0eea4492e9795354d4e8c72d48a1e9fd0da3a80f9c1",
+      "changed_files_count": 1,
+      "shared_production_file_entities": [
+        "src/flask/sansio/app.py:select_jinja_autoescape"
+      ]
+    }
+  },
+  "replay": {
+    "merge_base": "85793d6c223dd845e8f218403a5ced83041d37e1",
+    "git_merge_tree_command": "git merge-tree --write-tree c2705ffd9ce1dc8476cb29eaf5ff5d4c719852d9 dbd4c2882593f6118103120aa96fa9acdf7deedb",
+    "auto_tree": "53656d7198c027324ca1c9bc8f01b11ce41c54f2",
+    "actual_merged_tree": "not computed for this pair; merge commits are separate mainline events",
+    "textual_conflict_observed": false,
+    "interpretation": "Candidate has temporal and file overlap, but distinct methods and independent subjects. Requires human annotation; no semantic label inferred."
+  },
+  "labels": {
+    "TC": null,
+    "BC": null,
+    "AC": null,
+    "RT": null,
+    "RI": null,
+    "CC": null,
+    "UA": null,
+    "ID": null
+  }
+}

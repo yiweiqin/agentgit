@@ -1,0 +1,7 @@
+{
+  "rows": 80,
+  "auto_clean_same_tree": 80,
+  "auto_conflict_or_manual_difference": 0,
+  "auto_conflict_lines": 0,
+  "interpretation": "Replay evidence only; tree difference does not by itself prove semantic conflict."
+}
