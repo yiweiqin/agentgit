@@ -17,14 +17,15 @@
  */
 
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, resolve } from 'node:path'
 
 import {
   adoptWorkspace,
   appendEvent,
   buildBoardView,
   buildEvent,
+  buildGraphView,
   checkpointCommit,
   contractsTouchingPath,
   currentBranch,
@@ -36,6 +37,7 @@ import {
   describeTunables,
   ensureWorkspace,
   ensureWorktree,
+  explainCommit,
   findWorkspaceRoot,
   heldBy,
   integrationOrder,
@@ -66,7 +68,8 @@ import {
   type WorkspacePaths,
 } from '@agentgit/core'
 
-import { defaultPanelDir, panelMarkdown, truncate, writePanel } from '@agentgit/board'
+import { defaultPanelDir, explanationMarkdown, graphMarkdown, panelMarkdown, truncate, writePanel } from '@agentgit/board'
+import { APP_HTML_FILENAME, APP_RESOURCE_URI, renderAppPanel } from '@agentgit/app'
 
 import { USAGE, parseArgs, type ParsedArgs } from './args.ts'
 import { install, installReportJson, runDoctor, uninstall, writePluginEnabled } from './install.ts'
@@ -107,8 +110,12 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdStatus(args)
     case 'board':
       return cmdBoard(args)
+    case 'graph':
+      return cmdGraph(args)
     case 'panel':
       return cmdPanel(args)
+    case 'app':
+      return cmdApp(args)
     case 'preflight':
       return cmdPreflight(args)
     case 'why':
@@ -255,6 +262,71 @@ function cmdPanel(args: ParsedArgs): number {
   process.stdout.write(`\npanel    : ${artifact.path}\n`)
   process.stdout.write(`fragment : ${artifact.fragmentPath}\n`)
   process.stdout.write(`\nPut this line into the reply, verbatim:\n${artifact.reference}\n`)
+  return 0
+}
+
+function cmdGraph(args: ParsedArgs): number {
+  const paths = workspaceOf(args)
+  const view = buildGraphView(paths, {
+    maxCommits: args.number('max-commits', 400),
+    skipOverlay: args.boolean('no-overlay', false),
+  })
+
+  if (args.boolean('json')) {
+    process.stdout.write(`${JSON.stringify(view, null, 2)}\n`)
+    return 0
+  }
+
+  const explain = args.value('explain')
+  if (explain) {
+    const explanation = explainCommit(view, paths, explain)
+    process.stdout.write(`${explanationMarkdown(explanation)}\n`)
+    return explanation.found ? 0 : 1
+  }
+
+  process.stdout.write(`${graphMarkdown(view, { limit: args.number('limit', 40) })}\n`)
+  if (args.boolean('open')) {
+    const out = args.value('out') ?? defaultPanelDir(paths.root)
+    const artifact = writePanel(buildBoardView(paths), out)
+    process.stdout.write(`\nPanel written to ${artifact.path}\n`)
+  }
+  return 0
+}
+
+/**
+ * Write the panel document so a human can look at it without a host.
+ *
+ * The MCP App is normally served from memory over `resources/read`, so this exists for the
+ * two cases where that is not available: verifying the markup after a change, and looking at
+ * a workspace's graph when the host does not render MCP Apps at all. Opened from disk, the
+ * panel finds no host and reads the daemon on port 7777 instead, which is why the hint
+ * names `agentgit up`.
+ */
+function cmdApp(args: ParsedArgs): number {
+  const paths = workspaceOf(args)
+  const html = renderAppPanel({
+    workspaceName: basename(paths.root) || paths.root,
+    transport: 'http',
+    httpBase: 'http://localhost:7777',
+  })
+  const out = args.value('out') ?? join(defaultPanelDir(paths.root), APP_HTML_FILENAME)
+  mkdirSync(dirname(out), { recursive: true })
+  writeFileSync(out, html, 'utf8')
+
+  if (args.boolean('json')) {
+    process.stdout.write(`${JSON.stringify({ path: out, resource: APP_RESOURCE_URI, bytes: Buffer.byteLength(html) }, null, 2)}\n`)
+    return 0
+  }
+
+  process.stdout.write(`panel    : ${out}\n`)
+  process.stdout.write(`resource : ${APP_RESOURCE_URI}\n`)
+  process.stdout.write(
+    '\nA host that renders MCP Apps serves this from resources/read and never needs the file.\n' +
+      'Opened directly it reads the live board, so start that first:  agentgit up\n',
+  )
+  if (args.boolean('open')) {
+    if (!openInBrowser(fileUrl(out))) process.stdout.write(`Open it at: ${fileUrl(out)}\n`)
+  }
   return 0
 }
 
@@ -603,7 +675,10 @@ function cmdTask(args: ParsedArgs): number {
       return 1
     }
 
-    const result = checkpointCommit(paths.root, files, args.value('message') ?? `checkpoint: ${taskId}`)
+    const result = checkpointCommit(paths.root, files, args.value('message') ?? `checkpoint: ${taskId}`, {
+      taskId,
+      sessionId: identity.sessionId,
+    })
     if (args.boolean('json')) {
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
     } else {

@@ -52,6 +52,9 @@ export const BARE_SAFE = new Set([
   'worktree',
   'no-worktree',
   'no-watch',
+  // `agentgit graph --no-overlay` is a bare switch that turns a step off, so without this
+  // entry it would swallow the next positional and the command would silently change shape.
+  'no-overlay',
   'dry-run',
   'steal',
   'breaking',
@@ -132,7 +135,13 @@ export const USAGE = `agentgit - coordination for agents sharing one repository
 
   agentgit status [--json]                     what is in flight, and what the ledger is missing
   agentgit board [--json] [--open]             every task, collision, lease and contract
+  agentgit graph [--limit N] [--json] [--no-overlay] [--explain <oid|task>]
+                                               the commit graph, each commit attributed to the
+                                               Codex conversation that produced it; --explain
+                                               answers "who, why, what changed" for one commit
   agentgit panel [--out <dir>] [--print]       write the inline panel fragment
+  agentgit app [--out <file>] [--open] [--json]  write the MCP App panel document, for a host
+                                               that renders it and for looking at it directly
   agentgit up [--port 7777] [--watch <path>]   live board, one page per workspace
   agentgit preflight [<path>|--symbol <name>] [--intent <text>] [--task <id>] [--session <id>]
                     [--claim] [--json]         the verdict for one entity

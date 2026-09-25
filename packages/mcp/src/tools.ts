@@ -25,12 +25,14 @@ import {
   appendEvent,
   buildBoardView,
   buildEvent,
-  checkpointCommit,
+  buildGraphView,
   canonicalEntityPath,
+  checkpointCommit,
   currentBranch,
   currentVersion,
   describeProtected,
   ensureWorktree,
+  explainCommit,
   heldBy,
   integrationOrder,
   isDirty,
@@ -55,12 +57,16 @@ import {
 
 import {
   defaultPanelDir,
+  explanationMarkdown,
+  graphMarkdown,
   panelMarkdown,
   truncate,
   until,
   VERDICT_ACTION,
   writePanel,
 } from '@agentgit/board'
+
+import { APP_RESOURCE_URI } from '@agentgit/app'
 
 import { ToolError } from './protocol.ts'
 import type { Identity } from './context.ts'
@@ -89,6 +95,15 @@ export interface ToolDefinition {
   readonly description: string
   readonly inputSchema: Record<string, unknown>
   readonly annotations: ToolAnnotations
+  /**
+   * MCP `_meta` for the tool descriptor.
+   *
+   * Carries `ui.resourceUri` for the tools whose result is rendered as an MCP App. It lives
+   * on the tool rather than on the result because that is what lets a host preload the panel
+   * before the tool is even called, and because `_meta.ui.visibility` is how this server
+   * decides which tools the UI may call directly.
+   */
+  readonly meta?: Record<string, unknown>
   readonly handler: (args: Record<string, unknown>, context: ToolContext) => ToolResult | Promise<ToolResult>
 }
 
@@ -924,7 +939,10 @@ const task: ToolDefinition = {
           isError: false,
         }
       }
-      const result = checkpointCommit(root, files, str(args, 'message') ?? `checkpoint: ${identity.taskId}`)
+      const result = checkpointCommit(root, files, str(args, 'message') ?? `checkpoint: ${identity.taskId}`, {
+        taskId: identity.taskId,
+        sessionId: identity.sessionId,
+      })
       return {
         text: `${result.message}${result.committed ? '' : ` (${result.files.length} file(s) in scope)`}\n${result.files.map((file) => `  ${file}`).join('\n')}`,
         structured: result,
@@ -1036,6 +1054,103 @@ function writtenPathsOf(paths: Identity['paths'], taskId: string): string[] {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The commit graph, and the panel that draws it                               */
+/* -------------------------------------------------------------------------- */
+
+const graphTool: ToolDefinition = {
+  name: 'agentgit_graph',
+  title: 'The commit graph, attributed to the conversations that produced it',
+  description:
+    'Every commit across all branches, each one attributed to the Codex conversation (window) that produced it, with ' +
+    'the files it changed, the lanes a graph needs to draw it, and what is uncommitted in each worktree right now. ' +
+    'Attribution comes from the commit\'s AgenticGit trailers first, then the agentgit/<task> branch, then the ' +
+    'ledger\'s task-to-session mapping; each node reports which of those answered, because a recorded name and a ' +
+    'guessed one must not look alike. This is the data tool for the AgenticGit panel: it has no UI of its own and is ' +
+    'safe to call on a timer. Writes nothing.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      maxCommits: { type: 'number', description: 'How many commits to read. Defaults to 400.' },
+      skipOverlay: { type: 'boolean', description: 'Skip reading `git status` in each worktree.' },
+      workspace: { type: 'string', description: 'Workspace directory override.' },
+    },
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  handler: (args, context) => {
+    const view = buildGraphView(context.identity.paths, {
+      maxCommits: num(args, 'maxCommits', 400),
+      skipOverlay: bool(args, 'skipOverlay', false),
+    })
+    return { text: graphMarkdown(view), structured: view }
+  },
+}
+
+const panelApp: ToolDefinition = {
+  name: 'agentgit_ui',
+  title: 'Open the AgenticGit panel for this workspace',
+  description:
+    'Renders the AgenticGit panel: a live commit graph for this workspace where every commit is attributed to the ' +
+    'Codex conversation that made it, each commit can be asked about, and uncommitted work in every worktree is ' +
+    'listed. Call this once when the user asks for the panel, the window list, "who did what", or when a session ' +
+    'first works in a workspace several agents share. The panel refreshes itself; it does not need to be called ' +
+    'again. Prefer a persistent side panel or picture-in-picture when the host offers one.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      maxCommits: { type: 'number', description: 'How many commits to read. Defaults to 400.' },
+      workspace: { type: 'string', description: 'Workspace directory override.' },
+    },
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  meta: { ui: { resourceUri: APP_RESOURCE_URI } },
+  handler: (args, context) => {
+    const view = buildGraphView(context.identity.paths, { maxCommits: num(args, 'maxCommits', 400) })
+    return { text: graphMarkdown(view), structured: view }
+  },
+}
+
+const explainTool: ToolDefinition = {
+  name: 'agentgit_explain',
+  title: 'What one commit was, and who made it',
+  description:
+    'Explains a single commit without a model in the loop: which window it is attributed to and on what evidence, ' +
+    'the task and sessions behind it, what the agent said it was doing, every file it changed, and the ledger events ' +
+    'that mention it. Accepts a full commit id, a short id, or a task id. Use it when the user asks what a window ' +
+    'did, how something was committed, or which conversation a change came from. Writes nothing.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      oid: { type: 'string', description: 'Commit id (full or short) or task id to explain.' },
+      maxEvents: { type: 'number', description: 'How many ledger events to list. Defaults to 20.' },
+      workspace: { type: 'string', description: 'Workspace directory override.' },
+    },
+    required: ['oid'],
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  handler: (args, context) => {
+    const reference = str(args, 'oid')
+    if (!reference) {
+      throw new ToolError(
+        'agentgit_explain needs `oid`.',
+        'Pass a commit id, a short commit id, or a task id, as shown in the AgenticGit panel.',
+      )
+    }
+    const view = buildGraphView(context.identity.paths, { skipOverlay: true })
+    const explanation = explainCommit(view, context.identity.paths, reference, {
+      maxEvents: num(args, 'maxEvents', 20),
+    })
+    return {
+      text: explanationMarkdown(explanation),
+      structured: explanation,
+      isError: !explanation.found,
+    }
+  },
+}
+
+/* -------------------------------------------------------------------------- */
 
 /**
  * Tool order matters a little: read-only tools first, so a model scanning the list
@@ -1045,6 +1160,9 @@ export const TOOLS: readonly ToolDefinition[] = [
   whoami,
   status,
   board,
+  graphTool,
+  explainTool,
+  panelApp,
   panel,
   preflightTool,
   reconcile,
@@ -1063,11 +1181,17 @@ export function findTool(name: string): ToolDefinition | null {
 
 /** Descriptions for `tools/list`, in the shape MCP expects. */
 export function toolDescriptors(): Array<Record<string, unknown>> {
-  return TOOLS.map((tool) => ({
-    name: tool.name,
-    title: tool.title,
-    description: tool.description,
-    inputSchema: tool.inputSchema,
-    annotations: tool.annotations,
-  }))
+  return TOOLS.map((tool) => {
+    const descriptor: Record<string, unknown> = {
+      name: tool.name,
+      title: tool.title,
+      description: tool.description,
+      inputSchema: tool.inputSchema,
+      annotations: tool.annotations,
+    }
+    // Omitted rather than set to `{}` so a host that checks for the key does not treat an
+    // empty object as a declared UI resource.
+    if (tool.meta !== undefined) descriptor._meta = tool.meta
+    return descriptor
+  })
 }

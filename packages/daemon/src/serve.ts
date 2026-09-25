@@ -27,8 +27,17 @@ import { createServer as createHttpServer, type IncomingMessage, type Server, ty
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { basename, resolve } from 'node:path'
 
-import { adoptWorkspace, buildBoardView, ensureWorkspace, type WorkspacePaths } from '@agentgit/core'
-import { renderBoardPage, renderEmptyPage, renderPanel } from '@agentgit/board'
+import {
+  adoptWorkspace,
+  buildBoardView,
+  buildGraphView,
+  ensureWorkspace,
+  explainCommit,
+  type GraphView,
+  type WorkspacePaths,
+} from '@agentgit/core'
+import { explanationMarkdown, renderBoardPage, renderEmptyPage, renderPanel } from '@agentgit/board'
+import { renderAppPanel } from '@agentgit/app'
 
 export interface ServeOptions {
   readonly roots: readonly string[]
@@ -57,6 +66,24 @@ interface BoardState {
 }
 
 type Listener = (state: BoardState) => void
+
+/**
+ * The commit graph, cached briefly.
+ *
+ * Separate from {@link BoardState} because the two change for different reasons. The board
+ * fragment is rebuilt when a ledger shard changes, which the fingerprint detects cheaply. A
+ * commit graph also changes when a `git commit` or a branch move happens, which writes no
+ * ledger line — and detecting that needs the repository's HEAD, which is a `git rev-parse`
+ * per tick. Rather than pay that on a 2-second timer, the graph is built on request and
+ * memoized for a second: the panel polls every four, so a poll almost never pays twice, and
+ * a commit shows up within one poll even when nothing was written to the ledger.
+ */
+interface GraphCache {
+  readonly at: number
+  readonly graph: GraphView
+}
+
+const GRAPH_TTL_MS = 1000
 
 export interface BoardServer {
   /** The URL to open. Always loopback. */
@@ -153,6 +180,23 @@ export async function startBoard(options: ServeOptions): Promise<BoardServer> {
    * closed, which reads as a daemon that will not stop.
    */
   const streams = new Set<ServerResponse>()
+  const graphs = new Map<string, GraphCache>()
+
+  /**
+   * The graph for one workspace, memoized for {@link GRAPH_TTL_MS}.
+   *
+   * `buildGraphView` is read-only, so a concurrent request racing this one produces the
+   * same answer; the cache exists to keep a poll from running `git log` and a `git status`
+   * per worktree more often than the display can change.
+   */
+  const graphFor = (workspace: WatchedWorkspace): GraphView => {
+    const now = Date.now()
+    const cached = graphs.get(workspace.id)
+    if (cached && now - cached.at < GRAPH_TTL_MS) return cached.graph
+    const graph = buildGraphView(workspace.paths)
+    graphs.set(workspace.id, { at: now, graph })
+    return graph
+  }
 
   const rebuild = (workspace: WatchedWorkspace): BoardState => {
     const view = buildBoardView(workspace.paths)
@@ -204,7 +248,7 @@ export async function startBoard(options: ServeOptions): Promise<BoardServer> {
 
   const server = createHttpServer((request, response) => {
     try {
-      handleRequest(request, response, { watched, states, listeners, streams, rebuild })
+      handleRequest(request, response, { watched, states, listeners, streams, rebuild, graphFor })
     } catch (error) {
       response.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' })
       response.end(`agentgit daemon: ${(error as Error).message}\n`)
@@ -282,6 +326,7 @@ interface RequestContext {
   readonly listeners: Map<string, Set<Listener>>
   readonly streams: Set<ServerResponse>
   readonly rebuild: (workspace: WatchedWorkspace) => BoardState
+  readonly graphFor: (workspace: WatchedWorkspace) => GraphView
 }
 
 function resolveWorkspace(context: RequestContext, url: URL): WatchedWorkspace | null {
@@ -314,6 +359,43 @@ function handleRequest(request: IncomingMessage, response: ServerResponse, conte
   if (url.pathname === '/api/board') {
     const state = context.states.get(workspace.id) ?? context.rebuild(workspace)
     respondJson(response, state.view)
+    return
+  }
+
+  if (url.pathname === '/api/graph') {
+    respondJson(response, context.graphFor(workspace))
+    return
+  }
+
+  if (url.pathname === '/api/explain') {
+    const reference = url.searchParams.get('oid') ?? url.searchParams.get('task') ?? ''
+    const graph = context.graphFor(workspace)
+    const explanation = explainCommit(graph, workspace.paths, reference)
+    respondJson(response, {
+      workspace: workspace.id,
+      found: explanation.found,
+      oid: explanation.oid,
+      text: explanationMarkdown(explanation),
+      explanation,
+    })
+    return
+  }
+
+  if (url.pathname === '/panel') {
+    // The panel served from here reads this origin and nothing else, which is why every
+    // fetch the runtime makes is a same-origin path rather than a call to the bridge.
+    const html = renderAppPanel({
+      workspaceName: basename(workspace.paths.root) || workspace.id,
+      workspaceId: workspace.id,
+      transport: 'http',
+      httpBase: '',
+      intervalMs: 2000,
+    })
+    response.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+    })
+    response.end(html)
     return
   }
 

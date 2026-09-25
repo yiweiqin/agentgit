@@ -28,7 +28,6 @@ export interface BoardPageOptions {
   /** Milliseconds between forced refreshes, in case the ledger changed without an event. */
   readonly refreshMs?: number
 }
-
 /**
  * Fallback theme.
  *
@@ -108,6 +107,7 @@ export const THEME = `
   .btn { appearance: none; background: var(--muted); color: var(--foreground); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; font: inherit; font-size: 13px; cursor: pointer; }
   .ag-chrome { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; }
   .ag-chrome h1 { font-size: 16px; font-weight: 500; margin: 0; }
+  .ag-chrome a.btn { text-decoration: none; display: inline-block; }
   .ag-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted-foreground); margin-inline-end: 6px; }
   .ag-dot[data-live="1"] { background: var(--green); }
   .ag-dot[data-live="0"] { background: var(--red); }
@@ -142,7 +142,11 @@ export function renderBoardPage(options: BoardPageOptions): string {
       <h1><span class="ag-dot" id="ag-live" data-live="0"></span>AgenticGit board</h1>
       <div class="text-small text-muted" id="ag-meta">connecting...</div>
     </div>
-    ${switcher}
+    <div class="viz-row">
+      <a class="btn" href="/panel?w=${encodeURIComponent(options.workspaceId)}">Panel</a>
+      <a class="btn" href="/api/graph?w=${encodeURIComponent(options.workspaceId)}">Graph JSON</a>
+      ${switcher}
+    </div>
   </div>
 
   <div id="ag-board">${options.initialHtml}</div>

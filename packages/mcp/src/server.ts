@@ -11,6 +11,9 @@
  */
 
 import type { Readable, Writable } from 'node:stream'
+import { basename } from 'node:path'
+
+import { APP_EXTENSION_ID, APP_MIME_TYPE, APP_RESOURCE_URI, renderAppPanel } from '@agentgit/app'
 
 import { describeIdentity, resolveIdentity, type Identity, type ResolveInput } from './context.ts'
 import {
@@ -82,13 +85,21 @@ export function createServer(options: ServerOptions = {}): Server {
 
           return respond({
             protocolVersion,
-            capabilities: { tools: { listChanged: false } },
+            capabilities: {
+              tools: { listChanged: false },
+              resources: { listChanged: false, subscribe: false },
+              // The MCP Apps extension, declared rather than assumed. A host that reads this
+              // knows the `ui://` resource below is a component it can render; a host that
+              // ignores it still gets working tools, which is the point of keeping every tool
+              // useful without UI.
+              extensions: { [APP_EXTENSION_ID]: { mimeTypes: [APP_MIME_TYPE] } },
+            },
             serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
             instructions:
               'Coordination state for a workspace where several agents share one filesystem. Call ' +
-              'agentgit_preflight before writing to something another agent may also want, and agentgit_panel ' +
-              'when the user asks for the AgenticGit panel or board. Verdicts are advisory: report them, and ' +
-              'only treat `review` as a stop signal.',
+              'agentgit_preflight before writing to something another agent may also want, and agentgit_ui ' +
+              'when the user asks for the AgenticGit panel, the window list, or "who did what". Verdicts are ' +
+              'advisory: report them, and only treat `review` as a stop signal.',
           })
         }
 
@@ -152,7 +163,22 @@ export function createServer(options: ServerOptions = {}): Server {
         }
 
         case 'resources/list':
-          return respond({ resources: [] })
+          // Exactly one resource, and only when a UI can render it. A host that does not
+          // implement MCP Apps may still list resources, and a `ui://` URI it cannot render
+          // is worse than an empty list because it invites a retry loop.
+          return respond({ resources: [panelResourceDescriptor()] })
+
+        case 'resources/read': {
+          const uri = request.params?.uri
+          if (uri !== APP_RESOURCE_URI) {
+            return isNotification
+              ? null
+              : failure(request.id, ErrorCodes.invalidParams, `Unknown resource '${String(uri)}'.`, {
+                  available: [APP_RESOURCE_URI],
+                })
+          }
+          return respond(panelResourceContents(identityFrom(request)))
+        }
 
         case 'prompts/list':
           return respond({ prompts: [] })
@@ -181,6 +207,51 @@ export function createServer(options: ServerOptions = {}): Server {
   }
 }
 
+/**
+ * The one resource this server publishes.
+ *
+ * `_meta.ui.prefersBorder` is the only framing hint worth setting, and the CSP is left
+ * empty on purpose: the panel talks to the host over `postMessage` and to nothing else, so
+ * declaring a connect domain it does not use would fail a plugin review for no benefit.
+ */
+function panelResourceDescriptor(): Record<string, unknown> {
+  return {
+    uri: APP_RESOURCE_URI,
+    name: 'AgenticGit panel',
+    title: 'AgenticGit panel',
+    description:
+      'A live commit graph for this workspace, attributed to the Codex conversations that produced it, with the ' +
+      'uncommitted work in every worktree and a way to ask about any commit.',
+    mimeType: APP_MIME_TYPE,
+    _meta: { ui: { prefersBorder: true } },
+  }
+}
+
+/**
+ * The panel document itself.
+ *
+ * The workspace name is baked in so the title is right on the first paint, before any tool
+ * result arrives. It is a display name only — every git call the panel makes goes through
+ * the host, which resolves the workspace from the session, so a wrong name here cannot
+ * make the panel read the wrong repository.
+ */
+function panelResourceContents(identity: Identity): Record<string, unknown> {
+  const html = renderAppPanel({
+    workspaceName: basename(identity.paths.root) || identity.paths.root,
+    workspaceId: null,
+  })
+  return {
+    contents: [
+      {
+        uri: APP_RESOURCE_URI,
+        mimeType: APP_MIME_TYPE,
+        text: html,
+        _meta: { ui: { prefersBorder: true } },
+      },
+    ],
+  }
+}
+
 /** Diagnostic used by `agentgit doctor` and by the server's own `--selftest` flag. */
 export function selftest(): Record<string, unknown> {
   const server = createServer()
@@ -188,6 +259,7 @@ export function selftest(): Record<string, unknown> {
   return {
     server: { name: SERVER_NAME, version: SERVER_VERSION },
     tools: toolDescriptors().map((descriptor) => descriptor.name),
+    resources: [APP_RESOURCE_URI],
     identity: describeIdentity(identity),
     node: process.versions.node,
   }

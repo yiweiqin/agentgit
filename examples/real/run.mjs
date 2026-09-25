@@ -391,7 +391,7 @@ function honestyNotes({ candidate, verdict, reconstructed, realMerge }) {
     notes.push(
       'Reading the branches backwards only works for edits that occupy separable regions of the file, so a clean merge is the expected outcome in ' +
         'this mode rather than a surprise. The number is this pair’s own answer and says nothing about how often git is blind; that is what ' +
-        'Experiment 4 counts across the pool.',
+        'Experiment 4 · Git Complementarity counts across the pool.',
     )
   } else {
     notes.push(`The reconstruction is unavailable (${reconstructed.why}), so no merge result is shown at all.`)
@@ -415,7 +415,7 @@ function honestyNotes({ candidate, verdict, reconstructed, realMerge }) {
   notes.push(
     'The similarity it compares is the last instruction the user had given each session, because that is what the ledger records — not what the ' +
       'agent was doing. Here that instruction was a one-line continuation, so a collision the two sessions’ edits imply can be missed when their ' +
-      'words are thin. That is a limit of the detection, and Experiment 1 is the measurement of it.',
+      'words are thin. That is a limit of the detection, and Experiment 1 · Detection Fidelity is the measurement of it.',
   )
   if (!candidate.sameWork) {
     notes.push('These two sessions were working on different things, which is why the verdict is a deferral rather than a duplicate.')

@@ -1,5 +1,7 @@
 # AgenticGit
 
+**English** | [简体中文](README.zh-cn.md)
+
 **Coordination for coding agents that share one repository.**
 
 Git tells you two branches touched the same line — after both are finished. It cannot tell
@@ -15,6 +17,10 @@ question before a write happens: **is this work already being done, and is the g
 it still moving?** It keeps a ledger of tasks, code, contracts and validation, exposes it as
 MCP tools, renders an inline panel in the conversation, and serves a live board at
 `localhost:7777`.
+
+It also draws one workspace's commit graph, with every commit labelled by the Codex
+conversation that produced it — the name you see in the desktop app's thread list, not a
+session id. That is the panel described under [The commit graph](#the-commit-graph) below.
 
 ---
 
@@ -76,6 +82,109 @@ Agent B was halfway through editing the config module in the same tree. It is st
 still uncommitted, still B's. `git add -A && git commit` — the obvious implementation, and
 the one most tools reach for — would have taken it. A checkpoint stages exactly the paths its
 own task wrote and names them on the commit, so no other path can be included.
+
+It also writes two trailers, which is how the commit graph knows who made it:
+
+```
+AgenticGit-Task: demo-a
+AgenticGit-Session: 01a0cc22-20fb-75e2-a990-3a1641734f87
+```
+
+Nothing is amended and no history is rewritten to add them; a commit that predates the
+plugin simply has no trailers and is attributed by the strongest evidence that remains.
+
+## The commit graph
+
+Three agents worked in this folder today. Git will tell you what changed. It will not tell
+you which conversation did it, which is the question actually being asked.
+
+```
+$ agentgit graph --limit 6
+AgenticGit for "agentgit" — main, 13 commit(s), 1 lane(s)
+windows: add rate limiting to login (4), 抽奖弹窗动画 (2), 重构结算逻辑 (1)
+
+  a1b2c3d4 add rate limiting to login        4f wire up the limiter
+  9f8e7d6c add rate limiting to login        2f publish auth.limit v1
+  5c4b3a29 抽奖弹窗动画                       3f 弹窗进场动画
+  2d1c0b9a 重构结算逻辑                       6f split the settlement calculator
+  8a7f6e5d 修复排序稳定性                     1f stable sort for equal scores
+  4b3a2c1d add rate limiting to login        1f initial limiter stub
+
+in flight:
+  add rate limiting to login — 3 uncommitted in .agentgit/worktrees/demo-a
+```
+
+The name in the second column is the conversation name Codex shows in its thread list; the
+same name the panel uses. When no name was recorded the graph falls back in this order, and
+says which rung answered:
+
+| rung | what it means |
+|---|---|
+| commit trailers | the task and session recorded at checkpoint time |
+| `agentgit/<task>` branch | the commit sits on a task branch |
+| the ledger | the task-to-session mapping from `.agentgit/events` |
+| the thread name | `thread_name` from `~/.codex/session_index.jsonl` |
+| the first prompt | read from the session's rollout, for a session Codex never named |
+| the task id, then the session id | always available, so a node is never unlabelled |
+| the Git author | for a commit that carries no attribution at all, which usually means it predates the plugin |
+
+The last two rungs are shown in italics wherever they appear. That is not decoration: a
+guessed name and a recorded one look identical otherwise, and the difference is the whole
+value of the graph.
+
+Any row can be asked about, and the answer needs no model:
+
+```
+$ agentgit graph --explain a1b2c3d4
+a1b2c3d4  wire up the limiter
+
+window : add rate limiting to login  (index)
+task   : demo-a
+session: 01a0cc22-20fb-75e2-a990-3a1641734f87
+when   : 2026-09-24T09:12:44.000Z
+
+what it was for, in the agent's own words:
+  add rate limiting to the login endpoint so repeated failures back off
+
+changed (4):
+  src/login.py
+  src/limiter.py
+  tests/test_limiter.py
+  docs/auth.md
+
+ledger:
+  2026-09-24T09:02:10.000Z  file_write         src/limiter.py
+  2026-09-24T09:11:58.000Z  lifecycle_validated  released 2 lease(s)
+
+notes:
+  - The window name is the conversation name Codex recorded for this session.
+  - One session is recorded for this task. A task can span several windows, and this
+    commit names only the first.
+```
+
+In a host that renders MCP Apps, the same graph is a live panel: ask `agentgit_ui` for it,
+and it polls while it is open, so a commit made in another window appears without anyone
+asking again. The rows are clickable, "Quick answer" runs the explanation above offline,
+and "Ask in conversation" hands the question to the agent with the selected commit already
+in its context.
+
+The panel needs no setup beyond the plugin itself. Two things are worth knowing when it does
+not appear:
+
+- The host decides where a UI goes. Codex's desktop app gives MCP Apps a side-panel tab and
+  supports picture-in-picture; a host that renders nothing still gets every tool's text.
+- The commit graph is read-only and `git log`-based, so it works on a repository where the
+  plugin has never recorded anything. It will simply attribute by branch, thread name or
+  author, and say so.
+
+`agentgit up` serves the panel as a page too, at `http://localhost:7777/panel`, alongside
+the JSON it reads at `/api/graph` and `/api/explain`.
+
+```bash
+npx agentgit status          # what is in flight
+npx agentgit graph           # the commit graph, attributed to conversations
+npx agentgit up              # live board on http://localhost:7777, panel at /panel
+```
 
 ## Install
 
@@ -150,7 +259,7 @@ otherwise.
 - The A/B run below is a fixture with scripted agents. It shows the mechanism works and that
   the arms differ. It is not an effect size.
 - The before/after report in `examples/real/run.mjs` is **one** case, so it is not a frequency.
-  The frequency over the same pool is what experiment 4 counts, and the two are kept apart on
+  The frequency over the same pool is what Experiment 4 · Git Complementarity counts, and the two are kept apart on
   purpose.
 - When that report says git merges cleanly, read the route it names. On the `reversed`
   reconstruction route a clean merge is only reachable when the two changes occupy
@@ -273,19 +382,21 @@ assumption, and it is what separates the instrument arm from the default; if it 
 The demo above is a walkthrough: it proves the mechanism runs, and it says nothing about how
 often the three failures happen to you. For that there is a second set of scripts, run over the
 real session transcripts in `~/.codex/sessions`, with the criteria computed mechanically from
-the patch bodies rather than chosen by hand. Each experiment answers one question:
+the patch bodies rather than chosen by hand. Each experiment answers one question, and they are read
+in order — visibility, impact, restraint, non-redundancy:
 
-| | The question | The one number it reports |
+| | The experiment, and the question it answers | The one number it reports |
 |---|---|---|
-| 1 | Can it see? On real history, how often does it speak and how often is it right? | precision and recall, always beside `entityVisibleCeiling` |
-| 2 | Does listening help? If the warned agent obeys, how much better is the outcome? | the drop in duplicates closed at the obedience 0.5 row |
-| 3 | Does it cry wolf? On a day with no collision, how many times a day does it speak? | one advisory per N session-hours, and zero refusals |
-| 4 | Could git have seen it? For these cases, would git have spoken at the time? | cases with zero conflicts, and the gap between the two timestamps |
+| 1 | **Detection Fidelity** — can it see? On real history, how often does it speak and how often is it right? | precision and recall, always beside `entityVisibleCeiling` |
+| 2 | **Intervention Impact** — does listening help? If the warned agent obeys, how much better is the outcome? | the drop in duplicates closed at the obedience 0.5 row |
+| 3 | **Alert Economy** — does it cry wolf? On a day with no collision, how many times a day does it speak? | one advisory per N session-hours, and zero refusals |
+| 4 | **Git Complementarity** — could git have seen it? For these cases, would git have spoken at the time? | cases with zero conflicts, and the gap between the two timestamps |
 
 Every one of them carries a control that must not move, and is written down with the value that
 counts as failure. The full write-up — the analogy it is all built on, the numbers as measured,
 the two reconstruction routes behind the before/after, the sandbox constraints, and what was
-redacted before publication — is in [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md).
+redacted before publication — is in [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md), also available
+in Chinese as [`playground/EXPERIMENTS.zh-cn.md`](playground/EXPERIMENTS.zh-cn.md).
 
 ```bash
 node examples/real/cases.mjs    # scan the pool: candidates, and the three concurrency windows
@@ -306,10 +417,12 @@ demo.
 ## Layout
 
 ```
-packages/core       the ledger, contracts, leases, preflight verdicts, rollout ingestion, git
+packages/core       the ledger, contracts, leases, preflight verdicts, rollout ingestion, git,
+                    the commit graph and the session-name resolver
 packages/board      the inline panel fragment and the standalone page, from one view
-packages/cli        agentgit status | board | panel | preflight | why | reconcile | task | config | up | install
-packages/mcp        the stdio MCP server: agentgit_preflight, agentgit_task, agentgit_contracts
+packages/app        the MCP App panel: one self-contained document, its CSS and its runtime
+packages/cli        agentgit status | board | graph | panel | app | preflight | why | reconcile | task | config | up | install
+packages/mcp        the stdio MCP server: agentgit_preflight, agentgit_task, agentgit_graph, the panel resource
 packages/daemon     the live board on localhost:7777, one page per workspace, SSE
 plugins/agentgit    the Codex plugin: manifest, hook wiring, the track.mjs fast path, the skill
 examples/collision  the two-agent walkthrough above
@@ -331,7 +444,7 @@ would stop meaning anything.
 ## Tests
 
 ```bash
-npm test          # 475 tests: runs lint:encoding first, then core, board, cli, mcp, daemon
+npm test          # 547 tests: runs lint:encoding first, then core, board, app, cli, mcp, daemon
 npm run test:py   #  45 tests: the Python ledger, checked against the same fixtures
 npm run typecheck
 ```
@@ -340,6 +453,14 @@ npm run typecheck
 or CRLF endings. That is not tidiness: a BOM makes `json.loads` reject a plugin manifest that
 looks correct, and a CRLF checkout makes a committed ledger diff on every line. Fix with
 `node scripts/strip-bom.mjs`.
+
+On Windows you may also see a line like
+`[agentgit tests] could not remove C:\...\Temp\agentgit-git-xxxx: EPERM`. That is housekeeping,
+not a result: the suites build real repositories in the temp directory, and the OS file
+scanner can hold a handle on a freshly created `.git` tree for a few seconds after the last
+assertion has already passed. The cleanup retries, clears git's read-only object files, and
+then reports rather than throwing, because a disposable temp directory is not evidence about
+the product. It is printed so that a directory which can *never* be removed is still visible.
 
 The arm tests are the ones worth knowing about, because an arm is easy to get wrong in the
 one way that produces a plausible-looking result: `packages/core/tests/arm.test.ts` drives the

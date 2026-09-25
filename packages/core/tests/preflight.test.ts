@@ -44,6 +44,17 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true })
 })
 
+/**
+ * A timestamp a few minutes old, for fixtures about work that is still in flight.
+ *
+ * Relative on purpose, not a literal. `buildCoordinationContext` windows events to the last
+ * 24 hours, so a hard-coded date turns "another task is writing this file right now" into
+ * "another task wrote this file a while ago" the moment the clock passes it — and the test
+ * then fails for a reason that has nothing to do with the code it is testing. A literal here
+ * is a time bomb that goes off one day after it is written, with no change to the suite.
+ */
+const RECENT = new Date(Date.now() - 5 * 60_000).toISOString()
+
 function paths() {
   return workspacePaths(root)
 }
@@ -315,7 +326,7 @@ describe('preflight verdicts', () => {
   })
 
   test('allows a task to keep writing a file it already owns', () => {
-    write('session-a', 'task-a', 'src/a.ts', 'add a parser helper', '2026-09-23T09:00:00Z')
+    write('session-a', 'task-a', 'src/a.ts', 'add a parser helper', RECENT)
     const result = preflight(paths(), {
       taskId: 'task-a',
       sessionId: 'session-a',
@@ -327,7 +338,7 @@ describe('preflight verdicts', () => {
   })
 
   test('says reuse when another task is doing the same thing', () => {
-    write('session-a', 'task-a', 'src/views.py', 'return json from the view', '2026-09-23T09:00:00Z')
+    write('session-a', 'task-a', 'src/views.py', 'return json from the view', RECENT)
     const result = preflight(paths(), {
       taskId: 'task-b',
       sessionId: 'session-b',
@@ -340,7 +351,7 @@ describe('preflight verdicts', () => {
   })
 
   test('says replan when another task wants the same file for different work', () => {
-    write('session-a', 'task-a', 'src/views.py', 'cache the rendered template', '2026-09-23T09:00:00Z')
+    write('session-a', 'task-a', 'src/views.py', 'cache the rendered template', RECENT)
     const result = preflight(paths(), {
       taskId: 'task-b',
       sessionId: 'session-b',
@@ -353,7 +364,7 @@ describe('preflight verdicts', () => {
   })
 
   test('says reuse when the same task is already writing through another session', () => {
-    write('session-a', 'task-a', 'src/views.py', 'return json', '2026-09-23T09:00:00Z')
+    write('session-a', 'task-a', 'src/views.py', 'return json', RECENT)
     const result = preflight(paths(), {
       taskId: 'task-a',
       sessionId: 'session-b',

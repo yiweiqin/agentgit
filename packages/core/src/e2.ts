@@ -187,7 +187,7 @@ function proposalOf(proposal: PackProposal): WriteProposal {
 }
 
 /** The bases that mean "the entity was raised", as opposed to passed over. */
-const RAISED: readonly DetectionBasis[] = ['duplicate-intent', 'cross-task-conflict', 'cross-session-same-task']
+export const RAISED: readonly DetectionBasis[] = ['duplicate-intent', 'cross-task-conflict', 'cross-session-same-task']
 
 /**
  * Score one pack.

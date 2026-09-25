@@ -1,0 +1,23 @@
+{
+  "name": "@agentgit/app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The AgenticGit conversation panel: a self-contained MCP App document for one workspace.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.ts\""
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "keywords": [
+    "agentgit",
+    "mcp-app",
+    "commit-graph",
+    "coding-agents"
+  ]
+}

@@ -32,6 +32,16 @@ one — report it and let them choose.
 
 Read-only, safe to call at any time:
 
+- **`agentgit_ui`** — opens the AgenticGit panel: a live commit graph for this workspace where
+  every commit is attributed to the Codex conversation that made it. Prefer this over
+  `agentgit_panel` when the user asks for the panel, the window list, or "who did what".
+- **`agentgit_graph`** — the same graph as data, with no UI attached. Every commit across all
+  branches, its window, the files it changed, the lanes a graph needs, and what is uncommitted
+  in each worktree right now. Safe on a timer.
+- **`agentgit_explain`** — one commit, explained without a model: which window it belongs to
+  and on what evidence, the task and sessions behind it, what the agent said it was doing,
+  every file it changed, and the ledger events that mention it. Takes a full id, a short id,
+  or a task id.
 - **`agentgit_panel`** — writes the panel fragment for this workspace and returns its
   `path` and `reference`. See below.
 - **`agentgit_status`** — counts, coordination-debt score, and what the ledger is
@@ -61,9 +71,35 @@ State-changing, all additive and reversible:
 - **`agentgit_task`** — `start` creates a worktree and task branch, `checkpoint`
   commits only the paths this task touched, `finish` reports what to do next.
 
-## Rendering the panel
+## The panel, and the windows on the graph
 
-When the user asks for the AgenticGit panel, window, board, or "what's in flight":
+When the user asks for the AgenticGit panel, the window list, "who did what", or which
+conversation a change came from, call **`agentgit_ui`**. It renders a live commit graph
+where each commit is labelled with the Codex conversation that produced it, each row can
+be asked about, and the uncommitted work in every worktree is listed.
+
+The panel keeps itself up to date, so call it once and do not call it again for the same
+workspace. If the host offers a persistent side panel or picture-in-picture, say that the
+panel is there; do not paste its contents into the reply.
+
+Attribution is a chain, and where a name came from is part of the answer:
+
+1. the `AgenticGit-Task` / `AgenticGit-Session` trailers on the commit itself;
+2. the `agentgit/<task>` branch the commit sits on;
+3. the ledger's task-to-session mapping;
+4. the session's recorded Codex thread name, its first prompt, the task id, or the short
+   session id;
+5. for a commit that carries no attribution at all, the Git author.
+
+A name that came from the last two steps is *not* a recorded window name, and the graph
+shows it in italics for that reason. When you explain a commit to a user, say which step
+answered rather than presenting a guess as a fact. `agentgit_explain` returns that
+provenance in its `notes`, and repeating the relevant note is usually the useful part.
+
+## Rendering the fragment panel
+
+When the user asks for the panel as a *snapshot* — for a reply that must render a picture
+where the MCP App cannot — use `agentgit_panel`:
 
 1. Call `agentgit_panel`. It writes an HTML fragment to a durable file and returns
    `path` and `reference`.
@@ -87,7 +123,9 @@ to the CLI and hand the user the URL rather than inventing a panel:
 
 ```
 npx agentgit panel --print     # writes the fragment, prints its path
-npx agentgit up                # live board on http://localhost:7777
+npx agentgit graph             # the same graph as text, in any terminal
+npx agentgit graph --explain <oid|task>
+npx agentgit up                # live board on http://localhost:7777, panel at /panel
 ```
 
 ## What you may do without asking
@@ -96,6 +134,12 @@ Creating a worktree, creating a task branch, committing a checkpoint, taking or
 renewing a lease, publishing a contract, and generating the panel or the board.
 Every one of these is additive: nothing that already exists is rewritten, and the
 user can undo it with a command they already know.
+
+A checkpoint is the one that writes something new into history, and it writes two
+trailers — `AgenticGit-Task` and `AgenticGit-Session`. They are how a commit carries its
+own attribution into Git, where every later reader can see it, and why the panel can name
+a window without consulting the ledger. Pass `task` and `session` when you checkpoint so
+they are recorded; never amend or rewrite an existing commit to add them.
 
 ## What you must never do yourself
 

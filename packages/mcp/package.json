@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@agentgit/core": "0.1.0",
-    "@agentgit/board": "0.1.0"
+    "@agentgit/board": "0.1.0",
+    "@agentgit/app": "0.1.0"
   }
 }

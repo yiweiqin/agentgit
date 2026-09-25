@@ -85,11 +85,216 @@ export function statusShort(dir: string): string[] {
   return result.stdout.split('\n').filter((line) => line.trim().length > 0)
 }
 
+/**
+ * Short status with every untracked file listed, not its directory.
+ *
+ * `git status` collapses a wholly-untracked directory into one entry (`?? src/`), which is
+ * the right default for a human skimming a terminal and the wrong answer for a list that
+ * claims to name what changed: "src/" does not tell a developer which file to look at, and
+ * the file that matters is exactly the one git decided not to mention.
+ *
+ * Separate from {@link statusShort} rather than a change to it, because the collapsed form
+ * is what every existing caller expects and the difference only matters to a caller that is
+ * going to display the paths.
+ */
+export function statusShortAll(dir: string): string[] {
+  const result = runGit(['status', '--porcelain', '--untracked-files=all'], dir)
+  if (!result.ok) return []
+  return result.stdout.split('\n').filter((line) => line.trim().length > 0)
+}
+
 /** Paths changed between two commits, or from HEAD when only one is given. */
 export function changedPaths(dir: string, from: string, to = 'HEAD'): string[] {
   const result = runGit(['diff', '--name-only', `${from}..${to}`], dir)
   if (!result.ok) return []
   return result.stdout.split('\n').map((line) => line.trim()).filter(Boolean)
+}
+
+/* -------------------------------------------------------------------------- */
+/* Commit graph                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One commit as the graph needs it: the DAG edge, who made it, and what it touched.
+ *
+ * `files` is populated by the same `git log` invocation that produces the commit, using
+ * `--name-only`. Asking git once for both is not a micro-optimisation: a second pass that
+ * ran `git show --stat` per commit would make the cost of the graph scale with the number
+ * of commits *and* the size of the repository, on a panel that refreshes on a timer.
+ */
+export interface GitCommitRecord {
+  readonly oid: string
+  readonly short: string
+  readonly parents: readonly string[]
+  readonly authorName: string
+  readonly authorEmail: string
+  readonly committerName: string
+  /** Commit time, ISO-8601 UTC, from `%ct`. */
+  readonly committedAt: string
+  /** Decoration names (`%D`), split on commas: branch, tag and `HEAD -> x` entries. */
+  readonly refs: readonly string[]
+  /** Full commit message body (`%B`), which is where the attribution trailers live. */
+  readonly body: string
+  /** Paths this commit changed, repo-relative, in git's order. */
+  readonly files: readonly string[]
+}
+
+/**
+ * Fields are separated by a unit separator, and the message body is set off by a
+ * start-of-heading byte.
+ *
+ * Two separators rather than one because the body is multi-line: everything before the
+ * marker is single-line fields, everything after it is the message. Without the marker, the
+ * `git log` output this parses would be ambiguous the moment a commit message had a body,
+ * and every commit here does.
+ */
+const LOG_FIELD = '\u001f'
+const LOG_RECORD = '\u0000'
+const LOG_BODY = '\u0001'
+/** `%H%x01` alone, so a line of exactly this shape can only ever be a commit header. */
+export const LOG_FILES_FORMAT = `%H${LOG_BODY}`
+
+/** The `git log` format string for commits, kept next to the parser so the two cannot drift. */
+export function logFormat(): string {
+  return ['%H', '%P', '%an', '%ae', '%cn', '%ct', '%D', '%s'].join('%x1f') + `%x01%B`
+}
+
+export interface LogAllOptions {
+  /** Newest-first cap. Defaults to 400; a board that renders 10k nodes renders none. */
+  readonly maxCommits?: number
+}
+
+/**
+ * Every reachable commit across all refs, newest first, with its file list.
+ *
+ * **Two `git log` calls, and the reason is worth recording.** The obvious implementation
+ * asks for both in one invocation with `-z --name-only`, and the result cannot be parsed
+ * reliably: with `-z` every *pathname* is NUL-terminated, so splitting records on NUL
+ * separates the paths of one commit into records of their own. Measured against this
+ * repository, that silently reported every commit as touching exactly one file — a wrong
+ * answer that looks like a tidy history, which is the worst kind.
+ *
+ * So the file pass drops `-z` and relies on a marker instead: the format is `%H%x01`, which
+ * puts a byte after the id that no pathname line can contain, so a line matching
+ * `<40 hex>\x01` is a header and every other non-empty line belongs to the commit above it.
+ * A pathname containing a newline is quoted by git by default and so stays on one line.
+ *
+ * Read-only by construction: `git log` writes nothing, so this is safe to call on the board's
+ * refresh timer and while other agents are mid-write.
+ */
+export function logAll(
+  repo: string,
+  options: LogAllOptions = {},
+): { commits: GitCommitRecord[]; ok: boolean; error: string | null } {
+  const max = options.maxCommits ?? 400
+  const limit = max > 0 ? ['-n', String(max)] : []
+
+  const meta = runGit(['log', '--all', '--date-order', '-z', `--pretty=format:${logFormat()}`, ...limit], repo)
+  if (!meta.ok) {
+    return { commits: [], ok: false, error: meta.stderr.trim() || `git log exited ${meta.code}` }
+  }
+
+  const files = runGit(['log', '--all', '--date-order', '--name-only', `--pretty=format:${LOG_FILES_FORMAT}`, ...limit], repo)
+  const filesByOid = files.ok ? parseFileLists(files.stdout) : new Map<string, string[]>()
+
+  const commits: GitCommitRecord[] = []
+  for (const record of meta.stdout.split(LOG_RECORD)) {
+    if (record === '') continue
+    const marker = record.indexOf(LOG_BODY)
+    if (marker === -1) continue
+    const fields = record.slice(0, marker).split(LOG_FIELD)
+    const oid = fields[0] ?? ''
+    if (!/^[0-9a-f]{40}$/.test(oid)) continue
+    const seconds = Number(fields[5] ?? '')
+    const refs = (fields[6] ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+
+    commits.push({
+      oid,
+      short: oid.slice(0, 8),
+      parents: (fields[1] ?? '').split(' ').map((value) => value.trim()).filter(Boolean),
+      authorName: fields[2] ?? '',
+      authorEmail: fields[3] ?? '',
+      committerName: fields[4] ?? '',
+      committedAt:
+        Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1000).toISOString() : new Date(0).toISOString(),
+      refs,
+      body: (record.slice(marker + 1) ?? '').replace(/\s+$/, ''),
+      files: filesByOid.get(oid) ?? [],
+    })
+  }
+
+  return { commits, ok: true, error: null }
+}
+
+const FILE_HEADER_RE = /^[0-9a-f]{40}\u0001$/
+
+/** `oid<marker>` on its own line, then one pathname per line, until the next header. */
+function parseFileLists(stdout: string): Map<string, string[]> {
+  const byOid = new Map<string, string[]>()
+  let current: string | null = null
+  for (const rawLine of stdout.split('\n')) {
+    const line = rawLine.trim()
+    if (line === '') continue
+    if (FILE_HEADER_RE.test(line)) {
+      current = line.slice(0, 40)
+      byOid.set(current, [])
+      continue
+    }
+    if (current === null) continue
+    byOid.get(current)!.push(line)
+  }
+  return byOid
+}
+
+/** The subject line of a commit message: everything before the first blank line. */
+export function subjectOf(body: string): string {
+  const firstLine = body.split('\n')[0]?.trim() ?? ''
+  return firstLine
+}
+
+/** Trailer names AgenticGit writes into checkpoint commits. */
+export const TASK_TRAILER = 'AgenticGit-Task'
+export const SESSION_TRAILER = 'AgenticGit-Session'
+
+export interface CommitAttribution {
+  readonly taskId: string | null
+  readonly sessionId: string | null
+}
+
+/**
+ * Read the attribution trailers out of a commit message.
+ *
+ * Last occurrence wins, matching git's own `interpret-trailers` behaviour: a commit that
+ * was amended to point at a different task should be attributed to the newer line rather
+ * than the first one that happens to appear.
+ */
+export function parseAttribution(body: string): CommitAttribution {
+  return {
+    taskId: lastTrailer(body, TASK_TRAILER),
+    sessionId: lastTrailer(body, SESSION_TRAILER),
+  }
+}
+
+function lastTrailer(body: string, name: string): string | null {
+  const re = new RegExp(`^${name}:\\s*(.+)$`, 'gim')
+  let match: RegExpExecArray | null
+  let found: string | null = null
+  while ((match = re.exec(body)) !== null) found = match[1]?.trim() ?? null
+  return found && found.length > 0 ? found : null
+}
+
+/** The task id a `agentgit/<taskId>` branch decoration names, if any. */
+export function taskFromRefs(refs: readonly string[]): string | null {
+  for (const ref of refs) {
+    // Decorations look like `HEAD -> agentgit/T1`, `agentgit/T1`, `tag: v1`, `origin/main`.
+    const name = ref.replace(/^HEAD\s*->\s*/, '').trim()
+    const match = name.match(/^agentgit\/(.+)$/)
+    if (match && match[1]) return match[1]
+  }
+  return null
 }
 
 /** The task branch name for a task id, so every component spells it the same way. */
@@ -250,6 +455,37 @@ export interface CheckpointResult {
   readonly message: string
 }
 
+export interface CheckpointOptions {
+  /** Task this checkpoint belongs to, written as a trailer. */
+  readonly taskId?: string | null
+  /** Session that produced it, written as a trailer so the graph can name the window. */
+  readonly sessionId?: string | null
+}
+
+/**
+ * Append attribution trailers to a commit message, without duplicating one already there.
+ *
+ * Trailers are how a commit carries its task and session into Git itself, where `git log`
+ * and every other reader can see them. That matters because the ledger is local and
+ * regenerable while history is neither: a commit that landed before the ledger was
+ * rebuilt must still be attributable.
+ *
+ * The message is only extended, never rewritten, and the subject line is left alone
+ * because that is what `git log --oneline` shows. Trailers belong in the trailing block,
+ * separated by a blank line, exactly as `git interpret-trailers` expects to find them.
+ */
+function withAttributionTrailers(message: string, options: CheckpointOptions | undefined): string {
+  const wanted: string[] = []
+  if (options?.taskId && !new RegExp(`^${TASK_TRAILER}:`, 'm').test(message)) {
+    wanted.push(`${TASK_TRAILER}: ${options.taskId}`)
+  }
+  if (options?.sessionId && !new RegExp(`^${SESSION_TRAILER}:`, 'm').test(message)) {
+    wanted.push(`${SESSION_TRAILER}: ${options.sessionId}`)
+  }
+  if (wanted.length === 0) return message
+  return `${message.replace(/\s+$/, '')}\n\n${wanted.join('\n')}`
+}
+
 /**
  * Commit only the paths a task actually touched.
  *
@@ -269,6 +505,7 @@ export function checkpointCommit(
   repo: string,
   files: readonly string[],
   message: string,
+  options: CheckpointOptions = {},
 ): CheckpointResult {
   const wanted = [...new Set(files.filter((file) => file.trim().length > 0))]
   if (wanted.length === 0) {
@@ -291,7 +528,7 @@ export function checkpointCommit(
     }
   }
 
-  const commit = runGit(['commit', '-m', message, '--', ...wanted], repo)
+  const commit = runGit(['commit', '-m', withAttributionTrailers(message, options), '--', ...wanted], repo)
   if (!commit.ok) {
     return {
       committed: false,

@@ -18,7 +18,7 @@
 
 import { test, describe, before, after, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -39,6 +39,8 @@ import {
   worktreeDir,
   worktreeList,
 } from '@agentgit/core'
+
+import { removeScratch } from './helpers.ts'
 
 let repo: string
 const scratch: string[] = []
@@ -85,12 +87,23 @@ beforeEach(() => {
   commitAll(repo, 'seed')
 })
 
+/**
+ * Delete a scratch repository, and never let housekeeping fail a test.
+ *
+ * These directories held a real repository that `git` and the CLI were writing to moments
+ * ago, and under a full parallel run an external handle — the OS scanner picking up a
+ * freshly created `.git` tree — can hold one for a few seconds. The delete then fails with
+ * `EPERM` on whichever test happened to be running last, which reads as a broken test and is
+ * not one: every assertion has already passed by the time a teardown hook runs.
+ *
+ * {@link removeScratch} retries and clears git's read-only object files before giving up.
+ */
 afterEach(() => {
-  while (scratch.length > 0) rmSync(scratch.pop()!, { recursive: true, force: true })
+  while (scratch.length > 0) removeScratch(scratch.pop()!)
 })
 
 after(() => {
-  for (const dir of scratch) rmSync(dir, { recursive: true, force: true })
+  while (scratch.length > 0) removeScratch(scratch.pop()!)
 })
 
 describe('reading a repository', () => {

@@ -16,9 +16,11 @@
 
 import { test, describe, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+import { removeScratch } from './helpers.ts'
 
 import {
   ARM_EFFECTS,
@@ -83,7 +85,9 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  while (scratch.length > 0) rmSync(scratch.pop()!, { recursive: true, force: true })
+  // Never let housekeeping fail a test: a Windows handle on a directory `git` just wrote to
+  // can outlive the command that held it. See `helpers.ts`.
+  while (scratch.length > 0) removeScratch(scratch.pop()!)
 })
 
 describe('the arm set', () => {

@@ -1,0 +1,354 @@
+/*
+ * AgenticGit panel styles.
+ *
+ * Every colour is written as `var(<name>, <fallback>)` so the panel inherits the host's
+ * theme when the host defines one and still renders correctly when it does not. That is
+ * the same rule the in-conversation fragment follows, and it is what lets one stylesheet
+ * serve the MCP App, the standalone board and a saved file opened straight from disk.
+ *
+ * The row height is driven by `--ag-row-h` because the SVG lane layer is positioned from
+ * the same number the list rows use. A hard-coded height in one place and a computed one
+ * in the other is how a commit graph ends up with edges that miss their dots.
+ */
+
+:root {
+  color-scheme: light dark;
+  --ag-row-h: 30px;
+  --ag-lane-w: 14px;
+  --ag-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ag-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --ag-bg: var(--background, light-dark(#ffffff, #0b0f14));
+  --ag-fg: var(--foreground, light-dark(#111827, #e5e7eb));
+  --ag-card: var(--card, light-dark(#f8fafc, #131a23));
+  --ag-muted: var(--muted, light-dark(#eef2f6, #1b232e));
+  --ag-muted-fg: var(--muted-foreground, light-dark(#5b6675, #9aa4b1));
+  --ag-border: var(--border, light-dark(#e2e8f0, #243040));
+  --ag-primary: var(--primary, light-dark(#0f766e, #2dd4bf));
+  --ag-primary-fg: var(--primary-foreground, light-dark(#ffffff, #04211d));
+  --ag-red: var(--destructive, light-dark(#b91c1c, #f87171));
+  --ag-green: var(--green, light-dark(#15803d, #4ade80));
+  --ag-orange: var(--orange, light-dark(#b45309, #fbbf24));
+  --ag-blue: var(--blue, light-dark(#1d4ed8, #60a5fa));
+}
+
+* { box-sizing: border-box; }
+
+/*
+ * The `hidden` attribute must win.
+ *
+ * The user-agent rule for `[hidden]` is `display: none`, and it loses to any class rule that
+ * sets `display` — so `.ag-ask { display: flex }` silently brought the ask box back from
+ * `hidden`, and the panel showed a textarea and two buttons for a commit that was not
+ * selected. Measured in the browser, not guessed: `hidden` was `true` and the element was
+ * still laid out. `!important` is the right tool here because the attribute is the stronger
+ * statement of intent and nothing else in this file needs to override it.
+ */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--ag-bg);
+  color: var(--ag-fg);
+  font: 13px/1.5 var(--ag-font);
+}
+
+#ag-app {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100%;
+  padding: 12px;
+}
+
+/* ---------------------------------------------------------------- header -- */
+
+.ag-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ag-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ag-title .ag-ws { color: var(--ag-primary); }
+
+.ag-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--ag-muted-fg);
+  font-size: 12px;
+}
+
+.ag-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ag-muted-fg);
+}
+.ag-dot[data-live='1'] { background: var(--ag-green); }
+.ag-dot[data-live='0'] { background: var(--ag-red); }
+
+/* -------------------------------------------------------------- controls -- */
+
+.ag-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.ag-btn {
+  appearance: none;
+  border: 1px solid var(--ag-border);
+  background: var(--ag-muted);
+  color: var(--ag-fg);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ag-btn:hover { border-color: var(--ag-primary); }
+.ag-btn:disabled { opacity: 0.5; cursor: default; }
+.ag-btn[data-primary='1'] {
+  background: var(--ag-primary);
+  border-color: var(--ag-primary);
+  color: var(--ag-primary-fg);
+}
+
+/* ---------------------------------------------------------------- cards -- */
+
+.ag-card {
+  background: var(--ag-card);
+  border: 1px solid var(--ag-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.ag-card > h2 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--ag-muted-fg);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* -------------------------------------------------------------- legend --- */
+
+.ag-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.ag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ag-border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  background: var(--ag-muted);
+  color: var(--ag-fg);
+  cursor: pointer;
+  max-width: 100%;
+}
+.ag-chip[aria-pressed='true'] { border-color: var(--ag-primary); }
+.ag-chip .ag-count { color: var(--ag-muted-fg); font-variant-numeric: tabular-nums; }
+.ag-chip .ag-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 22ch; }
+/* A guessed name must not look like a recorded one. */
+.ag-chip[data-source='author'] .ag-name,
+.ag-chip[data-source='session-id'] .ag-name { font-style: italic; opacity: 0.85; }
+
+/* --------------------------------------------------------------- graph --- */
+
+.ag-graph-wrap { display: flex; gap: 12px; align-items: flex-start; }
+
+.ag-graph-col { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.ag-graph {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 52vh;
+  overflow: auto;
+}
+
+.ag-graph-inner { position: relative; }
+
+.ag-lanes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.ag-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--ag-row-h);
+  padding: 0 8px 0 0;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.ag-row:hover { background: var(--ag-muted); }
+.ag-row[aria-selected='true'] { border-color: var(--ag-primary); background: var(--ag-muted); }
+
+.ag-gutter { flex: 0 0 auto; }
+.ag-node {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ag-primary);
+  border: 2px solid var(--ag-card);
+}
+.ag-node[data-head='1'] { background: var(--ag-green); }
+
+.ag-name {
+  flex: 0 0 auto;
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.ag-name[data-source='author'],
+.ag-name[data-source='session-id'] { font-style: italic; font-weight: 400; color: var(--ag-muted-fg); }
+
+.ag-oid { flex: 0 0 auto; font-family: var(--ag-mono); font-size: 11px; color: var(--ag-muted-fg); }
+
+.ag-subject {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ag-refs { flex: 0 0 auto; display: flex; gap: 4px; }
+
+.ag-tag {
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: var(--ag-mono);
+  background: var(--ag-muted);
+  color: var(--ag-muted-fg);
+  border: 1px solid var(--ag-border);
+}
+.ag-tag[data-kind='head'] { color: var(--ag-green); border-color: var(--ag-green); }
+.ag-tag[data-kind='branch'] { color: var(--ag-blue); border-color: var(--ag-blue); }
+.ag-tag[data-kind='task'] { color: var(--ag-primary); border-color: var(--ag-primary); }
+
+.ag-files {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  color: var(--ag-muted-fg);
+  min-width: 3ch;
+  text-align: end;
+}
+
+/* -------------------------------------------------------------- detail --- */
+
+.ag-detail {
+  flex: 0 0 300px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ag-detail h2 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--ag-muted-fg);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+@media (max-width: 760px) {
+  .ag-graph-wrap { flex-direction: column; }
+  .ag-detail { flex: 1 1 auto; max-width: none; width: 100%; }
+}
+
+.ag-kv { display: grid; grid-template-columns: 72px 1fr; gap: 3px 8px; font-size: 12px; }
+.ag-kv dt { color: var(--ag-muted-fg); }
+.ag-kv dd { margin: 0; overflow-wrap: anywhere; }
+.ag-kv dd code { font-family: var(--ag-mono); font-size: 11px; }
+
+.ag-files-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 160px;
+  overflow: auto;
+  font-family: var(--ag-mono);
+  font-size: 11px;
+}
+.ag-files-list li { padding: 1px 0; overflow-wrap: anywhere; }
+
+.ag-ask { display: flex; flex-direction: column; gap: 6px; }
+.ag-ask textarea {
+  width: 100%;
+  min-height: 52px;
+  resize: vertical;
+  border: 1px solid var(--ag-border);
+  border-radius: 7px;
+  background: var(--ag-bg);
+  color: var(--ag-fg);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+}
+.ag-ask textarea:focus { outline: 1px solid var(--ag-primary); }
+.ag-ask-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.ag-answer {
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-left: 2px solid var(--ag-border);
+  padding-left: 8px;
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+}
+
+/* ------------------------------------------------------------- overlay --- */
+
+.ag-overlay-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ag-overlay-list li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.ag-overlay-list .ag-where { font-family: var(--ag-mono); font-size: 11px; color: var(--ag-muted-fg); }
+
+/* --------------------------------------------------------------- misc ---- */
+
+.ag-empty { color: var(--ag-muted-fg); font-size: 12px; margin: 0; }
+
+.ag-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ag-muted-fg);
+  font-size: 11px;
+}
+
+.ag-warn {
+  border-left: 2px solid var(--ag-orange);
+  padding-left: 8px;
+  color: var(--ag-orange);
+  font-size: 12px;
+  margin: 0;
+}
+
+.ag-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }

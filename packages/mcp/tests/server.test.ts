@@ -17,6 +17,7 @@ import { join } from 'node:path'
 import { createServer, type Server } from '../src/server.ts'
 import { ErrorCodes, ToolError } from '../src/protocol.ts'
 import { TOOLS } from '../src/tools.ts'
+import { APP_MIME_TYPE, APP_RESOURCE_URI } from '@agentgit/app'
 import { panelReference } from '@agentgit/board'
 
 let root: string
@@ -56,7 +57,11 @@ describe('initialize', () => {
     const result = (response as { result: Record<string, unknown> }).result
 
     assert.equal(result.protocolVersion, '2025-06-18', 'the newest supported revision is offered by default')
-    assert.deepEqual(result.capabilities, { tools: { listChanged: false } })
+    assert.deepEqual(result.capabilities, {
+      tools: { listChanged: false },
+      resources: { listChanged: false, subscribe: false },
+      extensions: { 'io.modelcontextprotocol/ui': { mimeTypes: ['text/html;profile=mcp-app'] } },
+    })
     assert.deepEqual((result.serverInfo as { name: string }).name, 'agentgit')
     assert.match(String(result.instructions), /preflight/)
   })
@@ -113,6 +118,9 @@ describe('tools/list', () => {
     const names = TOOLS.map((tool) => tool.name)
     for (const expected of [
       'agentgit_panel',
+      'agentgit_ui',
+      'agentgit_graph',
+      'agentgit_explain',
       'agentgit_status',
       'agentgit_board',
       'agentgit_preflight',
@@ -126,6 +134,33 @@ describe('tools/list', () => {
       'agentgit_task',
     ]) {
       assert.ok(names.includes(expected), `the skill documents ${expected}, so it must exist`)
+    }
+  })
+
+  test('exactly one tool declares the panel as its UI, and only that one', async () => {
+    const response = await server.handle({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })
+    const tools = (response as { result: { tools: Record<string, unknown>[] } }).result.tools
+
+    const withUi = tools.filter((tool) => {
+      const meta = tool._meta as { ui?: { resourceUri?: string } } | undefined
+      return meta?.ui?.resourceUri !== undefined
+    })
+    assert.deepEqual(
+      withUi.map((tool) => tool.name),
+      ['agentgit_ui'],
+      'a second tool pointing at the panel would mount a second iframe for one answer',
+    )
+    const meta = withUi[0]!._meta as { ui: { resourceUri: string } }
+    assert.equal(meta.ui.resourceUri, APP_RESOURCE_URI)
+  })
+
+  test('the data tools carry no UI, so a host without MCP Apps still gets text', async () => {
+    const response = await server.handle({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })
+    const tools = (response as { result: { tools: Record<string, unknown>[] } }).result.tools
+    for (const name of ['agentgit_graph', 'agentgit_explain']) {
+      const tool = tools.find((candidate) => candidate.name === name)
+      assert.ok(tool, `${name} exists`)
+      assert.equal(tool!._meta, undefined, `${name} must not advertise UI`)
     }
   })
 })
@@ -507,9 +542,40 @@ describe('failure handling', () => {
     assert.match(textOf(result), /start, checkpoint, finish/)
   })
 
-  test('an unmatched request is answered even when it came with no arguments', async () => {
+  test('resources/list advertises the panel, and nothing a host cannot render', async () => {
     const response = await server.handle({ jsonrpc: '2.0', id: 10, method: 'resources/list', params: {} })
-    assert.deepEqual((response as { result: unknown }).result, { resources: [] })
+    const result = (response as { result: { resources: Record<string, unknown>[] } }).result
+    assert.equal(result.resources.length, 1)
+    const panelResource = result.resources[0]!
+    assert.equal(panelResource.uri, APP_RESOURCE_URI)
+    assert.equal(panelResource.mimeType, APP_MIME_TYPE)
+    assert.equal((panelResource._meta as { ui: { prefersBorder: boolean } }).ui.prefersBorder, true)
+  })
+
+  test('resources/read serves the panel document, with the workspace name in its title', async () => {
+    const response = await server.handle({
+      jsonrpc: '2.0',
+      id: 11,
+      method: 'resources/read',
+      params: { uri: APP_RESOURCE_URI },
+    })
+    const result = (response as { result: { contents: { uri: string; mimeType: string; text: string }[] } }).result
+    assert.equal(result.contents.length, 1)
+    assert.equal(result.contents[0]!.mimeType, APP_MIME_TYPE)
+    assert.match(result.contents[0]!.text, /^<!doctype html>/)
+    assert.match(result.contents[0]!.text, /AgenticGit for/)
+  })
+
+  test('an unknown resource is a miss that names what exists', async () => {
+    const response = await server.handle({
+      jsonrpc: '2.0',
+      id: 12,
+      method: 'resources/read',
+      params: { uri: 'ui://agentgit/nope.html' },
+    })
+    const error = (response as { error: { message: string; data: { available: string[] } } }).error
+    assert.match(error.message, /Unknown resource/)
+    assert.deepEqual(error.data.available, [APP_RESOURCE_URI])
   })
 
   test('ToolError carries a hint separately from the message, so callers can format them apart', () => {
@@ -517,5 +583,52 @@ describe('failure handling', () => {
     assert.equal(error.message, 'something went wrong')
     assert.equal(error.hint, 'try this instead')
     assert.equal(error.name, 'ToolError')
+  })
+})
+
+describe('the commit graph tools', () => {
+  test('agentgit_graph returns the view as structure and as text', async () => {
+    const result = await call('agentgit_graph')
+    const structured = result.structuredContent as { workspaceName: string; nodes: unknown[]; lanes: number }
+    assert.equal(typeof structured.workspaceName, 'string')
+    assert.equal(Array.isArray(structured.nodes), true)
+    assert.equal(typeof structured.lanes, 'number')
+    assert.match(textOf(result), /AgenticGit for/)
+  })
+
+  test('agentgit_graph is read-only, so a timer may call it', () => {
+    const tool = TOOLS.find((candidate) => candidate.name === 'agentgit_graph')!
+    assert.equal(tool.annotations.readOnlyHint, true)
+    assert.equal(tool.annotations.destructiveHint, false)
+  })
+
+  test('agentgit_explain without an id fails with a hint rather than guessing', async () => {
+    const result = await call('agentgit_explain')
+    assert.equal(result.isError, true)
+    assert.match(textOf(result), /needs `oid`/)
+    assert.match(textOf(result), /task id/)
+  })
+
+  test('agentgit_explain on a commit nobody can find reports a miss without throwing', async () => {
+    const result = await call('agentgit_explain', { oid: 'deadbeef' })
+    assert.equal(result.isError, true)
+    const structured = result.structuredContent as { found: boolean }
+    assert.equal(structured.found, false)
+    assert.match(textOf(result), /No commit in this graph matches/)
+  })
+
+  test('agentgit_ui returns the same view the panel renders itself from', async () => {
+    const result = await call('agentgit_ui')
+    const structured = result.structuredContent as { nodes: unknown[]; overlay: unknown[] }
+    assert.equal(Array.isArray(structured.nodes), true)
+    assert.equal(Array.isArray(structured.overlay), true)
+  })
+
+  test('a workspace that is not a repository is an empty graph, not a tool failure', async () => {
+    const result = await call('agentgit_graph')
+    const structured = result.structuredContent as { nodes: unknown[]; diagnostics: { gitError: string | null } }
+    assert.deepEqual(structured.nodes, [])
+    assert.equal(typeof structured.diagnostics.gitError, 'string', 'the reason git said nothing is reported')
+    assert.notEqual(result.isError, true, 'a missing repository is not a failed call')
   })
 })

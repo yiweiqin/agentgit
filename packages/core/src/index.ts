@@ -22,6 +22,13 @@ export * from './leases.ts'
 export * from './preflight.ts'
 export * from './board.ts'
 export * from './git.ts'
+export * from './graph.ts'
+export * from './sessions.ts'
 export * from './codex-rollout.ts'
 export * from './rollout-patches.ts'
 export * from './governor.ts'
+// The E2 harness, exported because a published accuracy number has to be reproducible from
+// outside the package. `examples/real/measure.mjs` scores a real pack through this, and a
+// reader checking the figure needs the same function the figure was produced by — not a
+// reimplementation of it.
+export * from './e2.ts'

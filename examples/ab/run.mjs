@@ -304,7 +304,22 @@ function runScenario(arm, compliance) {
     metrics: score(rounds),
   }
   if (!keep) {
-    rmSync(scratch, { recursive: true, force: true })
+    /*
+     * Retried, because on Windows this directory was just written to by `git` and by the
+     * CLI, and a handle can still be open for a moment afterwards — the failure is an
+     * `EPERM` from `rmSync`, unrelated to anything this harness measured. `maxRetries` is
+     * Node's own remedy for exactly that, and it retries `EBUSY`, `EMFILE`, `ENFILE`,
+     * `ENOTEMPTY` and `EPERM` with a widening delay.
+     *
+     * Still guarded rather than thrown: the harness's job is to report what the arms did, and
+     * a temp directory that will not delete is not a result about coordination. Reported on
+     * stderr so a genuinely stuck lock is visible instead of hidden.
+     */
+    try {
+      rmSync(scratch, { recursive: true, force: true, maxRetries: 30, retryDelay: 200 })
+    } catch (error) {
+      process.stderr.write(`[agentgit ab] could not remove ${scratch}: ${error.message}\n`)
+    }
     scratch = null
   }
   return result

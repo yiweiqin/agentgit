@@ -1,5 +1,7 @@
 # Experiments: what would make this worth using
 
+**English** | [简体中文](../playground/EXPERIMENTS.zh-cn.md)
+
 This document answers one question: **how do you show, with experiments rather than
 assertions, that AgenticGit is worth using — and in a way a reader who does not write code
 can follow?**
@@ -46,24 +48,26 @@ they said they were doing. From that it says one sentence **before** you start.
 
 | Question | Experiment | Why an investor cares |
 |---|---|---|
-| Can the foreman actually see? | 1 · Can it see | If not, everything after this is empty talk |
-| How much better does it get if you listen? | 2 · Does listening help | This is the "what is it worth" question |
-| Does it shout when nobody is there? | 3 · Does it cry wolf | A foreman who shouts daily is ignored by the second day |
-| Could the reviewer have caught this anyway? | 4 · Could git have seen it | If git already reported it, the tool is redundant |
+| Can the foreman actually see? | 1 · Detection Fidelity (can it see) | If not, everything after this is empty talk |
+| How much better does it get if you listen? | 2 · Intervention Impact (does listening help) | This is the "what is it worth" question |
+| Does it shout when nobody is there? | 3 · Alert Economy (does it cry wolf) | A foreman who shouts daily is ignored by the second day |
+| Could the reviewer have caught this anyway? | 4 · Git Complementarity (could git have seen it) | If git already reported it, the tool is redundant |
 
 In one line: **first that it can see, then that listening helps, then that it stays quiet, and
-last that this is not something the reviewer could already have done.**
+last that this is not something the reviewer could already have done** — visibility, impact,
+restraint, non-redundancy. They are read in that order, because each one is only worth reading
+if the one before it held.
 
 ---
 
 ## 2. The four experiments at a glance
 
-| # | The one-sentence question | The one number | The control that must not move | What counts as failure |
+| Experiment | The one-sentence question | The one number | The control that must not move | What counts as failure |
 |---|---|---|---|---|
-| 1 | On real history, how often does it speak, and how often is it right? | precision and recall (**always reported beside `entityVisibleCeiling`**) | Same file, different purpose must not be refused (`falseRejectionRate`) | Low `recallWithinCeiling` = the detector is broken; low precision = it is manufacturing noise |
-| 2 | If the agent that was warned obeys, how much better is the outcome? | the drop in duplicates closed on the **obedience 0.5** row | The `untouched` row must be perfect under every arm and every obedience rate | One cell off on `untouched` voids the whole table |
-| 3 | On a day with no collision, how many times a day does it speak? | one advisory per N session-hours, and **zero refusals** | — (this is its own control: the overwhelming majority of "same file" in a real pool is sequential iteration) | So many advisories that they get ignored, or a single refusal |
-| 4 | For these cases, would git have spoken at the time? | the count of cases with zero conflicts, and the gap between the two timestamps | This is "**different**", not "**better**" | If git really did report a conflict on most of these cases, then these cases never needed AgenticGit |
+| 1 · Detection Fidelity | On real history, how often does it speak, and how often is it right? | precision and recall (**always reported beside `entityVisibleCeiling`**) | Same file, different purpose must not be refused (`falseRejectionRate`) | Low `recallWithinCeiling` = the detector is broken; low precision = it is manufacturing noise |
+| 2 · Intervention Impact | If the agent that was warned obeys, how much better is the outcome? | the drop in duplicates closed on the **obedience 0.5** row | The `untouched` row must be perfect under every arm and every obedience rate | One cell off on `untouched` voids the whole table |
+| 3 · Alert Economy | On a day with no collision, how many times a day does it speak? | one advisory per N session-hours, and **zero refusals** | — (this is its own control: the overwhelming majority of "same file" in a real pool is sequential iteration) | So many advisories that they get ignored, or a single refusal |
+| 4 · Git Complementarity | For these cases, would git have spoken at the time? | the count of cases with zero conflicts, and the gap between the two timestamps | This is "**different**", not "**better**" | If git really did report a conflict on most of these cases, then these cases never needed AgenticGit |
 
 Four rules run through all four experiments:
 
@@ -79,7 +83,7 @@ Four rules run through all four experiments:
 
 ---
 
-## 3. Experiment 1 · Can it see (on real history)
+## 3. Experiment 1 · Detection Fidelity (can it see, on real history)
 
 ### The question
 
@@ -191,7 +195,7 @@ and 4 exist to measure and this paragraph may not claim.
 
 ---
 
-## 4. Experiment 2 · Does listening help
+## 4. Experiment 2 · Intervention Impact (does listening help)
 
 ### The question
 
@@ -233,7 +237,7 @@ is measured, experiment 2 can claim "the mechanism works and the arms differ" an
 
 ---
 
-## 5. Experiment 3 · Does it cry wolf
+## 5. Experiment 3 · Alert Economy (does it cry wolf)
 
 ### The question
 
@@ -263,7 +267,7 @@ separately at the 1h / 6h / 24h windows.
 
 ---
 
-## 6. Experiment 4 · Could git have seen it
+## 6. Experiment 4 · Git Complementarity (could git have seen it)
 
 ### The question
 
