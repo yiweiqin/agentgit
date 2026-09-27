@@ -31,7 +31,7 @@ import {
 } from '../src/index.ts'
 import { buildEvent, entityKey } from '../src/ledger.ts'
 import { appendEvent, ensureWorkspace, workspacePaths } from '../src/workspace.ts'
-import { kindOfVerdict, preflight, preflightAndClaim, summariseTask } from '../src/preflight.ts'
+import { buildBrief, kindOfVerdict, preflight, preflightAndClaim, summariseTask, symbolKeyOf } from '../src/preflight.ts'
 
 let root: string
 
@@ -70,6 +70,132 @@ function write(sessionId: string, taskId: string | null, path: string, intent: s
     hostEvent: 'test',
   }), new Date(atIso))
 }
+
+/**
+ * A `file_write` for one symbol, in the file it lives in.
+ *
+ * Two agents can name the same code at different resolutions — one the function, the other
+ * the file — and subject matching is what lets those two claims meet.
+ */
+function writeSymbol(
+  sessionId: string,
+  taskId: string | null,
+  symbol: string,
+  path: string,
+  intent: string | null,
+  atIso: string,
+): void {
+  appendEvent(paths(), buildEvent({
+    kind: 'file_write',
+    timestampUtc: atIso,
+    sessionId,
+    taskId,
+    entities: [{ kind: 'symbol', identifier: symbol, path }],
+    intentText: intent,
+    hostEvent: 'test',
+  }), new Date(atIso))
+}
+
+/* -------------------------------------------------------------------------- */
+/* replan material                                                             */
+/* -------------------------------------------------------------------------- */
+
+describe('replan material', () => {
+  const earlier = new Date(Date.now() - 20 * 60_000).toISOString()
+
+  test('a reuse carries the competing intent in full and the order the entity was touched', () => {
+    writeSymbol('s1', 'T1', 'view.jsonify', 'src/views.py', 'return json from the view, not a rendered page', earlier)
+    writeSymbol('s3', 'T3', 'view.jsonify', 'src/views.py', 'add a jsonify helper, keeping the html path', RECENT)
+
+    const result = preflight(paths(), {
+      taskId: 'T2',
+      sessionId: 's2',
+      entityKey: symbolKeyOf('view.jsonify'),
+      entityPath: 'src/views.py',
+      symbol: 'view.jsonify',
+      intentText: 'make the view return json',
+    })
+
+    assert.equal(result.verdict, 'reuse')
+    assert.equal(result.evidence.matchStrength, 'symbol')
+    assert.ok(result.replan, 'a verdict other than allow must carry replan material')
+
+    // The full text, not the truncated quote the reason carries: a quote is enough to
+    // recognise the collision and not enough to plan against.
+    const intents = result.replan.competingIntents.map((entry) => entry.intent)
+    assert.ok(intents.includes('return json from the view, not a rendered page'))
+    assert.ok(intents.includes('add a jsonify helper, keeping the html path'))
+
+    // Oldest first, so the order of events reads the way it happened.
+    assert.deepEqual(
+      result.replan.recentTouches.map((touch) => touch.taskId),
+      ['T1', 'T3'],
+    )
+  })
+
+  test('an allow carries no replan material', () => {
+    const result = preflight(paths(), {
+      taskId: 'T2',
+      sessionId: 's2',
+      entityKey: 'file::fresh.py',
+      entityPath: 'fresh.py',
+      intentText: 'something nobody else is doing',
+    })
+
+    assert.equal(result.verdict, 'allow')
+    assert.equal(result.replan, null)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* re-entry brief                                                              */
+/* -------------------------------------------------------------------------- */
+
+describe('re-entry brief', () => {
+  test('re-states the in-flight entity and the interface that moved', () => {
+    write('s1', 'T1', 'src/views.py', 'return json from the view', RECENT)
+    write('s3', 'T3', 'src/views.py', 'add caching to the view', RECENT)
+
+    publishContract(paths(), {
+      name: 'auth.identity',
+      symbol: 'resolveIdentity',
+      declaredIn: 'src/auth.ts',
+      breaking: false,
+      publishedBy: 'T1',
+      summary: 'resolveIdentity takes a request',
+    })
+    recordAssumption(paths(), {
+      taskId: 'T2',
+      sessionId: 's2',
+      contract: 'auth.identity',
+      version: 1,
+      recordedAt: RECENT,
+      source: 'declared',
+      path: 'src/auth.ts',
+    })
+    publishContract(paths(), {
+      name: 'auth.identity',
+      symbol: 'resolveIdentity',
+      declaredIn: 'src/auth.ts',
+      breaking: true,
+      publishedBy: 'T1',
+      summary: 'resolveIdentity is now async',
+    })
+
+    const brief = buildBrief(paths(), 's2')
+
+    assert.ok(brief.text, 'a brief with facts in it must have text')
+    assert.ok(brief.text.includes('src/views.py'), 'the in-flight entity is named')
+    assert.ok(brief.text.includes('auth.identity'), 'the moved interface is named')
+    assert.equal(brief.stale.length, 1)
+  })
+
+  test('says nothing when there is nothing to re-state', () => {
+    const brief = buildBrief(paths(), 's2')
+    assert.equal(brief.text, null)
+    assert.equal(brief.stale.length, 0)
+  })
+})
 
 /* -------------------------------------------------------------------------- */
 /* contracts                                                                   */

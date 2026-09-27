@@ -30,6 +30,7 @@ import { homedir } from 'node:os'
 import { join, relative, resolve, sep } from 'node:path'
 
 import { buildEvent, toWire } from './ledger.ts'
+import { isCheckMessage } from './checks.ts'
 import type { CoordEvent, Entity } from './types.ts'
 import { appendEvent, readAllEvents, toWorkspaceRelative, type WorkspacePaths } from './workspace.ts'
 
@@ -355,11 +356,20 @@ function isWithin(root: string, candidate: string): boolean {
  * A sibling that merely shares a prefix (`/repo-other` against `/repo`) is not inside it,
  * which is why this compares path boundaries instead of string prefixes.
  */
-export function sessionsForWorkspace(root: string, home: string = codexHome()): RolloutSession[] {
+const rolloutCache = new Map<string, { size: number; mtime: number; session: RolloutSession | null }>()
+
+export function sessionsForWorkspace(root: string, home: string = codexHome(), updatedSince = -Infinity): RolloutSession[] {
   const target = resolve(root)
   const out: RolloutSession[] = []
   for (const file of listRolloutFiles(home)) {
-    const session = parseRollout(file)
+    let signature
+    try { signature = statSync(file) } catch { continue }
+    if (signature.mtimeMs < updatedSince) continue
+    const cached = rolloutCache.get(file)
+    const session = cached?.size === signature.size && cached.mtime === signature.mtimeMs
+      ? cached.session : parseRollout(file)
+    if (rolloutCache.size > 256) rolloutCache.clear()
+    rolloutCache.set(file, { size: signature.size, mtime: signature.mtimeMs, session })
     if (!session) continue
     const candidates = [session.cwd, ...session.workspaceRoots].filter(
       (value): value is string => typeof value === 'string' && value.length > 0,
@@ -372,7 +382,7 @@ export function sessionsForWorkspace(root: string, home: string = codexHome()): 
 
 /** The intent a session is working on: its first instruction to the agent. */
 export function sessionIntent(session: RolloutSession): string | null {
-  const first = session.userMessages[0]
+  const first = session.userMessages.find(message => !isCheckMessage(message.text))
   if (!first) return null
   return first.text.replace(/\s+/g, ' ').trim().slice(0, 600) || null
 }
@@ -406,7 +416,7 @@ export function adoptWorkspace(
 ): AdoptResult {
   const now = options.now ?? new Date()
   const maxAge = (options.maxAgeHours ?? 72) * 3_600_000
-  const sessions = sessionsForWorkspace(paths.root, options.home ?? codexHome())
+  const sessions = sessionsForWorkspace(paths.root, options.home ?? codexHome(), now.getTime() - maxAge)
   const existing = readAllEvents(paths).events
   const seen = new Set(existing.map((event) => toWire(event).event_id))
 
@@ -481,7 +491,7 @@ export function adoptSession(
   // A message after the first is steering, so it is recorded as a new statement of
   // intent rather than as a separate task. Overwriting the intent is what keeps a
   // duplicate check comparing against what the session is doing *now*.
-  for (const message of session.userMessages.slice(1)) {
+  for (const message of session.userMessages.filter(message => !isCheckMessage(message.text)).slice(1)) {
     record(buildEvent({
       kind: 'task_registered',
       timestampUtc: message.at,
@@ -508,17 +518,25 @@ export function adoptSession(
   for (const change of session.fileChanges) {
     const rel = toWorkspaceRelative(paths.root, change.absolutePath)
     if (!rel) continue
+    // Older imported events had no intent. Enriching new events must not replay old writes.
+    if (existing.some(event => event.kind === 'file_write' && event.hostEvent === 'codex/rollout' &&
+      event.sessionId === session.sessionId && event.timestampUtc === change.at &&
+      event.entities?.some(entity => entity.path === rel))) { skipped += 1; continue }
     if (hasHookCoverage(existing, session.sessionId, rel, change.at, window)) {
       skipped += 1
       continue
     }
     const entity: Entity = { kind: 'file', identifier: rel, path: rel }
+    const writeIntent = session.userMessages
+      .filter(message => !isCheckMessage(message.text) && message.at <= change.at)
+      .at(-1)?.text ?? intent
     record(buildEvent({
       kind: 'file_write',
       timestampUtc: change.at,
       sessionId: session.sessionId,
       taskId,
       entities: [entity],
+      intentText: writeIntent?.replace(/\s+/g, ' ').trim().slice(0, 600) ?? null,
       hostEvent: 'codex/rollout',
       detail: { adopted: true, changeKind: change.kind },
     }))

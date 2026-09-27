@@ -59,9 +59,21 @@ export const BARE_SAFE = new Set([
   'steal',
   'breaking',
   'symbol',
+  // `agentgit hub --refresh` recomputes and publishes on demand, for a workspace whose daemon is
+  // not running. Bare, so without this entry it would swallow the next positional.
+  'refresh',
+  'seen',
   // `agentgit config arm --arms` reads `--arms` as a boolean, so without this entry it would
   // swallow whatever came next and the listing would silently become a different command.
   'arms',
+  // `agentgit desktop --reset` clears the record of the offer, which is the way back from a refusal
+  // and therefore has no positional argument to consume.
+  'reset',
+  // The machine-level answers for a repository that has not opted in. Both are bare, and both are
+  // the whole command, so without these entries they would swallow the next argument and the
+  // refusal would be recorded against a path the user never named.
+  'decline-init',
+  'clear-init',
   // `--claim` turns a question into a recorded decision, and it is given bare
   // (`preflight src/a.ts --claim`). Left off this list it would swallow the next
   // positional and the entity under discussion would become the flag's value.
@@ -122,7 +134,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   }
 }
 
-const COMMANDS_WITH_SUBCOMMANDS = new Set(['task', 'contracts', 'contract', 'lease', 'config'])
+const COMMANDS_WITH_SUBCOMMANDS = new Set(['task', 'contracts', 'contract', 'lease', 'config', 'checks'])
 
 function push(flags: Map<string, string[]>, name: string, value: string): void {
   const list = flags.get(name) ?? []
@@ -134,6 +146,7 @@ function push(flags: Map<string, string[]>, name: string, value: string): void {
 export const USAGE = `agentgit - coordination for agents sharing one repository
 
   agentgit status [--json]                     what is in flight, and what the ledger is missing
+  agentgit brief [--json]                      re-state what a truncated context cannot hold
   agentgit board [--json] [--open]             every task, collision, lease and contract
   agentgit graph [--limit N] [--json] [--no-overlay] [--explain <oid|task>]
                                                the commit graph, each commit attributed to the
@@ -142,13 +155,38 @@ export const USAGE = `agentgit - coordination for agents sharing one repository
   agentgit panel [--out <dir>] [--print]       write the inline panel fragment
   agentgit app [--out <file>] [--open] [--json]  write the MCP App panel document, for a host
                                                that renders it and for looking at it directly
-  agentgit up [--port 7777] [--watch <path>]   live board, one page per workspace
+  agentgit up [--port 7777] [--watch <path>]   live board, one page per workspace; reuses a
+                                               daemon a session already started, so it starts
+                                               nothing when one is already watching
   agentgit preflight [<path>|--symbol <name>] [--intent <text>] [--task <id>] [--session <id>]
                     [--claim] [--json]         the verdict for one entity
                                                --claim also takes the lease and records the decision,
                                                which is what puts the interception on the board
   agentgit why <entity|task> [--json]          the events behind one decision
+  agentgit hub [--refresh] [--seen] [--json]   the hub's one ruling per contention: who is on
+                                               what, what each collision resolved to, the
+                                               integration order, and the interfaces that moved.
+                                               Read from the projection the daemon writes.
+                                               --refresh recomputes and publishes it, which is
+                                               what to use when no daemon is running
   agentgit reconcile [--json]                  stale assumptions, integration order, ghost merge
+  agentgit checks enable --coordinator <chat-uuid> --codex <absolute-exe>
+                                               opt in to automatic cross-chat checks
+  agentgit checks scan|status|disable           durable queue, receipts and delivery errors
+  agentgit checks reserve|sent|reply|fail        coordinator protocol; see references/coordinate.md
+  agentgit desktop [--reset] [--pin <id>] [--enable] [--json]
+                                               the pinned coordination task for this workspace:
+                                               which task it is, whether a watcher is keeping it
+                                               alive, which conversations /agentgit pinned, whether
+                                               the workspace was enabled, and the last ruling it
+                                               reported. --reset clears the record, so the offer can
+                                               be made again after a refusal; --pin and --enable
+                                               record what /agentgit records
+  agentgit desktop --decline-init | --clear-init
+                                               the machine-level record for a repository that has
+                                               NOT opted in. --decline-init refuses the offer
+                                               without creating anything in the repository;
+                                               --clear-init forgets that refusal
   agentgit contracts list|show <name>|publish|assume
   agentgit lease list|release <task> [<entity>]
   agentgit task start|checkpoint|finish

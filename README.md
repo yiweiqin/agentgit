@@ -87,7 +87,7 @@ It also writes two trailers, which is how the commit graph knows who made it:
 
 ```
 AgenticGit-Task: demo-a
-AgenticGit-Session: 01a0cc22-20fb-75e2-a990-3a1641734f87
+AgenticGit-Session: 11111111-1111-4111-8111-111111111111
 ```
 
 Nothing is amended and no history is rewritten to add them; a commit that predates the
@@ -140,7 +140,7 @@ a1b2c3d4  wire up the limiter
 
 window : add rate limiting to login  (index)
 task   : demo-a
-session: 01a0cc22-20fb-75e2-a990-3a1641734f87
+session: 11111111-1111-4111-8111-111111111111
 when   : 2026-09-24T09:12:44.000Z
 
 what it was for, in the agent's own words:
@@ -180,29 +180,74 @@ not appear:
 `agentgit up` serves the panel as a page too, at `http://localhost:7777/panel`, alongside
 the JSON it reads at `/api/graph` and `/api/explain`.
 
+**You normally do not have to run it.** The hub needs one long-lived process to turn its ruling
+into a projection (`state/hub.json`); without one the push channel has nothing to say. The
+`spine.mjs` hook does that for you at session start - one daemon per enabled workspace, on a
+port the kernel picks, with its pid and port written to `.agentgit/state/daemon.json`. Running
+`agentgit up` by hand still works, and it recognises the daemon a session already started and
+reuses it rather than running a second publisher.
+
 ```bash
-npx agentgit status          # what is in flight
-npx agentgit graph           # the commit graph, attributed to conversations
-npx agentgit up              # live board on http://localhost:7777, panel at /panel
+agentgit status              # what is in flight
+agentgit graph               # the commit graph, attributed to conversations
+agentgit up                  # live board on http://localhost:7777, panel at /panel
 ```
+
+## A coordinator for each workspace
+
+After installation and hook approval, the first conversation in a new workspace asks
+whether to enable AgenticGit and create a pinned `AgenticGit — <workspace>` chat.
+Say yes once: setup creates that chat, enables automatic checks, and starts one local
+daemon. Ordinary folders are supported; commit graphs require Git history.
+
+The daemon detects a contention or changed interface, wakes the coordinator through
+`codex queue`, and the coordinator sends checks to affected chats, waits for actual
+replies and saves receipts. Reservations prevent duplicate sends. A reply may disagree
+with the detector; receiving a reply does not mean the conflict was fixed. Timeouts
+and delivery failures are reported, with no blind participant resend.
+
+The host currently exposes SessionStart and UserPromptSubmit hooks, **not a folder-selection
+event**. Clicking a folder alone cannot display a prompt; starting its first chat can.
+Two simultaneous acceptances reserve one setup, and interrupted setups reuse the recorded
+chat. Refusal is remembered on the machine without creating files in an unclaimed folder.
+
+- `agentgit checks status --workspace <folder>` shows configuration, jobs and receipts.
+- `agentgit checks disable --workspace <folder>` stops automatic wakeups.
+- `agentgit desktop --decline-init --workspace <folder>` remembers a refusal;
+  `--clear-init` allows another offer.
+- `/agentgit` is the separate panel shortcut: it enables tracking and pins the current
+  chat. It does not by itself authorize automatic cross-chat messages.
+
+Automatic checks use model calls when chats are woken. No hourly automation is installed.
+They inspect and report; they do not merge or rewrite business code. See the
+[setup protocol](plugins/agentgit/skills/agentgit/references/setup.md) and
+[inspection protocol](plugins/agentgit/skills/agentgit/references/coordinate.md).
 
 ## Install
 
 Requires **Node 22.19 or newer** (the packages are TypeScript run directly by Node) and
-**git**. Codex must support local plugins and MCP servers.
+**git**. Codex must support local plugins and MCP servers. Automatic coordination additionally needs
+`codex queue` and the desktop cross-chat tools (`create_thread`, `send_message_to_thread`,
+`wait_threads`). Approve the plugin hooks in Codex and start a new chat after installation.
+The installer prints the actual marketplace name; substitute it if yours is not `personal`.
 
 ```bash
 git clone https://github.com/yiweiqin/agentgit.git
 cd agentgit
-npm install
-node packages/cli/src/main.ts install          # link the plugin, write hooks and MCP config
-node packages/cli/src/main.ts doctor           # every check must say "ok"
+npm ci
+npm link                                       # optional: puts `agentgit` on PATH
+node packages/cli/bin/agentgit.mjs install          # link the plugin, write hooks, MCP and spine config
+node packages/cli/bin/agentgit.mjs doctor           # every check must say "ok"
 ```
+
+The examples above say `agentgit ...`; without `npm link`, run them as
+`node packages/cli/bin/agentgit.mjs ...`. There is no `npx agentgit`: this package is private and not
+published, so `npx` would fetch whatever else owns that name.
 
 `install` does the four things Codex cannot do for a local plugin, and nothing else:
 
 1. links `~/plugins/agentgit` to this checkout, so edits to the checkout are live;
-2. generates `hooks.json` and `.mcp.json` with absolute paths, because Codex does no command
+2. generates `hooks/hooks.json`, `hooks.json`, `spine.json` and `.mcp.json` with absolute paths, because Codex does no command
    substitution and does not resolve a relative path on Windows;
 3. adds the `agentgit` entry to `~/.agents/plugins/marketplace.json`, preserving every other
    entry and the marketplace's own name;
@@ -213,7 +258,7 @@ Then enable it, either way:
 
 ```bash
 codex plugin add agentgit@personal                 # the marketplace route
-node packages/cli/src/main.ts install --enable     # or write the config.toml block for you
+node packages/cli/bin/agentgit.mjs install --enable     # or write the config.toml block for you
 ```
 
 `--enable` edits exactly one table in `~/.codex/config.toml` and leaves every other byte,
@@ -221,7 +266,7 @@ including comments, alone. It refuses rather than guesses if `plugins` is alread
 table, because appending a `[plugins."x"]` section to that file produces invalid TOML and
 Codex would refuse to start with the cause several lines from the symptom.
 
-To undo: `node packages/cli/src/main.ts uninstall --disable`.
+To undo: `node packages/cli/bin/agentgit.mjs uninstall --disable`.
 
 ## What it does by itself, and what it will not
 
@@ -444,7 +489,7 @@ would stop meaning anything.
 ## Tests
 
 ```bash
-npm test          # 547 tests: runs lint:encoding first, then core, board, app, cli, mcp, daemon
+npm test          # 797 tests: runs lint:encoding first, then core, board, app, cli, mcp, daemon
 npm run test:py   #  45 tests: the Python ledger, checked against the same fixtures
 npm run typecheck
 ```
@@ -468,6 +513,9 @@ same ledger under two arms and fails if the verdicts agree. `packages/cli/tests/
 runs the A/B harness and fails if the arms stop differing, if the ablation stops recording, or
 if untouched ground is ever disturbed. `packages/cli/tests/hooks.test.ts` pins the hook's own
 copy of the arm table against core's, because the hook cannot import the library and a drifted
-copy would silently keep recording in a workspace that had been switched off.
+copy would silently keep recording in a workspace that had been switched off. `spine.test.ts`
+pins the same way against `@agentgit/daemon`, for the endpoint file's path and version: two
+spellings of either would mean a hook that never finds its own daemon, and a daemon that never
+finds a reason not to start a second one.
 
 MIT licensed.

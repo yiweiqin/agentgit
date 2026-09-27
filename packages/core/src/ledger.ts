@@ -7,7 +7,7 @@
  * (`lambda_produced`) and the backlog `B(t)` are only observable from inside the
  * agent runtime. Every function here is pure and dependency-free.
  *
- * @module dsh-coord-governor/ledger
+ * @module @agentgit/core/ledger
  */
 
 import { createHash } from 'node:crypto'
@@ -120,7 +120,7 @@ export function buildEvent(input: {
 
 /**
  * Serialize to the snake_case shape `coord_ledger.py` already reads, so the
- * Python analysis tool consumes a DSH ledger with no adapter.
+ * Python analysis tool consumes a ledger written here with no adapter.
  *
  * `event_id` is a content hash, so re-serializing the same event is idempotent
  * and accidental duplicates are detectable.
@@ -556,6 +556,15 @@ export function buildReport(events: readonly CoordEvent[]): LedgerReport {
   const openCapsules = states.filter(isOpen).length
   const decayed = states.filter((s) => DECAYED_STATES.includes(s)).length
 
+  // Decisions live on the events themselves (`detail.verdict`), so the distribution is
+  // derived from the stream rather than tallied beside it: one source of truth, and no
+  // counter that can drift away from the decisions it is meant to count.
+  const verdicts: Record<string, number> = {}
+  for (const event of ordered) {
+    const verdict = event.detail?.verdict
+    if (typeof verdict === 'string' && verdict !== '') verdicts[verdict] = (verdicts[verdict] ?? 0) + 1
+  }
+
   return {
     counts: {
       events: ordered.length,
@@ -579,6 +588,7 @@ export function buildReport(events: readonly CoordEvent[]): LedgerReport {
     ),
     topContestedEntities: contention.slice(0, 20),
     writesAfterContextLoss: [...capsules.values()].reduce((sum, c) => sum + c.writesAfterCompact, 0),
+    verdicts: Object.fromEntries(Object.entries(verdicts).sort(([a], [b]) => compareCodepoint(a, b))),
   }
 }
 

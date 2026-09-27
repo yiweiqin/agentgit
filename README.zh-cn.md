@@ -82,7 +82,7 @@ Agent B 在同一个工作树里改 config 模块改到一半。它还在那里�
 
 ```
 AgenticGit-Task: demo-a
-AgenticGit-Session: 01a0cc22-20fb-75e2-a990-3a1641734f87
+AgenticGit-Session: 11111111-1111-4111-8111-111111111111
 ```
 
 为了加上它们，**不会**做 amend，**不会**重写任何历史。早于本插件的提交就是没有 trailer，
@@ -133,7 +133,7 @@ a1b2c3d4  wire up the limiter
 
 window : add rate limiting to login  (index)
 task   : demo-a
-session: 01a0cc22-20fb-75e2-a990-3a1641734f87
+session: 11111111-1111-4111-8111-111111111111
 when   : 2026-09-24T09:12:44.000Z
 
 what it was for, in the agent's own words:
@@ -170,30 +170,65 @@ notes:
 `agentgit up` 也会把面板当作一个页面提供，在 `http://localhost:7777/panel`，与它读取的
 `/api/graph`、`/api/explain` 两个 JSON 接口并列。
 
+**你通常不需要手动运行它。** 中枢需要一个常驻进程来把裁决写成投影（`state/hub.json`），
+否则推送层永远无话可说；这件事由 `spine.mjs` 在会话启动时替你做——每个已启用的工作区各自
+起一个绑定随机端口的 daemon，并把 pid 与端口写进 `.agentgit/state/daemon.json`。手动
+`agentgit up` 仍然可用，而且会先认出那个已经跑着的 daemon 并复用它，不会出现两个进程
+同时发布裁决。
+
 ```bash
-npx agentgit status          # what is in flight
-npx agentgit graph           # the commit graph, attributed to conversations
-npx agentgit up              # live board on http://localhost:7777, panel at /panel
+agentgit status              # what is in flight
+agentgit graph               # the commit graph, attributed to conversations
+agentgit up                  # live board on http://localhost:7777, panel at /panel
 ```
+
+## 每个工作区一个协调窗口
+
+安装并在 Codex 中信任插件钩子后，在新工作区首次开始会话时，会询问是否启用 AgenticGit，
+并创建置顶的 `AgenticGit — <工作区名>` 协调窗口。你同意一次，系统就完成创建、启用自动检查
+和启动本地守护进程。普通文件夹也支持；提交图等历史功能需要 Git 仓库。
+
+守护进程发现争用或接口变化，通过 `codex queue` 唤醒协调窗口。协调窗口向相关窗口发出检查，
+等待真实回复并保存回执。检查先预留再发送，避免重复通知；回复可以提出异议，收到回复不代表
+冲突已解决。发送失败和超时会明确报告，不会盲目重发。
+
+**当前 Codex 没有“选中文件夹”事件。** 实际触发时机是 `SessionStart` 或 `UserPromptSubmit`，
+因此仅点击文件夹不会弹出询问，在该文件夹开始会话时才会。两个窗口同时同意时只允许一个
+初始化流程创建协调窗口；中断后会复用已记录的窗口。拒绝只记在机器级状态中，不在新文件夹创建文件。
+
+- `agentgit checks status --workspace <文件夹>`：查看配置、检查状态和回执。
+- `agentgit checks disable --workspace <文件夹>`：停止自动唤醒，保留记录。
+- `agentgit desktop --decline-init --workspace <文件夹>`：记住拒绝；`--clear-init` 可恢复询问。
+- `/agentgit` 是单独的面板快捷入口：启用记录并置顶当前窗口，不单独授权跨窗口发送消息。
+
+自动检查唤醒窗口时会使用模型调用；不会额外创建每小时自动任务。协调窗口只检查和汇总，
+不会自动合并或改写业务代码。完整流程见[安装与自动协调](docs/AUTOMATIC-CHECKS.zh-cn.md)。
 
 ## 安装
 
 需要 **Node 22.19 或更新**（各个包是直接由 Node 运行的 TypeScript）以及 **git**。
-Codex 必须支持本地插件和 MCP server。
+Codex 必须支持本地插件和 MCP server。自动协调还需要 `codex queue` 及桌面端的
+`create_thread`、`send_message_to_thread`、`wait_threads` 工具。安装后在 Codex 界面信任插件钩子，
+再开始新会话。安装器会输出实际 marketplace 名称；若不是 `personal`，请用输出值替换命令中的名称。
 
 ```bash
 git clone https://github.com/yiweiqin/agentgit.git
 cd agentgit
-npm install
-node packages/cli/src/main.ts install          # link the plugin, write hooks and MCP config
-node packages/cli/src/main.ts doctor           # every check must say "ok"
+npm ci
+npm link                                       # optional: puts `agentgit` on PATH
+node packages/cli/bin/agentgit.mjs install          # link the plugin, write hooks, MCP and spine config
+node packages/cli/bin/agentgit.mjs doctor           # every check must say "ok"
 ```
+
+The commands below are written as `agentgit ...`; without `npm link`, run them as
+`node packages/cli/bin/agentgit.mjs ...`. There is no `npx agentgit`: this package is private and
+not published, so `npx` would fetch something else with that name.
 
 `install` 只做 Codex 无法替本地插件做的四件事，别的不做：
 
 1. 把 `~/plugins/agentgit` 链接到这个检出目录，这样对该目录的修改是即时生效的；
-2. 生成带绝对路径的 `hooks.json` 和 `.mcp.json`，因为 Codex 不做命令替换，在 Windows 上也
-   不解析相对路径；
+2. 生成带绝对路径的 `hooks/hooks.json`、`hooks.json`、`.mcp.json` 和 `spine.json`，因为 Codex 不做命令替换，
+   在 Windows 上也不解析相对路径；
 3. 把 `agentgit` 这一条加入 `~/.agents/plugins/marketplace.json`，同时保留其它所有条目
    和 marketplace 自己的名字；
 4. 递增 cachebuster，因为 Codex 按版本号缓存插件，改了东西而版本号没变就是不可见的。
@@ -202,14 +237,14 @@ node packages/cli/src/main.ts doctor           # every check must say "ok"
 
 ```bash
 codex plugin add agentgit@personal                 # the marketplace route
-node packages/cli/src/main.ts install --enable     # or write the config.toml block for you
+node packages/cli/bin/agentgit.mjs install --enable     # or write the config.toml block for you
 ```
 
 `--enable` 只改 `~/.codex/config.toml` 里的一个表，其它每一个字节——包括注释——都不动。
 如果 `plugins` 已经是行内表（inline table），它会拒绝而不是去猜，因为往那个文件里追加一个
 `[plugins."x"]` 段会产生非法 TOML，而 Codex 会拒绝启动、把原因抛在离症状好几行的地方。
 
-要撤销：`node packages/cli/src/main.ts uninstall --disable`。
+要撤销：`node packages/cli/bin/agentgit.mjs uninstall --disable`。
 
 ## 它自己做哪些，绝不替你做哪些
 
@@ -402,7 +437,7 @@ session 记录会和工具调用一起被采纳，因为 hook 看不到一条 sh
 ## 测试
 
 ```bash
-npm test          # 547 tests: runs lint:encoding first, then core, board, app, cli, mcp, daemon
+npm test          # 797 tests: runs lint:encoding first, then core, board, app, cli, mcp, daemon
 npm run test:py   #  45 tests: the Python ledger, checked against the same fixtures
 npm run typecheck
 ```
@@ -423,6 +458,8 @@ npm run typecheck
 `packages/cli/tests/ab.test.ts` 跑 A/B 夹具，如果各臂不再有差异、如果消融臂不再记录、或者如果
 没人踩过的地面被扰动，就失败。`packages/cli/tests/hooks.test.ts` 把 hook 自己那份 arm 表的副本
 钉在 core 的版本上，因为 hook 无法 import 这个库，而一份漂移的副本会悄悄在一个已经关掉的工作区里
-继续记录。
+继续记录。`packages/cli/tests/spine.test.ts` 用同一种方式把端点文件的路径与版本钉在
+`@agentgit/daemon` 上：这两样里任何一个出现两种拼法，结果就是 hook 永远找不到自己的 daemon，
+而 daemon 永远找不到一个"不必再起一个"的理由。
 
 MIT 许可。

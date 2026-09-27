@@ -216,27 +216,44 @@ function readTemplate(file: string): string {
 export interface GeneratedFiles {
   readonly hooks: string
   readonly mcp: string
+  readonly spine: string
   readonly node: string
   readonly flags: readonly string[]
 }
 
 /**
- * Write `hooks.json` and `.mcp.json` with this machine's absolute paths.
+ * Write `hooks.json`, `.mcp.json` and `spine.json` with this machine's absolute paths.
  *
  * `process.execPath` is used instead of the string `node` because the hook needs to
  * run under a Node new enough to strip TypeScript types, and `node` on PATH may well
  * be an older one on a machine with several installed.
+ *
+ * `spine.json` is the third file because a hook handler's command is exactly "node plus
+ * one script" - the daemon's entry point cannot be a third argument there. So the spine
+ * hook learns where the daemon lives from a file beside itself instead, and the check
+ * that every handler names one script stays true rather than becoming approximate.
  */
 export function writeGeneratedFiles(paths: InstallPaths, target = paths.target): GeneratedFiles {
   const node = process.execPath
   const flags = nodeFlags()
   const track = join(target, 'scripts', 'track.mjs')
+  const spine = join(target, 'scripts', 'spine.mjs')
+  const hub = join(target, 'scripts', 'hub.mjs')
+  const desktop = join(target, 'scripts', 'desktop.mjs')
   const mcp = join(paths.repo, 'packages', 'mcp', 'src', 'main.ts')
+  const daemon = join(paths.repo, 'packages', 'daemon', 'src', 'main.ts')
 
   const hooksTemplate = readTemplate(join(target, 'hooks.json.template'))
   const mcpTemplate = readTemplate(join(target, 'mcp.json.template'))
+  const spineTemplate = readTemplate(join(target, 'spine.json.template'))
 
-  const hooks = renderTemplate(hooksTemplate, { NODE: node, TRACK: track })
+  const hooks = renderTemplate(hooksTemplate, {
+    NODE: node,
+    TRACK: track,
+    SPINE: spine,
+    HUB: hub,
+    DESKTOP: desktop,
+  })
   const mcpFile = renderTemplate(
     mcpTemplate,
     {
@@ -249,10 +266,27 @@ export function writeGeneratedFiles(paths: InstallPaths, target = paths.target):
     // turn `["--experimental-strip-types"]` into a quoted literal and break the server.
     ['NODE_FLAGS'],
   )
+  const spineFile = renderTemplate(
+    spineTemplate,
+    { NODE: node, NODE_FLAGS: flags.map((flag) => `"${flag}"`).join(', '), DAEMON: daemon },
+    // Same reason as the MCP flag list: this placeholder stands for an argument list.
+    ['NODE_FLAGS'],
+  )
 
   writeFileSync(join(target, 'hooks.json'), `${hooks.trimEnd()}\n`, 'utf8')
+  // Codex discovers plugin hooks in hooks/hooks.json. Keep the legacy root copy for older hosts.
+  mkdirSync(join(target, 'hooks'), { recursive: true })
+  const hostHooks = JSON.parse(hooks) as { hooks?: unknown }
+  writeFileSync(join(target, 'hooks', 'hooks.json'), `${JSON.stringify({ description: 'AgenticGit coordination hooks', hooks: hostHooks.hooks }, null, 2)}\n`, 'utf8')
   writeFileSync(join(target, '.mcp.json'), `${mcpFile.trimEnd()}\n`, 'utf8')
-  return { hooks: join(target, 'hooks.json'), mcp: join(target, '.mcp.json'), node, flags }
+  writeFileSync(join(target, 'spine.json'), `${spineFile.trimEnd()}\n`, 'utf8')
+  return {
+    hooks: join(target, 'hooks.json'),
+    mcp: join(target, '.mcp.json'),
+    spine: join(target, 'spine.json'),
+    node,
+    flags,
+  }
 }
 
 interface MarketplaceEntry {
@@ -413,7 +447,12 @@ export function uninstall(options: { home?: string; marketplaceName?: string } =
   const removed: string[] = []
   const kept: string[] = []
 
-  for (const file of [join(paths.target, 'hooks.json'), join(paths.target, '.mcp.json')]) {
+  for (const file of [
+    join(paths.target, 'hooks.json'),
+    join(paths.target, 'hooks', 'hooks.json'),
+    join(paths.target, '.mcp.json'),
+    join(paths.target, 'spine.json'),
+  ]) {
     if (!existsSync(file)) continue
     rmSync(file, { force: true })
     removed.push(file)
@@ -499,18 +538,23 @@ export function runDoctor(options: { home?: string } = {}): DoctorReport {
     fix: 'agentgit install',
   })
 
-  for (const [name, file] of [
-    ['hooks.json', join(paths.target, 'hooks.json')],
-    ['.mcp.json', join(paths.target, '.mcp.json')],
+  for (const [name, file, required] of [
+    ['hooks.json', join(paths.target, 'hooks.json'), 'hooks'],
+    ['hooks/hooks.json', join(paths.target, 'hooks', 'hooks.json'), 'hooks'],
+    ['.mcp.json', join(paths.target, '.mcp.json'), 'mcpServers'],
+    ['spine.json', join(paths.target, 'spine.json'), 'daemon'],
   ] as const) {
     const present = existsSync(file)
     let valid = false
     let detail = present ? file : `missing: ${file}`
     if (present) {
       try {
-        const parsed = JSON.parse(readTemplate(file)) as { hooks?: unknown; mcpServers?: unknown }
-        valid = name === 'hooks.json' ? parsed.hooks !== undefined : parsed.mcpServers !== undefined
-        detail = valid ? file : `${file} has no ${name === 'hooks.json' ? 'hooks' : 'mcpServers'} section`
+        const parsed = JSON.parse(readTemplate(file)) as Record<string, unknown>
+        // Each file is checked for the one key the code that reads it actually needs. A file
+        // that parses but has lost its key is the exact failure that looks like a working
+        // install: the hook fires, finds nothing, and says nothing.
+        valid = parsed[required] !== undefined
+        detail = valid ? file : `${file} has no ${required} section`
       } catch (error) {
         detail = `${file} is not valid JSON: ${(error as Error).message}`
       }
@@ -555,27 +599,51 @@ export function runDoctor(options: { home?: string } = {}): DoctorReport {
 
   const agentgitDir = join(paths.repo, '.agentgit')
   const hooksFile = join(paths.target, 'hooks.json')
-  let hookCommandOk = false
-  let hookCommandDetail = 'hooks.json not readable'
-  if (existsSync(hooksFile)) {
-    try {
-      const parsed = JSON.parse(readTemplate(hooksFile)) as {
-        hooks?: Record<string, { hooks?: { command?: string }[] }[]>
-      }
-      const command = parsed.hooks?.PreToolUse?.[0]?.hooks?.[0]?.command ?? ''
-      const scriptPath = command.match(/"([^"]*track\.mjs)"/)?.[1]
-      hookCommandOk = Boolean(scriptPath && existsSync(scriptPath))
-      hookCommandDetail = scriptPath ? scriptPath : 'PreToolUse command has no script path'
-    } catch {
-      hookCommandOk = false
-    }
-  }
-  checks.push({
-    name: 'hook path resolves',
-    ok: hookCommandOk,
-    detail: hookCommandDetail,
-    fix: 'agentgit install',
-  })
+  const hookScripts = hookScriptPaths(existsSync(hooksFile) ? readTemplate(hooksFile) : null)
+
+  /*
+   * Both scripts, and every matcher group.
+   *
+   * Scanned across the whole file rather than read off `PreToolUse[0]`, which is what this
+   * check used to do. There is more than one handler now, and reading only the first would have
+   * let a missing `hub.mjs` pass doctor — and doctor is the one command a user runs when
+   * nothing works, so a check that cannot see half the install is worse than no check.
+   */
+  checks.push(
+    describeScriptCheck(
+      'hook path resolves',
+      'track.mjs',
+      hookScripts,
+      'the hook would fire and fail, and nothing would say why',
+    ),
+  )
+  checks.push(
+    describeScriptCheck(
+      'hub hook path resolves',
+      'hub.mjs',
+      hookScripts,
+      'the hub could rule but never reach a session, which looks exactly like a workspace with nothing to say',
+    ),
+  )
+  checks.push(
+    describeScriptCheck(
+      'spine hook path resolves',
+      'spine.mjs',
+      hookScripts,
+      'no daemon would ever start, so the hub would have nothing to publish and every push would stay silent',
+    ),
+  )
+  checks.push(
+    describeScriptCheck(
+      'desktop hook path resolves',
+      'desktop.mjs',
+      hookScripts,
+      'the workspace would never be offered its coordination task, and nothing would say why',
+    ),
+  )
+
+  checks.push(describeSpineTargetCheck(join(paths.target, 'spine.json')))
+  checks.push(describeAssetsCheck(join(paths.target, '.codex-plugin', 'plugin.json'), paths.target))
 
   checks.push({
     name: 'workspace ledger',
@@ -598,6 +666,156 @@ export function runDoctor(options: { home?: string } = {}): DoctorReport {
   checks.push(armCheck)
 
   return { checks, version: manifestVersion(paths.target) }
+}
+
+/**
+ * Every `.mjs` script path a generated `hooks.json` names, across every matcher group.
+ *
+ * `null` means the file could not be read as hooks at all, which is a different failure from
+ * "readable but missing a script" and is reported as such.
+ */
+export function hookScriptPaths(text: string | null): string[] | null {
+  if (text === null) return null
+  try {
+    const parsed = JSON.parse(text) as {
+      hooks?: Record<string, { hooks?: { command?: string }[] }[]>
+    }
+    if (!parsed?.hooks || typeof parsed.hooks !== 'object') return null
+    const out: string[] = []
+    for (const groups of Object.values(parsed.hooks)) {
+      for (const group of groups ?? []) {
+        for (const handler of group?.hooks ?? []) {
+          const match = /"([^"]*\.mjs)"/.exec(handler?.command ?? '')
+          if (match) out.push(match[1])
+        }
+      }
+    }
+    return out
+  } catch {
+    return null
+  }
+}
+
+/** One `doctor` check for one script, so a missing handler cannot hide behind a present one. */
+function describeScriptCheck(
+  name: string,
+  script: string,
+  paths: readonly string[] | null,
+  why: string,
+): DoctorCheck {
+  const fix = 'agentgit install'
+  if (paths === null) return { name, ok: false, detail: 'hooks.json not readable', fix }
+
+  const matches = paths.filter((candidate) => candidate.endsWith(script))
+  if (matches.length === 0) {
+    return { name, ok: false, detail: `hooks.json wires no ${script}; ${why}`, fix }
+  }
+  const missing = matches.find((candidate) => !existsSync(candidate))
+  return missing
+    ? { name, ok: false, detail: `${missing} does not exist; ${why}`, fix }
+    : { name, ok: true, detail: matches[0], fix }
+}
+
+/**
+ * `doctor` check for the artwork the plugin card shows.
+ *
+ * A manifest that names an icon which is not there is not an error any tool reports: Codex simply
+ * draws the plugin card with no mark on it, which reads as an unfinished plugin and is impossible
+ * to tell apart from a plugin that was never meant to have one. AgenticGit shipped that way once -
+ * an empty `assets/` directory and no `composerIcon` key at all - so the check exists to make
+ * "the plugin has a face" something `doctor` can answer rather than something a user notices.
+ *
+ * A manifest with no icon keys at all is reported as a failure rather than skipped, because the
+ * keys are not optional from a user's point of view even though the schema calls them so.
+ */
+function describeAssetsCheck(manifestPath: string, target: string): DoctorCheck {
+  const name = 'plugin assets'
+  const fix = 'agentgit install'
+  if (!existsSync(manifestPath)) {
+    return { name, ok: false, detail: `missing: ${manifestPath}`, fix }
+  }
+
+  let iface: Record<string, unknown>
+  try {
+    const parsed = JSON.parse(readTemplate(manifestPath)) as { interface?: Record<string, unknown> }
+    iface = parsed.interface ?? {}
+  } catch (error) {
+    return { name, ok: false, detail: `${manifestPath} is not valid JSON: ${(error as Error).message}`, fix }
+  }
+
+  const keys = ['composerIcon', 'logo'] as const
+  const absent = keys.filter((key) => typeof iface[key] !== 'string' || iface[key] === '')
+  if (absent.length > 0) {
+    return {
+      name,
+      ok: false,
+      detail: `the manifest names no ${absent.join(' and no ')}; the plugin card would render without a mark`,
+      fix,
+    }
+  }
+
+  const broken: string[] = []
+  for (const key of [...keys, 'logoDark', 'screenshots'] as const) {
+    const value = iface[key]
+    const entries = Array.isArray(value) ? value : typeof value === 'string' ? [value] : []
+    for (const entry of entries) {
+      if (typeof entry !== 'string' || entry === '') continue
+      // Manifest paths are plugin-relative and conventionally begin with `./`.
+      const resolved = join(target, entry.replace(/^\.\//, ''))
+      if (!existsSync(resolved)) broken.push(`${key} -> ${entry}`)
+    }
+  }
+  if (broken.length > 0) {
+    return { name, ok: false, detail: `named but missing: ${broken.join(', ')}`, fix }
+  }
+
+  return { name, ok: true, detail: keys.map((key) => String(iface[key])).join(', '), fix }
+}
+
+/**
+ * `doctor` check for the daemon `spine.json` names.
+ *
+ * The spine hook cannot warn about a bad config: it runs on the session-start path and must stay
+ * silent, so a `spine.json` pointing at a daemon that has moved looks exactly like a workspace
+ * with nothing to coordinate. The check belongs here because `doctor` is the command a user runs
+ * when the coordination is quiet, and this is one of the two ways it can be quiet for a reason.
+ */
+function describeSpineTargetCheck(file: string): DoctorCheck {
+  const fix = 'agentgit install'
+  if (!existsSync(file)) {
+    return { name: 'spine daemon target', ok: false, detail: `missing: ${file}`, fix }
+  }
+  try {
+    const parsed = JSON.parse(readTemplate(file)) as { daemon?: unknown; node?: unknown }
+    const daemon = typeof parsed.daemon === 'string' ? parsed.daemon : ''
+    if (daemon === '') {
+      return { name: 'spine daemon target', ok: false, detail: `${file} names no daemon`, fix }
+    }
+    if (!existsSync(daemon)) {
+      return {
+        name: 'spine daemon target',
+        ok: false,
+        detail: `${daemon} does not exist; no daemon would start`,
+        fix,
+      }
+    }
+    const node = typeof parsed.node === 'string' ? parsed.node : ''
+    // A missing node is not a failure: the hook falls back to its own `process.execPath`, which is
+    // already running. Saying so is still useful, because the fallback ignores the recorded flags.
+    return {
+      name: 'spine daemon target',
+      ok: true,
+      detail: existsSync(node) ? daemon : `${daemon} (recorded node is gone; the hook falls back to its own)`,
+      fix,
+    }
+  } catch (error) {
+    return {
+      name: 'spine daemon target',
+      ok: false,
+      detail: `${file} is not valid JSON: ${(error as Error).message}`,
+      fix,
+    }
+  }
 }
 
 /**

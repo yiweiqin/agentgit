@@ -1,7 +1,7 @@
 {
   "id": "agentgit",
   "name": "agentgit",
-  "version": "0.1.0+codex.local-20260923070846",
+  "version": "0.1.0+codex.20260927144053",
   "description": "Coordination layer for coding agents: a shared ledger of in-flight work, versioned contracts, and a single verdict before every write. Reduces duplicate implementations, stale writes and clean-but-wrong merges when several agents share one workspace.",
   "author": {
     "name": "AgenticGit contributors",
@@ -22,7 +22,7 @@
   "interface": {
     "displayName": "AgenticGit",
     "shortDescription": "Traffic lights for agents sharing one repository",
-    "longDescription": "Git merges text, not intentions. When two agents in one workspace change the same thing for the same reason, Git reports a conflict at best and a clean-but-wrong merge at worst. AgenticGit keeps a ledger of what is in flight, records the interfaces each task assumes, and answers one question before every write: allow, reuse, refresh, replan, wait or review. Changes are isolated in per-task worktrees with checkpoint commits; merges, rebases and discards are only ever described, never executed for you. Its panel draws one workspace's commit graph with every commit attributed to the Codex conversation that produced it, and explains any commit without leaving the conversation.",
+    "longDescription": "Git merges text, not intentions. When two agents in one workspace change the same thing for the same reason, Git reports a conflict at best and a clean-but-wrong merge at worst. AgenticGit keeps a ledger of what is in flight, records the interfaces each task assumes, and answers one question before every write: allow, reuse, refresh, replan, wait or review. Changes are isolated in per-task worktrees with checkpoint commits; merges, rebases and discards are only ever described, never executed for you. Its panel draws one workspace's commit graph with every commit attributed to the Codex task that produced it, and explains any commit without leaving the task.",
     "developerName": "AgenticGit contributors",
     "category": "Developer Tools",
     "capabilities": [
@@ -31,16 +31,18 @@
       "Shared contracts",
       "Task worktrees",
       "Live board",
-      "Conversation panel",
+      "Task panel",
       "Commit graph"
     ],
     "websiteURL": "https://github.com/yiweiqin/agentgit",
     "defaultPrompt": [
-      "Show the AgenticGit panel for this workspace",
+      "Open the AgenticGit task for this workspace",
       "Who else is working on the files I am about to change?",
-      "Which conversation committed this, and what did it change?",
-      "Publish the interface I just changed as a contract"
+      "Which task committed this, and what did it change?"
     ],
-    "brandColor": "#0F766E"
+    "brandColor": "#0F766E",
+    "composerIcon": "./assets/composer-icon.svg",
+    "logo": "./assets/logo.svg",
+    "logoDark": "./assets/logo-dark.svg"
   }
 }

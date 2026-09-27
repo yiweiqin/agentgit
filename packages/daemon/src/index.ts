@@ -15,5 +15,31 @@
 export { serve, startBoard, fingerprintOf, assignIds } from './serve.ts'
 export type { BoardServer, ServeOptions } from './serve.ts'
 
+export {
+  ENDPOINT_FILE_NAME,
+  ENDPOINT_VERSION,
+  endpointPathFor,
+  isProcessAlive,
+  readEndpoint,
+  removeEndpoint,
+  writeEndpoint,
+} from './endpoint.ts'
+export type { EndpointRecord } from './endpoint.ts'
+
+export { createHubPublisher } from './hub.ts'
+export type { HubPublisher, HubPublisherOptions } from './hub.ts'
+
+/** The hub's read/write surface, re-exported so the CLI reaches it without a second import. */
+export {
+  computeHubVerdict,
+  lastPublishedRuling,
+  lastPublishedRulingId,
+  publishHubVerdict,
+  readHubVerdict,
+  renderHubAdvisory,
+  writeHubVerdict,
+} from '@agentgit/core'
+export type { HubPublishedRuling, HubRuling, HubVerdict } from '@agentgit/core'
+
 export { runDemo } from './demo.ts'
 export type { DemoOptions } from './demo.ts'

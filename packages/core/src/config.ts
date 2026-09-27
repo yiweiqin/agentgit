@@ -8,7 +8,7 @@
  * attributed. Every capability below is therefore a separate flag, and
  * `tests/config.test.ts` asserts the arms do not leak into one another.
  *
- * @module dsh-coord-governor/config
+ * @module @agentgit/core/config
  */
 
 import { DEFAULT_POLICY, type GovAction, type PolicyConfig } from './policy.ts'
@@ -113,7 +113,7 @@ export const ARMS: Readonly<Record<ArmName, CoordConfig>> = {
    *
    * The governor still blocks duplicates it can see locally, but has no
    * cross-session memory. If this arm matches `A4-gated`, the shared ledger —
-   * the paper's actual contribution — is not what produces the effect.
+   * the product's core mechanism — is not what produces the effect.
    */
   'A4-session-only': {
     recordObservations: true,

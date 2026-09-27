@@ -5,7 +5,7 @@
  * what a proposal sees, what it decides, what it says — is driven directly from
  * tests. `plugin.ts` is then only the mapping from host events onto these calls.
  *
- * @module dsh-coord-governor/governor
+ * @module @agentgit/core/governor
  */
 
 import {

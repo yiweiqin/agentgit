@@ -36,18 +36,20 @@ import {
   staleForTask,
   type StaleAssumption,
 } from './contracts.ts'
-import { buildCapsules, entityTouches, entityKey } from './ledger.ts'
+import { buildCapsules, compareCodepoint, entityTouches, entityKey, sessionContextLoss } from './ledger.ts'
 import { acquireLease, leasesOn, liveLeases, loadLeases, type Lease } from './leases.ts'
 import {
   bestSimilarity,
   decideWrite,
   DEFAULT_POLICY,
   intentSimilarity,
+  renderOverview,
   type DetectionBasis,
   type PolicyConfig,
   type WriteProposal,
 } from './policy.ts'
-import type { ContentionRecord } from './types.ts'
+import type { ContentionRecord, CoordEvent } from './types.ts'
+import { entitySubjectOf, matchStrength as strengthOf, subjectOfProposal, type MatchStrength } from './entity.ts'
 import {
   appendEvent,
   armOffersActions,
@@ -83,6 +85,50 @@ export interface PreflightQuery {
   readonly windowHours?: number
 }
 
+/** One recorded touch of the entity under question. */
+export interface TouchPoint {
+  readonly timestampUtc: string
+  readonly sessionId: string
+  readonly taskId: string | null
+  readonly kind: string
+  readonly intentText: string | null
+  readonly reason: string | null
+}
+
+/**
+ * What a caller needs in order to *change its plan*, as opposed to being told there is a problem.
+ *
+ * This is the difference between a report and a workable input. "Someone else is on this file"
+ * leaves the agent to find out who, what for, and since when — and an agent that has to go
+ * looking will usually just proceed. The competing intent in full, the order in which the
+ * entity was touched, and the current version of any interface involved are the three facts
+ * that make a different plan possible without another round trip.
+ *
+ * Present on every verdict except `allow`, because "nothing to do" is the one answer that
+ * needs no follow-up.
+ */
+export interface ReplanInput {
+  /**
+   * Every competing intent, in full.
+   *
+   * Not truncated, and not only the first. A verdict's `reason` quotes one intent to stay
+   * short; this field exists because the short version is not enough to replan against.
+   */
+  readonly competingIntents: readonly {
+    readonly taskId: string
+    readonly sessionId: string
+    readonly intent: string
+  }[]
+  /** The entity's recent touches, oldest first, so the order of events is readable. */
+  readonly recentTouches: readonly TouchPoint[]
+  /** Published interfaces this verdict rests on, at their current versions. */
+  readonly contracts: readonly {
+    readonly name: string
+    readonly version: number
+    readonly breaking: boolean
+  }[]
+}
+
 export interface PreflightResult {
   readonly verdict: Verdict
   readonly reason: string
@@ -103,12 +149,25 @@ export interface PreflightResult {
   readonly evidence: {
     readonly detection: DetectionBasis
     readonly similarity: number | null
+    /**
+     * How the competing entities related to this proposal: same symbol, same file, or neither.
+     *
+     * Reported next to `similarity` because the two are different kinds of evidence. A symbol
+     * match is structural and stands on its own; a file match only says the ground overlaps.
+     */
+    readonly matchStrength: MatchStrength
     readonly competitors: readonly ContentionRecord[]
     readonly otherTasks: readonly string[]
     readonly leaseConflicts: readonly Lease[]
     readonly staleAssumptions: readonly StaleAssumption[]
     readonly contractConflicts: readonly StaleAssumption[]
   }
+  /**
+   * The material needed to replan, or `null` on an `allow`.
+   *
+   * Anything a caller must be able to act on, rather than only read.
+   */
+  readonly replan: ReplanInput | null
   /** Concrete commands the caller could run next. Empty when nothing is needed. */
   readonly nextActions: readonly string[]
 }
@@ -157,6 +216,14 @@ export interface CoordinationContext {
   readonly contractCount: number
   readonly eventCount: number
   readonly malformedEvents: number
+  /**
+   * The events this verdict may see, already narrowed by the arm.
+   *
+   * Exposed so a verdict can hand back the *sequence* of who touched the entity and when,
+   * rather than only a count. A count says "contested"; the order says what happened, and
+   * the order is what an agent needs in order to judge whether its plan still stands.
+   */
+  readonly events: readonly CoordEvent[]
   /** Task capsules for the observed window, used to tell "in flight" from "finished". */
   readonly capsules: ReturnType<typeof buildCapsules>
   readonly now: Date
@@ -233,6 +300,7 @@ export function loadContext(
     contractCount: registry.contracts.length,
     eventCount: events.length,
     malformedEvents: malformed,
+    events: visible,
     capsules,
     now,
   }
@@ -285,7 +353,84 @@ function asProposal(query: PreflightQuery, entityPath: string): WriteProposal {
     entityPath,
     sessionId: query.sessionId,
     taskId: query.taskId,
+    symbol: query.symbol ?? null,
     intentText: query.intentText ?? null,
+  }
+}
+
+/**
+ * How many recent touches the replan material carries.
+ *
+ * Enough to read the order of events, which is what a plan has to be measured against; not a
+ * log. The full stream stays reachable through `agentgit_why` for anyone who wants it.
+ */
+const REPLAN_TOUCH_LIMIT = 12
+
+/**
+ * Assemble the material a caller needs in order to replan.
+ *
+ * Read from the same context the verdict was decided from, so the advice and the input it
+ * rests on cannot describe two different states of the workspace.
+ */
+function buildReplan(
+  context: CoordinationContext,
+  query: PreflightQuery,
+  entityPath: string,
+  stale: readonly StaleAssumption[],
+): ReplanInput {
+  const mine = subjectOfProposal({ entityKey: query.entityKey, entityPath, symbol: query.symbol })
+
+  // Matched by subject, not by literal key, so a symbol-level claim and a path-level claim
+  // about the same code both appear in one history instead of two unrelated ones.
+  const touches: TouchPoint[] = []
+  for (const event of context.events) {
+    if (event.kind !== 'file_write' && event.kind !== 'file_read') continue
+    const onThis = (event.entities ?? []).some((entity) => strengthOf(mine, entitySubjectOf(entity)) !== null)
+    if (!onThis) continue
+    touches.push({
+      timestampUtc: event.timestampUtc,
+      sessionId: event.sessionId,
+      taskId: event.taskId ?? null,
+      kind: event.kind,
+      intentText: event.intentText ?? null,
+      reason: event.reason ?? null,
+    })
+  }
+  // `readAllEvents` already orders the stream; the slice keeps the most recent window.
+  const recentTouches = touches.slice(-REPLAN_TOUCH_LIMIT)
+
+  /*
+   * Competing intents are paired from the touch history, not read off the aggregated
+   * contention record. The record knows which intents were seen on the entity but not which
+   * task said which; only the history can make that pairing true. Newest first, because the
+   * most recent intent is the one a plan has to be measured against.
+   */
+  const competingIntents: { taskId: string; sessionId: string; intent: string }[] = []
+  const seen = new Set<string>()
+  for (let index = touches.length - 1; index >= 0; index -= 1) {
+    const touch = touches[index]
+    const intent = touch.intentText?.trim()
+    if (!intent) continue
+    const isMine = touch.sessionId === query.sessionId && (touch.taskId ?? null) === query.taskId
+    if (isMine) continue
+    const key = `${touch.taskId ?? ''}\u0000${intent}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    competingIntents.push({ taskId: touch.taskId ?? '(no task)', sessionId: touch.sessionId, intent })
+  }
+
+  const byName = new Map<string, { name: string; version: number; breaking: boolean }>()
+  for (const entry of stale) {
+    const existing = byName.get(entry.contract)
+    if (!existing || entry.currentVersion > existing.version) {
+      byName.set(entry.contract, { name: entry.contract, version: entry.currentVersion, breaking: entry.breaking })
+    }
+  }
+
+  return {
+    competingIntents,
+    recentTouches,
+    contracts: [...byName.values()].sort((a, b) => compareCodepoint(a.name, b.name)),
   }
 }
 
@@ -346,12 +491,23 @@ export function preflight(
     evidence: {
       detection: decision.detection,
       similarity: decision.similarity,
+      matchStrength: decision.matchStrength,
       competitors: decision.competitors,
       otherTasks: decision.otherTasks,
       leaseConflicts: conflicts,
       staleAssumptions: staleNamed,
       contractConflicts,
     },
+    /*
+     * The replan material is assembled for every verdict but `allow`, and deliberately not
+     * gated on `offersActions`.
+     *
+     * `A1-instrument` suppresses next actions to isolate the effect of *being told what to
+     * do*, and that ablation would be confounded if it also suppressed the facts. The word
+     * and the reason are identical under both arms for the same reason; the input a caller
+     * needs to act on its own belongs to the record, not to the advice.
+     */
+    replan: verdict === 'allow' ? null : buildReplan(context, query, entityPath, staleNamed),
   })
 
   /* 1. wait — the interface is being landed right now, so re-reading would race it.
@@ -416,11 +572,18 @@ export function preflight(
   }
   if (decision.detection === 'duplicate-intent') {
     const other = decision.competitors[0]
+    // Name the evidence, because the two bases are not equally strong: a shared symbol
+    // stands on its own, while a similarity score is a lexical guess the caller may
+    // reasonably disagree with.
+    const basis =
+      decision.matchStrength === 'symbol'
+        ? `both name ${query.symbol ?? 'the same symbol'}`
+        : `intent similarity ${formatSimilarity(decision.similarity)}`
     return decide(
       'reuse',
-      `an in-flight change on ${query.entityKey} is doing the same thing` +
+      `an in-flight change on ${query.entityKey} is doing the same thing (${basis})` +
         `${other && other.intents.length > 0 ? `: "${other.intents[0]}"` : ''}` +
-        ` (task ${decision.otherTasks.join(', ') || 'unknown'}, similarity ${formatSimilarity(decision.similarity)}).`,
+        ` (task ${decision.otherTasks.join(', ') || 'unknown'}).`,
       [`agentgit board`],
     )
   }
@@ -546,6 +709,92 @@ export function summariseTask(
     verdict,
     results,
     stale: staleForTask(loadAssumptions(paths), loadContracts(paths), taskId),
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Re-entry brief                                                              */
+/* -------------------------------------------------------------------------- */
+
+/** Cap on the brief's size: it is handed to a context that has just shed tokens. */
+const BRIEF_MAX_CHARS = 1600
+
+export interface CoordinationBrief {
+  readonly sessionId: string
+  /** Entities more than one task or session is changing, as the ledger sees them. */
+  readonly inFlight: readonly ContentionRecord[]
+  /** Recorded assumptions that are behind a published version. */
+  readonly stale: readonly StaleAssumption[]
+  readonly compactions: number
+  readonly writesAfterContextLoss: number
+  /**
+   * The text to hand the agent, or `null` when there is nothing to re-inject.
+   *
+   * `null` rather than a heading with no facts under it: an advisory that always fires trains
+   * the model to ignore it, and the tokens are paid on every re-entry.
+   */
+  readonly text: string | null
+}
+
+/**
+ * What a session needs to know after its context was truncated.
+ *
+ * Compaction silently drops the coordination facts a session was holding — that another agent
+ * is on this file, that an interface it codes against moved — while leaving the code and the
+ * conversation intact, so the agent cannot tell that anything is missing. The ledger sits
+ * outside that window by construction, which is the only reason re-stating the facts is
+ * possible at all: this function cannot recover what was in the context, but it can recover
+ * what the context never contained in the first place.
+ *
+ * Read-only and deterministic, so it is safe to call after every compaction and its answer
+ * does not depend on who asked first.
+ */
+export function buildBrief(
+  paths: WorkspacePaths,
+  sessionId: string,
+  now: Date = new Date(),
+): CoordinationBrief {
+  const context = loadContext(paths, now)
+  // The session's own single-task touches are not news to it. Anything another task or session
+  // is on is, which is the definition of the fact a truncated context cannot hold.
+  const inFlight = context.contention.filter(
+    (record) => record.tasks.length > 1 || record.sessions.some((session) => session !== sessionId),
+  )
+  const loss = sessionContextLoss(context.events, sessionId)
+
+  const parts: string[] = []
+  if (inFlight.length > 0) {
+    parts.push(
+      renderOverview(
+        inFlight,
+        sessionId,
+        { writesAfterContextLoss: loss.writesAfterLoss, compactionEvents: loss.compactions },
+        BRIEF_MAX_CHARS,
+      ),
+    )
+  }
+  if (context.stale.length > 0) {
+    const staleLines = [
+      '## Expired assumptions (external memory)',
+      'This session is coded against older versions of these. Re-read them before relying on the shape.',
+    ]
+    for (const entry of context.stale) {
+      staleLines.push(
+        `- ${entry.contract}: held at v${entry.assumedVersion}, current is v${entry.currentVersion}` +
+          `${entry.breaking ? ' (breaking)' : ''} — ${entry.summary}` +
+          ` (published by task ${entry.publishedBy})`,
+      )
+    }
+    parts.push(staleLines.join('\n'))
+  }
+
+  return {
+    sessionId,
+    inFlight,
+    stale: context.stale,
+    compactions: loss.compactions,
+    writesAfterContextLoss: loss.writesAfterLoss,
+    text: parts.length === 0 ? null : parts.join('\n\n').slice(0, BRIEF_MAX_CHARS),
   }
 }
 

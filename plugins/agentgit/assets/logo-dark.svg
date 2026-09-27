@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#5EEAD4" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="AgenticGit">
+  <title>AgenticGit</title>
+  <path d="M7 5c5 0 5 7 9.5 7" />
+  <path d="M7 19c5 0 5-7 9.5-7" />
+  <circle cx="5" cy="5" r="2" />
+  <circle cx="5" cy="19" r="2" />
+  <circle cx="19" cy="12" r="2.5" />
+</svg>

@@ -26,7 +26,7 @@
  * detector can exceed the share of collisions that are entity-visible, and E2 must
  * report that ceiling instead of scoring against a target it cannot reach.
  *
- * @module dsh-coord-governor/e2
+ * @module @agentgit/core/e2
  */
 
 import { buildCapsules, entityKey, entityTouches } from './ledger.ts'

@@ -55,6 +55,9 @@ function walk(dir, out = []) {
   for (const entry of entries) {
     if (entry.isDirectory()) {
       if (SKIP_DIRECTORIES.has(entry.name)) continue
+      // Historical research fixtures retain their original encoding. Product validation must
+      // not rewrite that archive; --root=research still permits an explicit archive audit.
+      if (resolve(dir) === ROOT && entry.name === 'research') continue
       walk(join(dir, entry.name), out)
       continue
     }

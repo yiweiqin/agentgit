@@ -22,13 +22,23 @@ import { panelReference } from '@agentgit/board'
 
 let root: string
 let server: Server
+const identityKeys = ['AGENTGIT_SESSION', 'CODEX_SESSION_ID', 'CODEX_THREAD_ID', 'CODEX_SESSION', 'CLAUDE_SESSION_ID']
+const originalIdentity = Object.fromEntries(identityKeys.map(key => [key, process.env[key]]))
 
 beforeEach(() => {
+  // Identity fallback tests must not inherit the desktop host's real session identity.
+  for (const key of identityKeys) {
+    delete process.env[key]
+  }
   root = mkdtempSync(join(tmpdir(), 'agentgit-mcp-'))
   server = createServer()
 })
 
 afterEach(() => {
+  for (const key of identityKeys) {
+    if (originalIdentity[key] === undefined) delete process.env[key]
+    else process.env[key] = originalIdentity[key]
+  }
   rmSync(root, { recursive: true, force: true })
 })
 
@@ -175,14 +185,26 @@ describe('agentgit_whoami', () => {
 
     const structured = result.structuredContent as Record<string, unknown>
     assert.equal(structured.workspace, root)
-    assert.ok(['argument', 'environment', 'ledger', 'placeholder'].includes(String(structured.sessionSource)))
+    // `claim` is the rung that replaced "whichever session wrote last": a fresh workspace has
+    // nothing to claim, so this reports `claim` with a fallback id rather than a shared one.
+    assert.ok(
+      ['argument', 'environment', 'claim', 'ledger', 'placeholder'].includes(String(structured.sessionSource)),
+    )
   })
 
-  test('marks an inferred session as a guess and says what to do about it', async () => {
+  test('a process keeps one identity across every call in one workspace', async () => {
+    const first = server.resolveIdentity()
+    const second = server.resolveIdentity()
+    assert.equal(first.sessionId, second.sessionId, 'a session that changed mid-conversation would split one task in two')
+    assert.equal(first.sessionSource, 'claim')
+    assert.equal(second.sessionSource, 'claim')
+  })
+
+  test('marks an inferred session as a guess and says how to diagnose it', async () => {
     const result = await call('agentgit_whoami')
     const structured = result.structuredContent as Record<string, unknown>
     assert.equal(structured.sessionIsGuess, true, 'a fresh workspace has no session to read')
-    assert.match(textOf(result), /pass `session` explicitly/)
+    assert.match(textOf(result), /agentgit doctor/)
   })
 
   test('uses a session that was passed in, and stops calling it a guess', async () => {

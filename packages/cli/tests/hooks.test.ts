@@ -66,6 +66,14 @@ function only(): Record<string, never> {
   return all[0]
 }
 
+test('automatic checks do not replace the recorded user task', () => {
+  for (const prompt of ['AgenticGit 协调检查 check-abcdef。核验', 'AgenticGit 自动协调唤醒 12abcd。']) {
+    const result = runHook({ hook_event_name: 'UserPromptSubmit', session_id: 'session', cwd: workspace, prompt })
+    assert.equal(result.status, 0)
+  }
+  assert.equal(events().length, 0)
+})
+
 /**
  * Every assertion below reads the parsed event rather than the raw line: `readAllEvents`
  * converts the wire's snake_case back to the camelCase the library uses, so a test

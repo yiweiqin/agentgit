@@ -19,10 +19,18 @@
  * that trips K4, so the two are typed as different `InterventionClass` values
  * and the experiment cannot silently conflate them.
  *
- * @module dsh-coord-governor/policy
+ * @module @agentgit/core/policy
  */
 
 import { entityKey } from './ledger.ts'
+import {
+  isStructuralDuplicate,
+  matchStrength as strengthOf,
+  strongestStrength,
+  entitySubjectOf,
+  subjectOfProposal,
+  type MatchStrength,
+} from './entity.ts'
 import type { ContentionRecord } from './types.ts'
 import type { Entity } from './types.ts'
 
@@ -43,6 +51,15 @@ export interface WriteProposal {
   readonly entityPath: string
   readonly sessionId: string
   readonly taskId?: string | null
+  /**
+   * The behaviour being changed, when the caller knows it, alongside the file it lives in.
+   *
+   * Carried separately from {@link entityKey} because the two resolutions answer different
+   * questions. A file key says "this ground"; a symbol says "this behaviour". A proposal
+   * that names both can meet a competitor that named only one, which is the miss this field
+   * closes.
+   */
+  readonly symbol?: string | null
   /** The agent's own description of the task, when the host supplies one. */
   readonly intentText?: string | null
   readonly toolName?: string | null
@@ -97,6 +114,15 @@ export interface GovDecision {
    * because `action: 'none'` overwrites it with `policy-disabled`.
    */
   readonly detection: DetectionBasis
+  /**
+   * How the competing entity related to this proposal: same symbol, same file, or neither.
+   *
+   * Kept apart from `similarity` because they are different kinds of evidence. A symbol
+   * match is structural and stands on its own; a file match only says the ground overlaps
+   * and still needs intent evidence. Without this field, a decision reached on the stronger
+   * evidence would be indistinguishable from one reached on the weaker.
+   */
+  readonly matchStrength: MatchStrength
   /** Distinct tasks other than the proposer's that touched this entity. */
   readonly otherTasks: readonly string[]
   readonly basis: DecisionBasis
@@ -229,8 +255,13 @@ export function bestSimilarity(proposal: WriteProposal, record: ContentionRecord
 }
 
 /**
- * The competing records for a proposal: those on the same entity that involve
+ * The competing records for a proposal: those on the same subject that involve
  * someone other than the proposer.
+ *
+ * Matching is by *subject*, not by literal key. An earlier version compared keys, which
+ * made a symbol-level claim and a path-level claim about the same code invisible to each
+ * other — the two spellings never collided, so the more precise claim was the less useful
+ * one. See `entity.ts` for the two strengths this returns records at.
  *
  * Deliberately does *not* filter out same-task touches. An earlier version did,
  * and that made `treatCrossSessionAsContention` unreachable for exactly the case
@@ -242,13 +273,29 @@ export function competitorsFor(
   contention: readonly ContentionRecord[],
   config: Pick<PolicyConfig, 'requireDifferentSession'>,
 ): ContentionRecord[] {
+  const mine = subjectOfProposal(proposal)
   return contention.filter((record) => {
-    if (record.entityKey !== proposal.entityKey) return false
+    if (strengthOf(mine, entitySubjectOf(record)) === null) return false
     if (config.requireDifferentSession && record.sessions.every((s) => s === proposal.sessionId)) {
       return false
     }
     return true
   })
+}
+
+/**
+ * The strongest way any competitor is the same subject as this proposal.
+ *
+ * Folded over the competitors rather than read off the first one, because a proposal can
+ * overlap one task by file and another by symbol, and the symbol match is the one the
+ * policy may act on alone.
+ */
+function competingStrength(proposal: WriteProposal, competing: readonly ContentionRecord[]): MatchStrength {
+  const mine = subjectOfProposal(proposal)
+  return competing.reduce<MatchStrength>(
+    (best, record) => strongestStrength(best, strengthOf(mine, entitySubjectOf(record))),
+    null,
+  )
 }
 
 /**
@@ -263,6 +310,7 @@ export function decideWrite(
   config: PolicyConfig = DEFAULT_POLICY,
 ): GovDecision {
   const competing = competitorsFor(proposal, contention, config)
+  const strength = competingStrength(proposal, competing)
 
   const otherTasks = [...new Set(competing.flatMap((r) => r.tasks))]
     .filter((t) => t !== proposal.taskId)
@@ -274,6 +322,7 @@ export function decideWrite(
     reason: string,
     detection: DetectionBasis,
     similarity: number | null = null,
+    matchStrength: MatchStrength = null,
   ): GovDecision => ({
     action: 'none',
     intendedAction: 'none',
@@ -283,6 +332,7 @@ export function decideWrite(
     competitors: [],
     similarity,
     detection,
+    matchStrength,
     otherTasks,
     basis,
   })
@@ -313,16 +363,36 @@ export function decideWrite(
       `only ${otherTasks.length} other task(s) and no other session reached this entity`,
       'below-threshold',
       similarity,
+      strength,
     )
   }
 
   const crossSessionOnly = otherTasks.length === 0
-  const isDuplicate = similarity !== null && similarity >= config.duplicateIntentThreshold
+  /*
+   * Two ways to conclude "the same work", and they are not interchangeable.
+   *
+   * A shared symbol is structural: both sides named the same behaviour, which is evidence
+   * that does not depend on how either agent phrased anything. Intent similarity is
+   * lexical, and its ceiling is what E2 measured — two agents describing one job in
+   * different words score near zero. So the structural verdict is taken first and the
+   * lexical one remains the fallback, rather than the other way round.
+   *
+   * A shared *file* deliberately does not qualify on its own. Two tasks can edit one file
+   * for unrelated reasons, and treating that as a duplicate is the precision trap the
+   * pack's `same-entity-different-purpose` control exists to catch.
+   */
+  const structural = isStructuralDuplicate(strength)
+  const isDuplicate = structural || (similarity !== null && similarity >= config.duplicateIntentThreshold)
   const detection: DetectionBasis = crossSessionOnly
     ? 'cross-session-same-task'
     : isDuplicate
       ? 'duplicate-intent'
       : 'cross-task-conflict'
+  const evidenceNote = structural
+    ? `shared symbol${proposal.symbol ? ` ${proposal.symbol}` : ''}`
+    : similarity !== null
+      ? `intent similarity ${similarity.toFixed(2)}`
+      : 'entity overlap only'
 
   const limited = competing
   const describe = limited
@@ -335,10 +405,11 @@ export function decideWrite(
       intendedAction: 'none',
       interventionClass: 'none',
       dryRun: config.dryRun,
-      reason: `recorded only (${detection}): ${describe}`,
+      reason: `recorded only (${detection}, ${evidenceNote}): ${describe}`,
       competitors: limited,
       similarity,
       detection,
+      matchStrength: strength,
       otherTasks,
       basis: 'policy-disabled',
     }
@@ -350,8 +421,8 @@ export function decideWrite(
 
   const reason =
     intended === 'advise'
-      ? `${detection}: ${describe}`
-      : `This change overlaps an in-flight change by another session (${detection}). ${describe}. ` +
+      ? `${detection} (${evidenceNote}): ${describe}`
+      : `This change overlaps an in-flight change by another session (${detection}, ${evidenceNote}). ${describe}. ` +
         'Reuse or extend the existing change instead of producing a second one, ' +
         'or state explicitly why this must differ.'
 
@@ -366,6 +437,7 @@ export function decideWrite(
     competitors: limited,
     similarity,
     detection,
+    matchStrength: strength,
     otherTasks,
     basis: detection,
   }

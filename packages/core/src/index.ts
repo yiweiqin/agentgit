@@ -10,6 +10,7 @@
  */
 
 export * from './types.ts'
+export * from './entity.ts'
 export * from './ledger.ts'
 export * from './policy.ts'
 export * from './store.ts'
@@ -21,6 +22,10 @@ export * from './contracts.ts'
 export * from './leases.ts'
 export * from './preflight.ts'
 export * from './board.ts'
+export * from './hub.ts'
+export * from './desktop.ts'
+export * from './checks.ts'
+export * from './session-registry.ts'
 export * from './git.ts'
 export * from './graph.ts'
 export * from './sessions.ts'

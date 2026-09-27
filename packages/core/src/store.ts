@@ -8,7 +8,7 @@
  * expensive the fix is to batch inside the harness, not to weaken the ordering
  * guarantee here.
  *
- * @module dsh-coord-governor/store
+ * @module @agentgit/core/store
  */
 
 import { appendFileSync, mkdirSync } from 'node:fs'
@@ -17,9 +17,9 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 /**
  * The ledger file name.
  *
- * Must match `LEDGER_FILENAME` in `04_协调插件/coord_ledger.py`, because that
- * analyser resolves `<dir>/events.jsonl`. A different name here would make every
- * Python-side report silently empty — a failure mode that looks like "no
+ * Must match `LEDGER_FILENAME` in `coord_ledger.py` (same directory), because
+ * that analyser resolves `<dir>/events.jsonl`. A different name here would make
+ * every Python-side report silently empty — a failure mode that looks like "no
  * contention found" rather than "wrong file". `tests/interop.test.ts` reads the
  * Python constant and fails if the two drift.
  */

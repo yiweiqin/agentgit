@@ -24,16 +24,22 @@ import {
   acquireLease,
   appendEvent,
   buildBoardView,
+  buildBrief,
   buildEvent,
   buildGraphView,
   canonicalEntityPath,
   checkpointCommit,
+  contentionSignature,
   currentBranch,
   currentVersion,
+  DESKTOP_OFFER_COOLDOWN_MS,
   describeProtected,
+  desktopStatePath,
+  desktopTaskTitle,
   ensureWorktree,
   explainCommit,
   heldBy,
+  HUB_RESOLVE_HOST_EVENT,
   integrationOrder,
   isDirty,
   keyOf,
@@ -45,13 +51,22 @@ import {
   preflightAndClaim,
   publishContract,
   readAllEvents,
+  readDesktopState,
+  readHubMarker,
+  readHubVerdict,
   recordAssumption,
   registryView,
   releaseLease,
   staleAssumptions,
   symbolKeyOf,
   toWorkspaceRelative,
+  VERDICT_SEVERITY,
   worktreeList,
+  writeDesktopState,
+  type DesktopStatePatch,
+  type HubRuling,
+  type HubHolder,
+  type HubVerdict,
   type PreflightResult,
 } from '@agentgit/core'
 
@@ -165,23 +180,101 @@ interface EntityTarget {
  */
 function targetOf(args: Record<string, unknown>, workspaceRoot: string): EntityTarget {
   const symbol = str(args, 'symbol')
-  if (symbol) return { entityKey: symbolKeyOf(symbol), entityPath: null, symbol }
+  const rawPath = str(args, 'path') ?? str(args, 'file')
 
-  const path = str(args, 'path') ?? str(args, 'file')
-  if (!path) {
+  if (symbol && !rawPath) return { entityKey: symbolKeyOf(symbol), entityPath: null, symbol }
+  if (!rawPath) {
     throw new ToolError(
       'This tool needs either `path` or `symbol`.',
       'Use `path` for a file (for example `src/auth.py`) or `symbol` for a name (for example `resolveIdentity`).',
     )
   }
 
-  const relative = canonicalEntityPath(workspaceRoot, path)
+  const relative = canonicalEntityPath(workspaceRoot, rawPath)
+  // A caller who names both gets the finer key, and the file is kept rather than dropped.
+  // Dropping it would be the bug this pairing exists to prevent: the symbol-level claim and
+  // the path-level claim from the other agent would then sit on keys that never compare
+  // equal, so the more precise answer would be the less useful one.
+  if (symbol) return { entityKey: symbolKeyOf(symbol), entityPath: relative, symbol }
   return { entityKey: keyOf(relative), entityPath: relative, symbol: null }
 }
 
 /** The intent for a write, drawn from whichever argument the caller supplied. */
 function intentOf(args: Record<string, unknown>): string | null {
   return str(args, 'intent') ?? str(args, 'reason') ?? str(args, 'summary') ?? str(args, 'what')
+}
+
+/* -------------------------------------------------------------------------- */
+/* The hub's unified ruling                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The hub's current ruling, read from its projection.
+ *
+ * Read, never recomputed. Recomputing here would make one tool call's cost grow with the
+ * ledger, and would also risk this window answering from a subtly different state than the
+ * window next to it — which is the one thing the hub exists to prevent. The projection is
+ * written by the daemon and is the same bytes for every reader.
+ */
+function hubOf(context: ToolContext): HubVerdict | null {
+  return readHubVerdict(context.identity.paths)
+}
+
+/** The hub's ruling for one exact entity key, when it is among the ruled set. */
+function hubRulingFor(verdict: HubVerdict, entityKey: string): HubRuling | null {
+  return verdict.rulings.find((ruling) => ruling.entityKey === entityKey) ?? null
+}
+
+/** Ground somebody is holding right now, when they are holding this entity. */
+function hubHolderFor(verdict: HubVerdict, entityKey: string): HubHolder | null {
+  return verdict.holders.find((holder) => holder.entityKey === entityKey) ?? null
+}
+
+/**
+ * What the hub concluded about this entity, in one line.
+ *
+ * Always rendered next to a verdict, because the two answer different questions: `preflight`
+ * answers "what does *this* proposal meet", and the hub answers "what has every window already
+ * agreed about this ground". A window that saw only the first could believe it was the first to
+ * ask. A reservation is reported too, and it is the more urgent of the two — a ruling can only
+ * exist once two tasks collided, while a reservation is ground somebody is on *now*.
+ */
+function hubRulingLine(verdict: HubVerdict, entityKey: string): string {
+  const ruling = hubRulingFor(verdict, entityKey)
+  if (ruling) {
+    const owner = ruling.owner.taskId
+      ? `owner ${ruling.owner.taskId} (${ruling.owner.basis})`
+      : 'no owner recommended'
+    return `${entityKey}: ${ruling.word.toUpperCase()} (${ruling.basis}); ${owner}`
+  }
+  const holder = hubHolderFor(verdict, entityKey)
+  if (holder) {
+    return `${entityKey}: reserved by ${holder.taskId} until ${holder.expiresAt} — coordinate before writing`
+  }
+  return `the hub has not ruled on ${entityKey} yet`
+}
+
+/** The unified ruling, appended to a tool result. Deliberately the same text the hook injects. */
+function hubSuffix(hub: HubVerdict, entityKey: string): string {
+  return [
+    '',
+    '── hub ruling (one conclusion, shared by every window) ──',
+    hubRulingLine(hub, entityKey),
+    '',
+    hub.advisory,
+  ].join('\n')
+}
+
+/** The hub facts that belong in a tool's structured payload: bounded, never the whole advisory. */
+function hubStructure(hub: HubVerdict, entityKey: string) {
+  return {
+    id: hub.id,
+    generatedAt: hub.generatedAt,
+    authority: hub.authority,
+    metrics: hub.metrics,
+    ruling: hubRulingFor(hub, entityKey),
+    holder: hubHolderFor(hub, entityKey),
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -209,9 +302,11 @@ const whoami: ToolDefinition = {
     if (identity.sessionIsGuess) {
       lines.push(
         '',
-        'This session id was inferred rather than told to us. If another agent is writing in this',
-        'workspace at the same time, pass `session` explicitly on every call, copying it from the',
-        'first result you receive.',
+        'This session id was neither passed in nor read from the host, so it came from this',
+        'workspace rather than from the session itself. Two windows resolve to two different ids',
+        'on their own; if the numbers still look wrong, run `agentgit doctor` to see which',
+        'sessions this workspace recorded, and pass `session` explicitly only if that shows the',
+        'wrong one.',
       )
     }
     return {
@@ -242,20 +337,254 @@ const status: ToolDefinition = {
     const open = view.tasks.filter(
       (task) => task.state === 'proposed' || task.state === 'active' || task.state === 'validated',
     )
+    const parallelism = view.report.parallelism
     const lines = [
       `coordination debt ${view.debt.score}/100`,
       `${open.length} task(s) in flight, ${view.tasks.length} recorded`,
       `${view.collisions.length} contested entity(ies), ${view.collisions.filter((collision) => collision.live).length} with a live lease`,
       `${view.leases.length} live lease(s), ${view.contracts.length} published interface(s)`,
       `${view.debt.breakdown.staleAssumptions} expired assumption(s), ${view.debt.breakdown.unclaimed} unclaimed write(s)`,
+      // Reported next to the collision count because it is what that count has to be read
+      // against: fewer collisions bought by less parallelism is throttling, not coordination.
+      `effective parallelism P ${parallelism.mean.toFixed(2)} mean, ${parallelism.peak} peak` +
+        `${
+          parallelism.observedHours > 0
+            ? `, ${Math.round(parallelism.parallelFraction * 100)}% of the window with 2+ in flight`
+            : ''
+        }`,
       `${view.diagnostics.events} ledger event(s) in ${view.diagnostics.shards} shard(s)`,
     ]
+    const verdicts = view.report.verdicts
+    if (Object.keys(verdicts).length > 0) {
+      // Most severe first, so a cost is read before a pass — the same order the CLI uses.
+      const ordered = [
+        ...VERDICT_SEVERITY.filter((word) => verdicts[word] !== undefined),
+        ...Object.keys(verdicts)
+          .filter((word) => !(VERDICT_SEVERITY as readonly string[]).includes(word))
+          .sort(),
+      ]
+      lines.push(`preflight verdicts: ${ordered.map((word) => `${word} ${verdicts[word]}`).join(', ')}`)
+    }
     if (view.diagnostics.malformedEvents > 0) {
       lines.push(`${view.diagnostics.malformedEvents} ledger line(s) could not be parsed; the rest is unaffected`)
     }
     if (view.debt.drivers.length > 0) lines.push('', `largest contributors: ${view.debt.drivers.join('; ')}`)
     if (open.length === 0) lines.push('', 'Nothing is in flight. Nothing to coordinate.')
-    return { text: lines.join('\n'), structured: view }
+
+    /*
+     * The hub's ruling, with its cost next to it.
+     *
+     * `parallelismMean` is restated from the hub's own metrics rather than taken from the
+     * board here, because the two can be derived from different moments and a ruling count
+     * read against the wrong denominator is worse than no denominator at all.
+     */
+    const hub = hubOf(context)
+    if (hub) {
+      lines.push(
+        '',
+        `hub ruling ${hub.id}`,
+        `  ${hub.metrics.rulings} contention(s), ${hub.metrics.ambiguous} undecided, ` +
+          `${hub.metrics.owned} with a recommended owner, ${hub.metrics.holders} reserved`,
+        `  effective parallelism P ${hub.metrics.parallelismMean.toFixed(2)} ` +
+          `(reported with the rulings, because a quiet workspace bought by throttling is not coordination)`,
+        `  ruling lag ${hub.metrics.inputLagMinutes}m behind the newest ledger fact ` +
+          `(a ruling is never fresher than the last thing that happened)`,
+        `  longest-standing owner recommendation ${hub.metrics.longestOwnershipMinutes}m; ` +
+          `${hub.metrics.waitingTasks} task(s) waiting on ground someone else holds`,
+        `  ${hub.metrics.published} ruling(s) published to the ledger; authority ${hub.authority} ` +
+          '(it reports one conclusion and never blocks a write)',
+      )
+    } else {
+      lines.push('', 'hub: no ruling yet. A daemon starts with each session; if none is running, `agentgit hub --refresh` publishes once from here, or `agentgit up` starts the board.')
+    }
+    return { text: lines.join('\n'), structured: { ...view, hub } }
+  },
+}
+
+/*
+ * The desktop task's bookkeeping.
+ *
+ * It sits here, next to `status`, rather than in the block of state-changing tools below, and the
+ * distinction is worth stating: this tool creates nothing, starts nothing and changes nothing about
+ * the workspace. What it writes is one small file saying whether this workspace has already been
+ * offered a pinned coordination task, and what the heartbeat covering it has already reported.
+ *
+ * It exists because the offer is made by a hook but answered in a conversation. The hook can notice
+ * that a workspace has opted into coordination, but only the conversation can create a task, and
+ * only after the user agrees - the host's own rules make `create_thread` a user-initiated tool. So
+ * the two halves need somewhere to agree, and that is this file.
+ */
+const desktop: ToolDefinition = {
+  name: 'agentgit_desktop',
+  title: 'Record the workspace coordination task, or report it',
+  description:
+    'Keeps the note that ties this workspace to its pinned coordination task: the task id, the heartbeat automation that ' +
+    'watches it, the conversation pinned to the top of the workspace by `/agentgit`, whether the workspace was enabled, ' +
+    'and the last ruling that task has already reported. Call it with no arguments to see whether this workspace has ' +
+    'one. Call it with `threadId` once a task has been created for this workspace, with `decision: "declined"` when the ' +
+    'user has said no, with `pinnedThreadId` after `/agentgit` pinned a conversation, with `enabled: true` when the ' +
+    'workspace was switched on, or with `lastRulingId` after a heartbeat run has reported (or looked at) a ruling. It ' +
+    'only writes this note down: it never creates a task, never posts anything, and never blocks a write. Recording a ' +
+    '`threadId`, a `pinnedThreadId` or a `declinedAt` is what stops the corresponding offer being repeated, so it is ' +
+    'the last step of setting one up rather than an optional one.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      threadId: {
+        type: 'string',
+        description: 'The task created for this workspace, so it is never offered again.',
+      },
+      automationId: {
+        type: 'string',
+        description: 'The heartbeat automation that keeps that task reporting, if one was created.',
+      },
+      decision: {
+        type: 'string',
+        enum: ['declined'],
+        description: 'The user was asked and said no. Recorded, so the question is not asked again.',
+      },
+      lastRulingId: {
+        type: 'string',
+        description: 'The hub ruling a heartbeat run has just reported, so the same one is not reported twice.',
+      },
+      lastReportedAt: {
+        type: 'string',
+        description: 'ISO instant of that run. Recorded even when the run had nothing to say, so a quiet task can be told from a broken one.',
+      },
+      pinnedThreadId: {
+        type: 'string',
+        description:
+          'A conversation that `/agentgit` pinned to the top of this workspace. Recorded per conversation, so a second one can be pinned and a repeat of the same one is a no-op.',
+      },
+      enabled: {
+        type: 'boolean',
+        description:
+          'Record that this workspace was enabled. The first instant is kept, so the field answers "since when" and a second call does not move it.',
+      },
+      workspace: { type: 'string', description: 'Workspace directory override.' },
+      session: { type: 'string', description: 'Session id, when several agents share this workspace.' },
+      task: { type: 'string', description: 'Task id, when continuing an earlier task.' },
+    },
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  handler: (args, context) => {
+    const { identity } = context
+    const paths = identity.paths
+
+    const decision = str(args, 'decision')
+    if (decision !== null && decision !== 'declined') {
+      throw new ToolError(
+        `\`decision\` is only for a refusal, and must be "declined", not ${JSON.stringify(decision)}.`,
+        'To record a task that was created, pass `threadId` instead. There is no way to record an acceptance without one, because a task the user never got is not a task.',
+      )
+    }
+
+    const threadId = str(args, 'threadId')
+    const automationId = str(args, 'automationId')
+    const lastRulingId = str(args, 'lastRulingId')
+    const lastReportedAt = str(args, 'lastReportedAt')
+    const pinnedThreadId = str(args, 'pinnedThreadId')
+    const enabled = bool(args, 'enabled')
+    const before = readDesktopState(paths)
+
+    // Only write when there is something to write. A bare call is a question, and answering it must
+    // not create the very record that suppresses the offer.
+    const patch: DesktopStatePatch = {}
+    if (threadId !== null) patch.threadId = threadId
+    if (automationId !== null) patch.automationId = automationId
+    if (lastRulingId !== null) patch.lastRulingId = lastRulingId
+    if (lastReportedAt !== null) patch.lastReportedAt = lastReportedAt
+    if (decision === 'declined') patch.declinedAt = context.now.toISOString()
+    if (pinnedThreadId !== null) {
+      // Merged rather than replaced: a workspace has many conversations, and pinning a second one
+      // must not unpin the first.
+      patch.pinnedThreads = { ...(before?.pinnedThreads ?? {}), [pinnedThreadId]: context.now.toISOString() }
+    }
+    // The field answers "since when", so an instant already recorded is kept rather than moved.
+    if (enabled && !before?.enabledAt) patch.enabledAt = context.now.toISOString()
+
+    const state = Object.keys(patch).length > 0 ? writeDesktopState(paths, patch) : before
+
+    const lines = [`coordination task for "${desktopTaskTitle(paths.root)}"`]
+    lines.push(`  state  : ${desktopStatePath(paths)}`)
+    if (!state) {
+      lines.push('', 'This workspace has no record yet, so it will be offered one at the next session start.')
+    } else {
+      lines.push(`  task   : ${state.threadId ?? '(none)'}`)
+      lines.push(`  watcher: ${state.automationId ?? '(none)'}`)
+      lines.push(`  asked  : ${state.offeredAt ?? '(never)'}${state.declinedAt ? `, declined ${state.declinedAt}` : ''}`)
+      lines.push(
+        `  last   : ${state.lastRulingId ?? '(no ruling reported yet)'}` +
+          `${state.lastReportedAt ? `, looked at ${state.lastReportedAt}` : ''}`,
+      )
+      const pinned = Object.keys(state.pinnedThreads)
+      lines.push(`  pinned : ${pinned.length > 0 ? pinned.join(', ') : '(no conversation pinned yet)'}`)
+      lines.push(`  enabled: ${state.enabledAt ?? '(not enabled through /agentgit yet)'}`)
+      lines.push('')
+      if (state.threadId) {
+        lines.push('A task is recorded, so this workspace will not be offered another one.')
+      } else if (state.declinedAt) {
+        lines.push('A refusal is recorded, so the offer will not be made again. `agentgit desktop --reset` clears it.')
+      } else {
+        const remaining = state.offeredAt
+          ? Date.parse(state.offeredAt) + DESKTOP_OFFER_COOLDOWN_MS - context.now.getTime()
+          : 0
+        lines.push(
+          remaining > 0
+            ? `An offer has been made and not answered; it is not repeated for another ${Math.ceil(remaining / 60_000)} minute(s).`
+            : 'An offer is due at the next session start.',
+        )
+      }
+    }
+    if (Object.keys(patch).length > 0) lines.push('', `recorded: ${Object.keys(patch).join(', ')}`)
+    return { text: lines.join('\n'), structured: { desktop: state, changed: Object.keys(patch) } }
+  },
+}
+
+const briefTool: ToolDefinition = {
+  name: 'agentgit_brief',
+  title: 'What is in flight, for a session that just lost its context',
+  description:
+    'A short brief on the coordination facts this session may no longer be holding: the entities more than one task or ' +
+    'session is changing, any interface it is coded against that has since moved, and what the hub has ruled since ' +
+    'this window was last shown a ruling. Call it after a context compaction, or whenever the conversation is ' +
+    'suspected of having dropped something that only ever lived in the conversation. Returns a line saying there is ' +
+    'nothing to re-state when that is the case, so calling it is cheap. Writes nothing.',
+  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  handler: (_args, context) => {
+    const { identity } = context
+    const brief = buildBrief(identity.paths, identity.sessionId, context.now)
+    const hub = hubOf(context)
+
+    const parts: string[] = []
+    if (brief.text) parts.push(brief.text)
+
+    let hubChanged: boolean | null = null
+    if (hub) {
+      /*
+       * The delta is measured against what this window has *already been shown*, tracked by the
+       * same marker the hook writes. That is a better question than "since you last called this
+       * tool": a window that was pushed the ruling on its last write already has it, and
+       * repeating it would spend the tokens this tool exists to save.
+       */
+      const marker = readHubMarker(identity.paths, identity.sessionId)
+      hubChanged = marker?.rulingId !== hub.id
+      parts.push(
+        hubChanged
+          ? `Hub ruling changed since this window was last shown one ` +
+            `(${marker?.rulingId ?? 'nothing shown yet'} -> ${hub.id}).\n\n${hub.advisory}`
+          : `Hub ruling unchanged since this window was last shown it (${hub.id}).`,
+      )
+    }
+
+    const fallback =
+      'Nothing to re-state: no other task or session is on a recorded entity, and no interface has moved.'
+    return {
+      text: parts.length === 0 ? fallback : parts.join('\n\n'),
+      structured: { ...brief, hub, hubChanged },
+    }
   },
 }
 
@@ -318,12 +647,16 @@ const preflightTool: ToolDefinition = {
     'of six verdicts: allow, reuse, refresh, replan, wait, or review. Each carries a reason, a `version` and a ' +
     '`ttlSeconds`. Cache on `version`: it changes whenever any input to the verdict changes, so a cached verdict can ' +
     'never be stale. Verdicts are advisory - only `review` is a stop signal, and it never blocks a write by itself. ' +
+    'Give both `path` and `symbol` when you know them: a claim about a function and a claim about the file it lives ' +
+    'in are then recognised as being about the same thing, which naming only one of them cannot achieve. Every ' +
+    'verdict except `allow` also carries `replan` - the competing intents in full, the order the entity was touched ' +
+    'in, and the interfaces involved - so you can change your plan without asking again. ' +
     'Set `claim` to also take a soft lease on the entity and record the decision in the ledger.',
   inputSchema: {
     type: 'object',
     properties: {
-      path: { type: 'string', description: 'Path you are about to write, relative to the workspace.' },
-      symbol: { type: 'string', description: 'Name you are about to change, instead of a path.' },
+      path: { type: 'string', description: 'Path you are about to write, relative to the workspace. Give `symbol` as well when you know it.' },
+      symbol: { type: 'string', description: 'Name you are about to change. Combine with `path` to say which file it lives in.' },
       intent: { type: 'string', description: 'In your own words, what this change is for. This is what duplication is detected against.' },
       contracts: {
         type: 'array',
@@ -356,7 +689,21 @@ const preflightTool: ToolDefinition = {
       ? preflightAndClaim(identity.paths, query, { symbol: Boolean(target.symbol) })
       : preflight(identity.paths, query)
 
-    return { text: renderPreflightText(result, identity), structured: result }
+    /*
+     * The unified ruling rides along with every verdict.
+     *
+     * This is the degradation path that needs no host cooperation at all: whatever else is
+     * true of the environment, a window that asks before writing is handed the conclusion
+     * every other window is working from. It is read, not recomputed, so it costs one small
+     * file read rather than a pass over the ledger.
+     */
+    const hub = hubOf(context)
+    const text = hub ? `${renderPreflightText(result, identity)}\n${hubSuffix(hub, result.entityKey)}` : renderPreflightText(result, identity)
+
+    return {
+      text,
+      structured: hub ? { ...result, hub: hubStructure(hub, result.entityKey) } : result,
+    }
   },
 }
 
@@ -393,6 +740,36 @@ function renderPreflightText(result: PreflightResult, identity: Identity): strin
       )
     }
   }
+  /*
+   * The replan material is rendered in full, unlike the summary above it.
+   *
+   * A truncated quote is enough to recognise the collision and not enough to do anything
+   * about it, and the whole point of these three blocks is that the caller can change its
+   * plan without asking again.
+   */
+  if (result.replan) {
+    if (result.replan.competingIntents.length > 0) {
+      lines.push('', 'What the competing work is for, in full:')
+      for (const entry of result.replan.competingIntents.slice(0, 5)) {
+        lines.push(`  [${entry.taskId}] ${entry.intent}`)
+      }
+    }
+    if (result.replan.recentTouches.length > 0) {
+      lines.push('', 'Recent touches on this entity, oldest first:')
+      for (const touch of result.replan.recentTouches) {
+        lines.push(
+          `  ${touch.timestampUtc}  ${touch.kind}  ${touch.taskId ?? '(no task)'}  ${touch.sessionId}` +
+            `${touch.intentText ? `  "${truncate(touch.intentText, 90)}"` : ''}`,
+        )
+      }
+    }
+    if (result.replan.contracts.length > 0) {
+      lines.push('', 'Interfaces involved:')
+      for (const contract of result.replan.contracts) {
+        lines.push(`  ${contract.name} v${contract.version}${contract.breaking ? ' (breaking)' : ''}`)
+      }
+    }
+  }
   if (result.nextActions.length > 0) {
     lines.push('', 'Next:')
     for (const action of result.nextActions) lines.push(`  ${action}`)
@@ -404,6 +781,127 @@ function renderPreflightText(result: PreflightResult, identity: Identity): strin
     )
   }
   return lines.join('\n')
+}
+
+/**
+ * The brain's one write.
+ *
+ * Reached only for a ruling the hub could not decide: two intents are on one entity and the
+ * recorded wording cannot say whether they are one job. Any window may answer, and answering
+ * is a normal ledger append — no new protocol, no long-lived process, and the answer survives
+ * a restart because it is in the ledger rather than in whichever conversation produced it.
+ *
+ * The earliest answer for a given contention stands. That is what stops two windows from
+ * each getting their own conclusion: a later answer is recorded and ignored, so the hub still
+ * publishes exactly one ruling.
+ */
+const hubResolve: ToolDefinition = {
+  name: 'agentgit_hub_resolve',
+  title: 'Answer an undecided hub ruling, once',
+  description:
+    'Answer a hub ruling whose recorded evidence could not decide it. Use it when a tool result or an injected note ' +
+    'says an entity is AMBIGUOUS and names this tool. Give `decision` as `reuse` (the two changes are one job, so ' +
+    'extend the existing one) or `replan` (they are different work on shared ground, so scope yours away or agree an ' +
+    'order), and say why in `reason`. The answer is appended to the ledger, so it holds across sessions and survives ' +
+    'a restart. The earliest answer for a contention is the conclusion; a later one is recorded and ignored rather ' +
+    'than replacing it. Does not block anything and does not take a lease.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      entityKey: {
+        type: 'string',
+        description: 'The entity key the ruling named, for example `file::src/limiter.ts` or `symbol::throttle`.',
+      },
+      path: { type: 'string', description: 'A path, instead of `entityKey`. Resolved the same way a claim is.' },
+      symbol: { type: 'string', description: 'A symbol, instead of `entityKey`.' },
+      decision: { type: 'string', enum: ['reuse', 'replan'], description: 'Which way the ambiguity resolves.' },
+      reason: { type: 'string', description: 'One sentence a later reader can act on. Recorded as the ledger reason.' },
+      session: { type: 'string', description: 'Session id, when several agents share this workspace.' },
+      task: { type: 'string', description: 'Task id, when continuing an earlier task.' },
+      workspace: { type: 'string', description: 'Workspace directory override.' },
+    },
+    required: ['decision'],
+    additionalProperties: false,
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  handler: (args, context) => {
+    const { identity } = context
+    const decision = str(args, 'decision')
+    if (decision !== 'reuse' && decision !== 'replan') {
+      throw new ToolError(
+        `\`decision\` must be "reuse" or "replan", not ${JSON.stringify(decision ?? null)}.`,
+        '`reuse` means the two changes are one job; `replan` means they are different work on shared ground.',
+      )
+    }
+
+    const hub = hubOf(context)
+    if (!hub) {
+      throw new ToolError(
+        'The hub has not published a ruling for this workspace, so there is nothing to answer.',
+        'A daemon starts with each session and publishes rulings; if none has run yet, `agentgit up` starts one. Without a published ruling there is no agreed set of entities to resolve.',
+      )
+    }
+
+    const explicit = str(args, 'entityKey')
+    const entityKey = explicit ?? targetOf(args, identity.paths.root).entityKey
+    const ruling = hubRulingFor(hub, entityKey)
+
+    if (!ruling) {
+      throw new ToolError(
+        `${entityKey} is not in the hub's current ruling, so there is nothing to answer.`,
+        'Ask again with `agentgit_preflight` to see the hub ruling for the ground you are on, or take a lease if this ground should be ruled.',
+      )
+    }
+    if (!ruling.needsResolution) {
+      throw new ToolError(
+        `${entityKey} is already ruled ${ruling.word.toUpperCase()} (${ruling.basis}), so there is nothing ambiguous to answer.`,
+        'The hub will not reopen a collision that recorded evidence already decided: that is what keeps one conclusion per contention.',
+      )
+    }
+
+    const reason = intentOf(args) ?? `${decision} (answered by ${identity.taskId})`
+    appendEvent(
+      identity.paths,
+      buildEvent({
+        kind: 'decision',
+        timestampUtc: context.now.toISOString(),
+        sessionId: identity.sessionId,
+        taskId: identity.taskId,
+        entities: [{ kind: ruling.kind, identifier: ruling.entityKey, path: ruling.path }],
+        intentText: reason,
+        hostEvent: HUB_RESOLVE_HOST_EVENT,
+        reason: `${decision}: ${reason}`,
+        detail: {
+          entityKey,
+          decision,
+          // The contention this answers. A third task joining makes it a different question,
+          // so an answer to the old one cannot silently bind the new one.
+          signature: contentionSignature(ruling),
+          rulingId: hub.id,
+        },
+      }),
+    )
+
+    return {
+      text: [
+        `${entityKey} answered ${decision.toUpperCase()}.`,
+        `reason: ${reason}`,
+        '',
+        'Recorded in the ledger, so every window reads the same conclusion. The earliest answer for a',
+        'contention is the one that stands: if another window already answered this one, this answer is',
+        'kept and ignored, and `agentgit hub` shows which conclusion is in force.',
+        'The hub republishes within a couple of seconds; nothing here blocks a write.',
+      ].join('\n'),
+      structured: {
+        entityKey,
+        decision,
+        reason,
+        signature: contentionSignature(ruling),
+        answeredRulingId: hub.id,
+        republished: false,
+      },
+    }
+  },
 }
 
 const reconcile: ToolDefinition = {
@@ -1159,12 +1657,15 @@ const explainTool: ToolDefinition = {
 export const TOOLS: readonly ToolDefinition[] = [
   whoami,
   status,
+  desktop,
+  briefTool,
   board,
   graphTool,
   explainTool,
   panelApp,
   panel,
   preflightTool,
+  hubResolve,
   reconcile,
   why,
   contracts,

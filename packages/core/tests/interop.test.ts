@@ -1,5 +1,5 @@
 /**
- * Cross-language contract tests against `04_协调插件/coord_ledger.py`.
+ * Cross-language contract tests against `coord_ledger.py` (same directory).
  *
  * These exist because the interop claim was wrong the first time it was made, in
  * three ways at once: a different ledger file name, a write kind Python does not

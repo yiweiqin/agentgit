@@ -8,7 +8,7 @@
 import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { buildCapsules, buildContention } from '../src/ledger.ts'
+import { buildCapsules, buildContention, entityTouches } from '../src/ledger.ts'
 import {
   DEFAULT_POLICY,
   bestSimilarity,
@@ -21,11 +21,22 @@ import {
   type PolicyConfig,
   type WriteProposal,
 } from '../src/policy.ts'
-import { write } from './helpers.ts'
+import { ev, write } from './helpers.ts'
 
 /** Contention derived from a real event stream, so this also covers integration. */
 function contentionFrom(events: Parameters<typeof buildCapsules>[0]) {
   return buildContention(buildCapsules(events))
+}
+
+/**
+ * Touches without the two-or-more filter.
+ *
+ * Needed by the resolution tests: a symbol claim and a path claim about the same file sit
+ * on *different* keys with one toucher each, so `buildContention` would drop both and the
+ * test would pass for the wrong reason.
+ */
+function touchesFrom(events: Parameters<typeof buildCapsules>[0]) {
+  return entityTouches(buildCapsules(events))
 }
 
 const twoTaskConflict = contentionFrom([
@@ -41,6 +52,60 @@ const sameTaskTwoSessions = contentionFrom([
 const sameTaskOneSession = contentionFrom([
   write({ minutes: 0, taskId: 'T1', sessionId: 's1', path: 'a.py' }),
   write({ minutes: 1, taskId: 'T1', sessionId: 's1', path: 'a.py' }),
+])
+
+/** A `file_write` for one symbol, in the file it lives in. */
+function symbolWrite(
+  minutes: number,
+  taskId: string,
+  sessionId: string,
+  symbol: string,
+  path: string,
+  intentText: string | null = null,
+) {
+  return ev({
+    kind: 'file_write',
+    minutes,
+    taskId,
+    sessionId,
+    intentText,
+    entities: [{ kind: 'symbol', identifier: symbol, path }],
+  })
+}
+
+/**
+ * Two agents naming the same function in different words.
+ *
+ * The lexical matcher scores this pair near zero, which is the miss E2 measured. A verdict
+ * of "the same work" here can therefore only come from the shared symbol.
+ */
+const sameSymbolDifferentWords = contentionFrom([
+  symbolWrite(0, 'T1', 's1', 'view.jsonify', 'src/views.py', 'return json from the view, not a rendered page'),
+  symbolWrite(1, 'T2', 's2', 'view.jsonify', 'src/views.py', 'add a jsonify helper to the view'),
+])
+
+/** One agent names the function, the other names the file it lives in. */
+const symbolMeetsPath = touchesFrom([
+  symbolWrite(0, 'T1', 's1', 'view.jsonify', 'src/views.py'),
+  write({ minutes: 1, taskId: 'T2', sessionId: 's2', path: 'src/views.py' }),
+])
+
+/** The precision trap: one file, two unrelated purposes. */
+const sameFileDifferentPurpose = contentionFrom([
+  write({
+    minutes: 0,
+    taskId: 'T1',
+    sessionId: 's1',
+    path: 'src/config.py',
+    intentText: 'rename the logging level constants',
+  }),
+  write({
+    minutes: 1,
+    taskId: 'T2',
+    sessionId: 's2',
+    path: 'src/config.py',
+    intentText: 'add a timeout setting for the client',
+  }),
 ])
 
 function proposal(overrides: Partial<WriteProposal> = {}): WriteProposal {
@@ -118,6 +183,59 @@ describe('competitor selection', () => {
 
   test('ignores entities other than the proposal\'s', () => {
     assert.equal(competitorsFor(proposal({ entityKey: 'file::z.py' }), twoTaskConflict, DEFAULT_POLICY).length, 0)
+  })
+
+  test('matches a symbol claim against a path claim about the same file', () => {
+    // The two agents named the same code at different resolutions. Comparing keys literally
+    // saw two unrelated entities and reported nothing, which made the finer claim useless.
+    const found = competitorsFor(
+      proposal({ entityKey: 'file::src/views.py', entityPath: 'src/views.py', taskId: 'T2', sessionId: 's2' }),
+      symbolMeetsPath,
+      DEFAULT_POLICY,
+    )
+    assert.equal(found.length, 1)
+  })
+})
+
+describe('structural evidence', () => {
+  test('a shared symbol is enough to call it the same work, even when the words differ', () => {
+    const decision = decideWrite(
+      proposal({
+        entityKey: 'symbol::view.jsonify',
+        entityPath: 'src/views.py',
+        symbol: 'view.jsonify',
+        taskId: 'T2',
+        sessionId: 's2',
+        intentText: 'expose the payload as json',
+      }),
+      sameSymbolDifferentWords,
+      config({ action: 'none' }),
+    )
+
+    assert.equal(decision.matchStrength, 'symbol')
+    assert.equal(decision.detection, 'duplicate-intent')
+    // The verdict does not rest on the score; the score is reported, not relied on.
+    assert.ok(
+      (decision.similarity ?? 0) < DEFAULT_POLICY.duplicateIntentThreshold,
+      `expected the lexical matcher to miss this pair, got ${decision.similarity}`,
+    )
+  })
+
+  test('a shared file with no shared symbol is not a duplicate on its own', () => {
+    const decision = decideWrite(
+      proposal({
+        entityKey: 'file::src/config.py',
+        entityPath: 'src/config.py',
+        taskId: 'T2',
+        sessionId: 's2',
+        intentText: 'bump the default retry count',
+      }),
+      sameFileDifferentPurpose,
+      config({ action: 'none' }),
+    )
+
+    assert.equal(decision.matchStrength, 'file')
+    assert.equal(decision.detection, 'cross-task-conflict')
   })
 })
 

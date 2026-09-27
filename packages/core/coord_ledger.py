@@ -2,11 +2,10 @@
 
 Why this exists
 ---------------
-`01_问题定义与定位/痛点_速度与上下文失配.md` §10 established, by measurement, that the
-failure state (lambda > R, i.e. a growing backlog of unreconciled changes) is
-**structurally invisible to Git history**: a change that was never reconciled is, by
-definition, not in the commit graph. Every existing benchmark asset in this repository
-can therefore only observe the healthy baseline.
+The failure state (changes arriving faster than they are reconciled, i.e. a growing
+backlog of unreconciled changes) is **structurally invisible to Git history**: a change
+that was never reconciled is, by definition, not in the commit graph. Every
+repository-history data source can therefore only observe the healthy baseline.
 
 This module is the missing observation channel. It is the passive half of the
 coordination plugin: hooks call `record`, and `report` derives the framework's
@@ -14,11 +13,10 @@ quantities from what was recorded. It performs no governance and mutates no repo
 state, so that baseline (no treatment) and treatment conditions can be measured with the
 same instrument.
 
-Relation to ISCC v0.1
----------------------
-Capsules are NOT re-invented here. The capsule contract is
-`03_基准与标注/benchmark/iscc-v0.1/iscc.schema.json`, and this module's derived capsule
-view uses its `lifecycle.state` vocabulary verbatim:
+Relation to the base contract
+-----------------------------
+Capsules are NOT re-invented here. The derived capsule view uses the shared lifecycle
+vocabulary verbatim:
 
     proposed -> active -> validated -> integrated
                        \\-> stale / abandoned
@@ -26,14 +24,14 @@ view uses its `lifecycle.state` vocabulary verbatim:
 Two deliberate deviations, both recorded rather than hidden:
 
 1.  The ledger is an **append-only event stream**, and capsules are *derived* from it.
-    ISCC capsules are snapshots; a snapshot cannot express "this was true at time t",
-    which is required to reconstruct B(t) as a function of time.
-2.  The event kind `context_compacted` does **not** exist in the ISCC v0.1 enum
+    A snapshot cannot express "this was true at time t", which is required to
+    reconstruct B(t) as a function of time.
+2.  The event kind `context_compacted` is not part of the base event set
     (`task_registered | file_read | file_write | command | test | review | decision`).
     It is added here because context compaction is the concrete, timestamped moment at
-    which a session's memory is truncated -- the mechanism the current framework is
-    built on. ISCC v0.1 therefore cannot record its own framework's root cause; this is
-    a required v0.2 change, not a workaround. See `README.md`.
+    which a session's memory is truncated -- the mechanism this product is built on. The
+    base set therefore cannot record the product's own root cause; this is a declared
+    extension, not a workaround. `tests/interop.test.ts` pins the two sides together.
 
 Stdlib only, on purpose: hooks must not depend on an installed package, and the hook
 authoring guidance explicitly warns against assuming that helper binaries exist.
@@ -64,13 +62,14 @@ from pathlib import Path
 SCHEMA_VERSION = "coord-ledger-0.1"
 LEDGER_FILENAME = "events.jsonl"
 
-# ISCC v0.1 provenance event kinds, verbatim from iscc.schema.json.
+# Base event kinds. The constant keeps its original name because it is part of the
+# cross-language contract that `tests/interop.test.ts` pins to the TypeScript side.
 ISCC_EVENT_KINDS = frozenset(
     {"task_registered", "file_read", "file_write", "command", "test", "review", "decision"}
 )
 
-# Coordination-specific events. `context_compacted` is NOT in ISCC v0.1 and is the
-# reason a v0.2 extension is required; see the module docstring.
+# Coordination-specific events. `context_compacted` is not in the base set and is the
+# reason this extension exists; see the module docstring.
 COORD_EVENT_KINDS = frozenset(
     {
         "session_started",
@@ -85,7 +84,7 @@ COORD_EVENT_KINDS = frozenset(
 
 EVENT_KINDS = ISCC_EVENT_KINDS | COORD_EVENT_KINDS
 
-# ISCC v0.1 lifecycle.state vocabulary, verbatim.
+# Shared lifecycle vocabulary, mirrored by the TypeScript side.
 OPEN_STATES = frozenset({"proposed", "active", "validated"})
 CLOSED_STATES = frozenset({"integrated", "stale", "abandoned"})
 
