@@ -6,7 +6,7 @@
   "description": "AgenticGit command line: status, preflight, contracts, tasks, the panel and the live board.",
   "license": "MIT",
   "bin": {
-    "agentgit": "./src/main.ts"
+    "agentgit": "./bin/agentgit.mjs"
   },
   "exports": {
     ".": "./src/main.ts",
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@agentgit/core": "0.1.0",
-    "@agentgit/board": "0.1.0"
+    "@agentgit/board": "0.1.0",
+    "@agentgit/daemon": "0.1.0"
   }
 }

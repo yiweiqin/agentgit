@@ -419,6 +419,28 @@ describe('adopting a session into the ledger', () => {
     assert.equal((registrations[1]?.detail as { restated?: boolean } | null)?.restated, true)
   })
 
+  test('writes keep the user intent instead of automatic check traffic', () => {
+    const file = writeRollout([
+      sessionMeta(workspace), userMessage('implement the login limiter', at(1)),
+      userMessage('AgenticGit 协调检查 check-abcdef。只读检查', at(2)),
+      fileChange(join(workspace, FILE), at(3)),
+    ])
+    adoptSession(paths, parseRollout(file)!)
+    const events = readAllEvents(paths).events
+    assert.equal(events.filter(event => event.kind === 'task_registered').length, 1)
+    assert.equal(events.find(event => event.kind === 'file_write')?.intentText, 'implement the login limiter')
+  })
+
+  test('upgrading an imported write without intent does not duplicate it', () => {
+    const file = fullSession()
+    const session = parseRollout(file)!
+    const change = session.fileChanges[0]
+    appendEvent(paths, buildEvent({ kind: 'file_write', sessionId: SESSION, taskId: SESSION,
+      timestampUtc: change.at, hostEvent: 'codex/rollout', entities: [{ kind: 'file', identifier: FILE, path: FILE }] }))
+    adoptSession(paths, session)
+    assert.equal(readAllEvents(paths).events.filter(event => event.kind === 'file_write').length, 1)
+  })
+
   test('adoptWorkspace skips a session that has not moved for days', () => {
     // Rollouts accumulate forever; adopting last week's sessions would put finished work
     // back on the board as though it were in flight.

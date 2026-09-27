@@ -28,7 +28,79 @@ Verdicts are advisory by default. Only `review` is a stop signal. No verdict eve
 blocks a write on its own, so never refuse a user's instruction on the strength of
 one — report it and let them choose.
 
+## Before you change a file, ask
+
+Any action that can change a file or its behaviour — editing, patching, writing,
+deleting, or a shell command whose file effects you cannot see — should be preceded by
+**`agentgit_preflight`** for the path or symbol you are about to touch, with `intent`
+in your own words.
+
+Two things happen when you do, and only one of them is the verdict:
+
+1. You get the six-word verdict for *your* proposal.
+2. You get the **hub ruling** for the same ground — the one conclusion every window in
+   this workspace is working from: who is already on it, what the collision resolved
+   to, and which interfaces moved under you.
+
+Skipping the call is not neutral. It means the only thing standing between you and a
+duplicate of someone else's afternoon is what happens to be in your context, and that
+is exactly the thing this plugin exists because you cannot rely on.
+
+## One ruling per contention: the hub
+
+Several windows share this workspace, and each of them can only see its own context. The
+hub is what makes them agree: it watches every window's work, works out **one** ruling
+per contention, and puts that ruling in front of you.
+
+The watching is done by a daemon that a hook starts at session start, one per workspace,
+on a port the kernel picks - so there is nothing for anyone to launch and keep open. It is
+the same process that serves the live board, and `agentgit up` reuses it rather than
+starting a second one.
+
+It arrives by three routes, and they all say the same thing:
+
+- **Pushed into the conversation.** A hook reads the ruling and injects it as developer
+  context when your session starts, when the user sends a prompt, and when you are about
+  to edit a file someone else is already on. You will see a block headed
+  `## Coordination hub — one ruling per contention`. Unless you have just been shown it,
+  that is current, not history.
+- **Attached to every verdict.** `agentgit_preflight` always carries it, so a write-time
+  question never costs you a second call.
+- **On demand.** `agentgit_status` summarises it; `agentgit brief` reports what changed
+  since this window was last shown one; the CLI has `agentgit hub`. A daemon starts by
+  itself with the session, so `agentgit hub --refresh` is for the rare case where none is
+  running - it recomputes and publishes once, from here.
+
+A ruling is `reuse` (one job on this ground — extend the existing change rather than
+starting a second version), `replan` (different work on shared ground — scope yours away
+or agree an order), or `ambiguous`.
+
+The same block also reports **reserved ground**: an entity some task is holding right now,
+whether or not anyone else has touched it. That is the earlier and more urgent warning of
+the two — a ruling can only exist once two tasks have already collided, while a
+reservation exists from the moment one task says it is working there. If you are about to
+write reserved ground and your work is the same, reuse or extend theirs; if it is
+different, agree who owns it before writing rather than after.
+
+**`ambiguous` is the one case that asks for your judgement.** It means two intents are on
+one entity and the recorded wording cannot tell whether they are the same job — a lexical
+matcher has no opinion, and guessing would be worse than asking. Answer it with
+`agentgit_hub_resolve`, once, giving `decision` as `reuse` or `replan` and a `reason` a
+later reader can act on. The answer is appended to the ledger, so it holds across sessions
+and survives a restart. If another window already answered the same question, your answer
+is recorded and ignored: the earliest one is the conclusion, which is what stops two
+windows from each getting their own.
+
+The hub is advisory like everything else. It has no power to stop you and it never
+refuses a write; it exists so that the same ground gets one answer instead of one answer
+per window.
+
 ## Tools
+
+When the user explicitly requests automatic conflict checks across chats, use
+`references/coordinate.md`. The opt-in `agentgit checks` queue and daemon wake the configured
+coordinator via `codex queue`; the coordinator sends checks and records verified replies.
+Read-only monitoring still follows `references/watch.md`.
 
 Read-only, safe to call at any time:
 
@@ -46,8 +118,22 @@ Read-only, safe to call at any time:
   `path` and `reference`. See below.
 - **`agentgit_status`** — counts, coordination-debt score, and what the ledger is
   missing. Start here when asked "what's going on".
+- **`agentgit_brief`** — what a truncated context cannot hold: the entities more than one
+  task or session is changing, any interface this task is coded against that has since
+  moved, and what the hub has ruled since this window was last shown a ruling. Call it
+  after a context compaction, or whenever the conversation may have dropped something that
+  only ever lived in the conversation.
 - **`agentgit_board`** — every in-flight task, every contested entity, every live
   lease, and every published contract.
+- **`agentgit_desktop`** — the note tying this workspace to its pinned coordination task:
+  which task it is, whether a heartbeat is keeping it alive, which conversations
+  `/agentgit` pinned, whether the workspace was enabled, and the last ruling that task
+  reported. Call it with no arguments to see where things stand; call it with `threadId`
+  once a task has been created for this workspace, with `decision: "declined"` when the
+  user has said no, with `pinnedThreadId` after `/agentgit` pinned a conversation, with
+  `enabled: true` when the workspace was switched on, or with `lastRulingId` after a
+  heartbeat run. It only writes this note down - it never creates a task and never posts
+  anything.
 - **`agentgit_preflight`** — the verdict for a specific set of paths or symbols and
   a stated intent. Returns `verdict`, `reason`, `version` and `ttlSeconds`. Cache on
   `version`: it changes whenever any input to the verdict changes, so a cached
@@ -62,6 +148,10 @@ State-changing, all additive and reversible:
 
 - **`agentgit_claim`** — take or renew a soft lease on an entity, with a reason and
   a duration. Leases expire on their own, so a crashed agent cannot wedge anything.
+- **`agentgit_hub_resolve`** — answer a hub ruling that the recorded evidence could not
+  decide. Only call it for an `ambiguous` ruling, which names the entity to answer. It
+  appends one decision to the ledger and blocks nothing; the earliest answer for a
+  contention is the conclusion, so a duplicate answer does not replace it.
 - **`agentgit_release`** — give a lease back when the work is done.
 - **`agentgit_publish_contract`** — record a named interface version, whether the
   change breaks existing callers, and who published it. Do this *before* telling
@@ -96,6 +186,32 @@ shows it in italics for that reason. When you explain a commit to a user, say wh
 answered rather than presenting a guess as a fact. `agentgit_explain` returns that
 provenance in its `notes`, and repeating the relevant note is usually the useful part.
 
+## One dedicated coordinator per workspace
+
+At the first SessionStart or UserPromptSubmit in an unclaimed folder, the hook asks
+whether to enable AgenticGit and create a pinned coordinator that detects conflicts,
+notifies affected chats, waits for checks and summarizes their replies. Ordinary folders
+are supported; Git history needs a repository. Merely selecting a folder is not a host
+hook event and cannot trigger an immediate offer.
+
+After explicit consent, follow **`references/setup.md`**. Reserve setup before creating
+anything, reuse a recorded coordinator, record a new chat ID immediately, configure the
+checks queue, and verify the daemon. The coordinator follows **`references/coordinate.md`**.
+The daemon wakes it on actionable changes via `codex queue`; no hourly heartbeat is needed.
+Refusals are remembered. Never create a chat or send messages on the offer alone.
+
+Use `references/watch.md` only for an explicitly requested read-only periodic monitor.
+
+## `/agentgit`: enabling a workspace, and pinning this conversation
+
+When the user's message *starts* with `/agentgit`, a block headed
+`## An unclaimed folder
+
+The offer is remembered outside the workspace in `~/.agentgit/offers.json`.
+A refusal uses `agentgit desktop --decline-init --workspace <folder>` and creates
+nothing in that folder. `--clear-init` allows another offer. After consent, use
+`references/setup.md`; do not create a second coordinator for the same workspace.
+
 ## Rendering the fragment panel
 
 When the user asks for the panel as a *snapshot* — for a reply that must render a picture
@@ -122,10 +238,10 @@ If `agentgit_panel` is unavailable because the MCP server did not start, fall ba
 to the CLI and hand the user the URL rather than inventing a panel:
 
 ```
-npx agentgit panel --print     # writes the fragment, prints its path
-npx agentgit graph             # the same graph as text, in any terminal
-npx agentgit graph --explain <oid|task>
-npx agentgit up                # live board on http://localhost:7777, panel at /panel
+agentgit panel --print     # writes the fragment, prints its path
+agentgit graph             # the same graph as text, in any terminal
+agentgit graph --explain <oid|task>
+agentgit up                # live board on http://localhost:7777, panel at /panel
 ```
 
 ## What you may do without asking

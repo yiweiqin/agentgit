@@ -23,6 +23,8 @@ function textFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
       if (SKIP.has(entry.name)) continue
+      // The research archive is retained byte-for-byte; encoding policy covers product files.
+      if (dir === REPO && entry.name === 'research') continue
       textFiles(join(dir, entry.name), out)
       continue
     }

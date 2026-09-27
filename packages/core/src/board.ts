@@ -306,6 +306,8 @@ export function summarise(view: BoardView): string {
   return (
     `coordination debt ${debt.score}/100 · ` +
     `${report.counts.openCapsules} open task(s) · ` +
+    // `P` rides in the banner so a collision count is never read without its denominator.
+    `P ${report.parallelism.mean.toFixed(2)} · ` +
     `${view.collisions.length} collision(s) · ` +
     `${debt.breakdown.staleAssumptions} stale assumption(s)`
   )

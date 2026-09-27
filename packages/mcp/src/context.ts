@@ -20,8 +20,10 @@ import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import {
+  claimSessionOnce,
   ensureWorkspace,
   findWorkspaceRoot,
+  isHubEvent,
   machineId,
   readAllEvents,
   type WorkspacePaths,
@@ -39,6 +41,7 @@ const SESSION_ENV_VARS = [
 export type SessionSource =
   | 'argument'
   | 'environment'
+  | 'claim'
   | 'ledger'
   | 'placeholder'
 
@@ -124,13 +127,14 @@ export function resolveWorkspace(
 /**
  * The most recent session that wrote to this ledger.
  *
- * This is the load-bearing fallback. The Codex hooks do know the real session id and
- * record it on every event, so the newest one in this workspace is almost always the
- * session that is asking. It is a heuristic, not a fact, and it is labelled as one:
- * two sessions running at once will both resolve to whichever wrote last.
+ * This is the last-resort fallback, and it is the weakest link in the chain on purpose:
+ * the Codex hooks know the real session id and record it on every event, so the newest one
+ * in this workspace is *usually* the session that is asking. It is a heuristic, not a fact,
+ * and it is labelled as one: two sessions running at once both satisfy it.
  *
- * The window exists so a session from yesterday does not claim today's writes. Beyond
- * it, an unattributed session is better than a confidently wrong one.
+ * Sessions the hub writes under are excluded. The hub records its rulings to this same
+ * ledger, so without this a window's writes would be attributed to `hub:<machine>` — the
+ * coordination conclusion would be filed as an agent's work.
  */
 export function newestSessionId(paths: WorkspacePaths, now: Date, windowMinutes: number): string | null {
   const { events } = readAllEvents(paths)
@@ -140,12 +144,18 @@ export function newestSessionId(paths: WorkspacePaths, now: Date, windowMinutes:
   let newest: { sessionId: string; at: number } | null = null
 
   for (const event of events) {
+    if (isHubEvent(event)) continue
     const at = Date.parse(event.timestampUtc)
     if (!Number.isFinite(at) || at < cutoff) continue
     if (!newest || at >= newest.at) newest = { sessionId: event.sessionId, at }
   }
 
   return newest?.sessionId ?? null
+}
+
+/** When this process started, from `uptime`. Used to detect a reused pid in a stale claim. */
+function processStartedAt(): number {
+  return Date.now() - Math.round(process.uptime() * 1000)
 }
 
 /** Resolve workspace, session and task, and remember how each was decided. */
@@ -157,6 +167,15 @@ export function resolveIdentity(input: ResolveInput = {}): Identity {
   let sessionId: string | null = null
   let sessionSource: SessionSource = 'placeholder'
   let detail = ''
+  /**
+   * True when the id is not the host's own session id.
+   *
+   * A claimed session from the registry *is* a real recorded session, so it is not a guess —
+   * it is an inference, and the honest thing is to say which rung answered. A fallback id is
+   * this process's own invention, and that is a guess about the session even though it is a
+   * safe one to hold.
+   */
+  let claimWasFallback = false
 
   if (input.session && input.session.trim() !== '') {
     sessionId = input.session.trim()
@@ -174,6 +193,29 @@ export function resolveIdentity(input: ResolveInput = {}): Identity {
   }
 
   if (!sessionId) {
+    /*
+     * Claim one of the sessions this workspace's ledger knows about.
+     *
+     * This replaces "whichever session wrote last" as the working fallback, because that
+     * question has the same answer for two windows running at once — which is how a verdict
+     * ends up attributed to the wrong agent. A claim is exclusive, is ranked by the working
+     * directory the session reported, and is released when its process dies, so two live
+     * windows resolve to two different ids without the user passing anything.
+     */
+    const claimed = claimSessionOnce(paths, {
+      pid: process.pid,
+      startedAt: processStartedAt(),
+      at: now,
+      cwd: process.cwd(),
+      windowMinutes,
+    })
+    sessionId = claimed.sessionId
+    sessionSource = 'claim'
+    claimWasFallback = claimed.source === 'fallback'
+    detail = claimed.explanation
+  }
+
+  if (!sessionId) {
     const fromLedger = newestSessionId(paths, now, windowMinutes)
     if (fromLedger) {
       sessionId = fromLedger
@@ -183,8 +225,11 @@ export function resolveIdentity(input: ResolveInput = {}): Identity {
   }
 
   if (!sessionId) {
-    sessionId = `mcp-${machineId()}`
+    // Per-process, not per-machine. The old form was identical for every MCP server on the
+    // machine, so two windows with no ledger history were guaranteed to look like one agent.
+    sessionId = `mcp-${machineId()}-${process.pid}`
     sessionSource = 'placeholder'
+    claimWasFallback = true
     detail = 'a placeholder, because no session has recorded anything here yet'
   }
 
@@ -206,7 +251,7 @@ export function resolveIdentity(input: ResolveInput = {}): Identity {
     sessionSource,
     workspaceSource,
     explanation: `Workspace: ${workspaceExplanation}. Session: ${detail}.`,
-    sessionIsGuess: sessionSource === 'ledger' || sessionSource === 'placeholder',
+    sessionIsGuess: sessionSource === 'ledger' || sessionSource === 'placeholder' || claimWasFallback,
   }
 }
 
@@ -223,11 +268,22 @@ export interface WhoAmI {
 
 /** The diagnostic a user reads when two agents appear to be one. */
 export function describeIdentity(identity: Identity): WhoAmI {
+  /*
+   * The hint is now about a *diagnosis*, not a workaround.
+   *
+   * Passing `session` explicitly used to be the only way to tell two windows apart, and the
+   * product told the user to do it. Two live windows resolve to two different ids on their
+   * own now, so the useful advice is what to do when they still do not: look at the rung that
+   * answered, which this reports, and only then pass the argument.
+   */
   const hint =
     identity.sessionSource === 'argument'
       ? null
-      : 'If several agents run in this workspace at once, pass `session` explicitly on every call — ' +
-        'copy it from the first result you get. Without it, calls are attributed to whichever session wrote most recently.'
+      : identity.sessionSource === 'environment'
+        ? null
+        : 'Two windows should already resolve to two different sessions. If they do not, this line names ' +
+          'the rung that answered: run `agentgit doctor` to see which sessions this workspace recorded, ' +
+          'and pass `session` explicitly only if that shows the wrong one.'
 
   return {
     workspace: identity.paths.root,

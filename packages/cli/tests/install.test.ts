@@ -47,7 +47,14 @@ function installHere(stamp = 'local-20260101000000') {
 const EVENTS = ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Stop'] as const
 
 describe('generated hooks.json', () => {
-  test('names an absolute node and an absolute script, and both exist', () => {
+  test('also writes the host-discovered hooks/hooks.json with identical handlers', () => {
+    const report = installHere()
+    const discovered = JSON.parse(readFileSync(join(report.paths.target, 'hooks', 'hooks.json'), 'utf8'))
+    const legacy = JSON.parse(readFileSync(report.files.hooks, 'utf8'))
+    assert.deepEqual(discovered.hooks, legacy.hooks)
+    assert.deepEqual(Object.keys(discovered).sort(), ['description', 'hooks'])
+  })
+  test('names an absolute node and absolute scripts, and every one of them exists', () => {
     const report = installHere()
     const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
       hooks: Record<string, { matcher?: string; hooks: { type: string; command: string }[] }[]>
@@ -55,20 +62,90 @@ describe('generated hooks.json', () => {
 
     for (const event of EVENTS) {
       const entry = hooks.hooks[event]
-      assert.equal(entry?.length, 1, `${event} must be wired, or the ledger never sees it`)
+      assert.ok(entry && entry.length >= 1, `${event} must be wired, or the ledger never sees it`)
+      // Recording is always the first handler. If the hub ever ran first, a slow read here
+      // would delay the one piece of the plugin that has to happen on every tool call.
       assert.equal(entry[0].hooks[0].type, 'command')
+      assert.ok(
+        /track\.mjs"/.test(entry[0].hooks[0].command),
+        `${event}'s first handler must be the recorder`,
+      )
     }
 
-    const command = hooks.hooks.PreToolUse[0].hooks[0].command
-    // Codex performs no command substitution and does not resolve `./scripts/x` on
-    // Windows, so both paths have to be spelled out and quoted.
-    const paths = [...command.matchAll(/"([^"]+)"/g)].map((match) => match[1])
-    assert.equal(paths.length, 2, `expected two quoted paths in ${command}`)
-    for (const path of paths) {
-      assert.ok(isAbsolute(path), `${path} must be absolute`)
-      assert.ok(existsSync(path), `${path} must exist, or the hook fails silently at runtime`)
+    // Every script path in the whole file, not just the first one: there are two handlers now,
+    // and a path that does not exist fails silently at runtime rather than loudly at install.
+    for (const groups of Object.values(hooks.hooks)) {
+      for (const group of groups) {
+        for (const handler of group.hooks) {
+          const found = [...handler.command.matchAll(/"([^"]+)"/g)].map((match) => match[1])
+          assert.equal(found.length, 2, `expected a node and a script in ${handler.command}`)
+          for (const path of found) {
+            assert.ok(isAbsolute(path), `${path} must be absolute`)
+            assert.ok(existsSync(path), `${path} must exist, or the hook fails silently at runtime`)
+          }
+          assert.ok(found[1].endsWith('.mjs'))
+        }
+      }
     }
-    assert.ok(paths[1].endsWith('track.mjs'))
+  })
+
+  test('wires the hub only where a session can act on it, and only for file edits', () => {
+    const report = installHere()
+    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
+      hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]>
+    }
+
+    const hubEvents = Object.entries(hooks.hooks)
+      .filter(([, groups]) => groups.some((group) => group.hooks.some((h) => /hub\.mjs"/.test(h.command))))
+      .map(([event]) => event)
+      .sort()
+    assert.deepEqual(hubEvents, ['PreToolUse', 'SessionStart', 'UserPromptSubmit'])
+
+    // The write-time nudge is narrowed to file edits. A ruling is only worth interrupting a
+    // write with when the write is about the ground it rules on.
+    const editGroup = hooks.hooks.PreToolUse.find((group) =>
+      group.hooks.some((handler) => /hub\.mjs"/.test(handler.command)),
+    )
+    assert.equal(editGroup?.matcher, 'apply_patch|Edit|Write')
+
+    // And the recorder still sees everything, so narrowing the hub cannot narrow the ledger.
+    assert.equal(hooks.hooks.PreToolUse[0].matcher, '.*')
+  })
+
+  test('wires the spine and the offer where a session can act on them, and never before an edit', () => {
+    const report = installHere()
+    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
+      hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]>
+    }
+
+    // A daemon is started, and a question is asked, when a session begins or a prompt arrives.
+    // Putting either on PreToolUse would put process spawning and a user-facing question between an
+    // agent and its next edit, which is the one place the plugin has promised to be cheap and quiet.
+    const spineEvents = Object.entries(hooks.hooks)
+      .filter(([, groups]) => groups.some((group) => group.hooks.some((h) => /spine\.mjs"/.test(h.command))))
+      .map(([event]) => event)
+      .sort()
+    assert.deepEqual(spineEvents, ['SessionStart', 'UserPromptSubmit'])
+
+    const desktopEvents = Object.entries(hooks.hooks)
+      .filter(([, groups]) => groups.some((group) => group.hooks.some((h) => /desktop\.mjs"/.test(h.command))))
+      .map(([event]) => event)
+      .sort()
+    assert.deepEqual(desktopEvents, ['SessionStart', 'UserPromptSubmit'])
+
+    // Record first, then make sure there is something to rule, then read the ruling, and only then
+    // consider asking the user a question. The order is load-bearing: a hub read before the recorder
+    // would describe a workspace one line out of date, and the offer must never delay the three
+    // above it - it can inject context, but it changes no coordination state.
+    for (const event of ['SessionStart', 'UserPromptSubmit'] as const) {
+      const commands = hooks.hooks[event].flatMap((group) => group.hooks.map((handler) => handler.command))
+      const scripts = commands.map((command) => /([^"\\/]+\.mjs)"/.exec(command)?.[1] ?? '')
+      assert.deepEqual(
+        scripts,
+        ['track.mjs', 'spine.mjs', 'hub.mjs', 'desktop.mjs'],
+        `${event} has the wrong handler order`,
+      )
+    }
   })
 
   test('gives every event a command, so no lifecycle moment is unrecorded', () => {
@@ -132,13 +209,50 @@ describe('generated .mcp.json', () => {
     assert.ok(hooks.t.endsWith('track.mjs'))
   })
 
-  test('re-run install regenerates both files rather than trusting what is there', () => {
+  test('re-run install regenerates every file rather than trusting what is there', () => {
     const first = installHere()
     writeFileSync(first.files.hooks, '{"hooks":{}}', 'utf8')
+    writeFileSync(first.files.spine, '{"daemon":"/gone"}', 'utf8')
     const second = installHere('local-20260101000001')
 
     const hooks = JSON.parse(readFileSync(second.files.hooks, 'utf8')) as { hooks: Record<string, unknown> }
     assert.ok(hooks.hooks.SessionStart, 'the second install must overwrite a damaged file')
+    const spine = JSON.parse(readFileSync(second.files.spine, 'utf8')) as { daemon: string }
+    assert.notEqual(spine.daemon, '/gone', 'and the same goes for the spine config')
+  })
+})
+
+describe('generated spine.json', () => {
+  test('names an absolute daemon that exists, and leaves no placeholder behind', () => {
+    const report = installHere()
+    const raw = readFileSync(report.files.spine, 'utf8')
+    assert.ok(!raw.includes('{{'), 'no placeholder may survive an install')
+
+    const parsed = JSON.parse(raw) as { node: string; daemon: string; flags: string[] }
+    assert.ok(isAbsolute(parsed.node) && existsSync(parsed.node))
+    assert.ok(isAbsolute(parsed.daemon), `expected an absolute daemon entry, got ${parsed.daemon}`)
+    assert.ok(existsSync(parsed.daemon), `${parsed.daemon} must exist, or the spine starts nothing`)
+    assert.ok(parsed.daemon.endsWith(join('packages', 'daemon', 'src', 'main.ts')))
+    // The daemon entry is TypeScript too, so it needs exactly the flags the MCP server needs.
+    assert.deepEqual(parsed.flags, [...report.files.flags])
+  })
+
+  test('splices the flags into the array as separate strings, not as one quoted literal', () => {
+    const report = installHere()
+    const parsed = JSON.parse(readFileSync(report.files.spine, 'utf8')) as { flags: unknown }
+    assert.ok(Array.isArray(parsed.flags), 'flags must be a JSON array, not a string')
+    for (const flag of parsed.flags as unknown[]) {
+      assert.equal(typeof flag, 'string')
+      assert.ok(!String(flag).startsWith('['), `${String(flag)} looks like a quoted array`)
+    }
+  })
+
+  test('keeps the daemon path out of hooks.json, where a handler must name one script', () => {
+    // This file exists for exactly this reason: the handler assertion above requires "node plus
+    // one script", so the daemon cannot be a third argument on the hook's command line.
+    const report = installHere()
+    const daemon = (JSON.parse(readFileSync(report.files.spine, 'utf8')) as { daemon: string }).daemon
+    assert.ok(!readFileSync(report.files.hooks, 'utf8').includes(daemon))
   })
 })
 
@@ -312,6 +426,7 @@ describe('uninstall', () => {
     const removed = uninstall({ home })
     assert.ok(!existsSync(join(report.paths.target, 'hooks.json')))
     assert.ok(!existsSync(join(report.paths.target, '.mcp.json')))
+    assert.ok(!existsSync(report.files.spine), 'the spine config is generated state and goes with the others')
     assert.ok(existsSync(join(report.paths.target, 'scripts', 'track.mjs')), 'the source files are not generated state')
     assert.ok(existsSync(join(report.paths.target, '.codex-plugin', 'plugin.json')))
 
@@ -400,6 +515,114 @@ describe('doctor', () => {
 
     const check = runDoctor({ home }).checks.find((entry) => entry.name === 'hook path resolves')
     assert.equal(check?.ok, false, 'the hook would fire and fail, and nothing would say why')
+  })
+
+  test('catches a missing hub script, which would look like a workspace with nothing to say', () => {
+    const report = installHere()
+    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
+      hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]>
+    }
+    const group = hooks.hooks.PreToolUse.find((candidate) =>
+      candidate.hooks.some((handler) => /hub\.mjs"/.test(handler.command)),
+    )!
+    group.hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/hub.mjs"`
+    writeFileSync(report.files.hooks, JSON.stringify(hooks, null, 2), 'utf8')
+
+    const check = runDoctor({ home }).checks.find((entry) => entry.name === 'hub hook path resolves')
+    assert.equal(check?.ok, false, 'the hub could rule and never reach a session, with nothing to say why')
+  })
+
+  test('still passes the recorder check when only the hub path is broken, and the reverse', () => {
+    // The two checks must be independent, or a broken recorder would be reported as a broken
+    // hub and send the user looking in the wrong place.
+    const report = installHere()
+    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
+      hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]>
+    }
+    const group = hooks.hooks.PreToolUse.find((candidate) =>
+      candidate.hooks.some((handler) => /hub\.mjs"/.test(handler.command)),
+    )!
+    group.hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/hub.mjs"`
+    writeFileSync(report.files.hooks, JSON.stringify(hooks, null, 2), 'utf8')
+
+    const checks = runDoctor({ home }).checks
+    assert.equal(checks.find((entry) => entry.name === 'hook path resolves')?.ok, true)
+    assert.equal(checks.find((entry) => entry.name === 'hub hook path resolves')?.ok, false)
+  })
+
+  test('catches a missing spine script, which would leave the push channel permanently empty', () => {
+    const report = installHere()
+    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
+      hooks: Record<string, { hooks: { command: string }[] }[]>
+    }
+    const group = hooks.hooks.SessionStart.find((candidate) =>
+      candidate.hooks.some((handler) => /spine\.mjs"/.test(handler.command)),
+    )!
+    group.hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/spine.mjs"`
+    writeFileSync(report.files.hooks, JSON.stringify(hooks, null, 2), 'utf8')
+
+    const check = runDoctor({ home }).checks.find((entry) => entry.name === 'spine hook path resolves')
+    assert.equal(check?.ok, false, 'no daemon would start, and the hub would have nothing to publish')
+  })
+
+  test('catches a spine.json pointing at a daemon that is gone, which a session cannot warn about', () => {
+    // The hook cannot report this itself: it runs on the session-start path and must stay silent,
+    // so a moved daemon looks exactly like a workspace with nothing to coordinate. The check has
+    // to live here, in the command a user runs once they notice the silence.
+    const report = installHere()
+    const spine = JSON.parse(readFileSync(report.files.spine, 'utf8')) as { daemon: string }
+    spine.daemon = 'C:/definitely/not/here/packages/daemon/src/main.ts'
+    writeFileSync(report.files.spine, JSON.stringify(spine, null, 2), 'utf8')
+
+    const check = runDoctor({ home }).checks.find((entry) => entry.name === 'spine daemon target')
+    assert.equal(check?.ok, false)
+    assert.match(check?.detail ?? '', /does not exist/)
+  })
+
+  test('catches a missing spine.json, which is a plugin that cannot start its own daemon', () => {
+    const report = installHere()
+    rmSync(report.files.spine, { force: true })
+    const check = runDoctor({ home }).checks.find((entry) => entry.name === 'spine daemon target')
+    assert.equal(check?.ok, false)
+    assert.match(check?.detail ?? '', /missing/)
+  })
+
+  test('catches a missing desktop script, which would leave the offer permanently unspoken', () => {
+    const report = installHere()
+    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
+      hooks: Record<string, { hooks: { command: string }[] }[]>
+    }
+    const group = hooks.hooks.SessionStart.find((candidate) =>
+      candidate.hooks.some((handler) => /desktop\.mjs"/.test(handler.command)),
+    )!
+    group.hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/desktop.mjs"`
+    writeFileSync(report.files.hooks, JSON.stringify(hooks, null, 2), 'utf8')
+
+    const check = runDoctor({ home }).checks.find((entry) => entry.name === 'desktop hook path resolves')
+    assert.equal(check?.ok, false, 'the workspace would never be offered its task, and nothing would say why')
+  })
+
+  test('catches a manifest whose icons are missing, which is how the plugin lost its face', () => {
+    // AgenticGit shipped once with an empty `assets/` and no icon keys at all. Nothing reported it:
+    // the card simply rendered with no mark, which is indistinguishable from a plugin that never had
+    // one. `doctor` is the only place that can notice.
+    const report = installHere()
+    const manifestPath = join(report.paths.target, '.codex-plugin', 'plugin.json')
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { interface: Record<string, unknown> }
+
+    manifest.interface.composerIcon = './assets/not-there.svg'
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8')
+    const broken = runDoctor({ home }).checks.find((entry) => entry.name === 'plugin assets')
+    assert.equal(broken?.ok, false)
+    assert.match(broken?.detail ?? '', /composerIcon/)
+
+    // And absent entirely, rather than pointing somewhere wrong.
+    delete manifest.interface.composerIcon
+    delete manifest.interface.logo
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8')
+    const absent = runDoctor({ home }).checks.find((entry) => entry.name === 'plugin assets')
+    assert.equal(absent?.ok, false)
+    assert.match(absent?.detail ?? '', /no composerIcon/)
   })
 
   test('reports a missing install rather than throwing', () => {

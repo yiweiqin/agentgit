@@ -1,5 +1,5 @@
 /**
- * The live board: an HTTP server for one or more workspaces.
+ * The live board, and the coordination hub's spine.
  *
  * Why a daemon exists at all, given that the panel already exists
  * -----------------------------------------------------------------
@@ -7,12 +7,17 @@
  * allows only a short list of CDNs. A panel that tried to poll would fail silently and
  * show a permanently empty table, which is worse than showing nothing. So the panel is
  * a snapshot that is correct at the moment it was written, and everything that has to
- * be true *now* lives here, on `localhost`, where none of those restrictions apply.
+    10| * be true *now* lives here, on `localhost`, where none of those restrictions apply.
  *
- * Three properties make this safe to leave running:
+ * Two properties make this safe to leave running:
  *
- * - **It only reads.** The daemon calls {@link buildBoardView} and writes no ledger,
- *   no lease and no contract. Deleting the process loses nothing.
+ * - **It reads, and it publishes one conclusion at a time.** The daemon calls
+ *   {@link buildBoardView} and, for the hub, {@link computeHubVerdict}. It writes no lease
+ *   and no contract, and it never refuses anything. What it does write is a single
+ *   `advisory_injected` ledger event *when a ruling actually changes* — that event is the
+ *   hub's conclusion, so it has to outlive the process. Deleting the process loses nothing
+ *   that has already been concluded; a restart reads the last published ruling back and
+ *   publishes nothing again. `--no-publish` restores the strictly read-only behaviour.
  * - **It binds to the loopback interface only.** A coordination board names internal
  *   file paths and describes unmerged work. Exposing that to the network by default
  *   would be a real leak, so `0.0.0.0` is deliberately not offered.
@@ -34,10 +39,15 @@ import {
   ensureWorkspace,
   explainCommit,
   type GraphView,
+  type HubVerdict,
   type WorkspacePaths,
 } from '@agentgit/core'
 import { explanationMarkdown, renderBoardPage, renderEmptyPage, renderPanel } from '@agentgit/board'
 import { renderAppPanel } from '@agentgit/app'
+
+import { createHubPublisher } from './hub.ts'
+import { createChecksDispatcher } from './checks.ts'
+import { removeEndpoint, writeEndpoint } from './endpoint.ts'
 
 export interface ServeOptions {
   readonly roots: readonly string[]
@@ -51,6 +61,24 @@ export interface ServeOptions {
   readonly adoptIntervalMs?: number
   /** Set by tests to run without holding the process open. */
   readonly quiet?: boolean
+  /**
+   * Publish rulings to the ledger. Defaults to true.
+   *
+   * Off restores the strictly read-only daemon: the projection is still refreshed so readers
+   * see the current conclusion, and nothing is appended. Useful for watching a workspace whose
+   * ledger someone else owns.
+   */
+  readonly publish?: boolean
+  /**
+   * Where to advertise this daemon's pid and bound port - one file per watched workspace.
+   *
+   * Whoever starts a daemon writes it: the automatic spine (`plugins/agentgit/scripts/spine.mjs`)
+   * and `agentgit up` alike. That symmetry is the point. If only the spine advertised, then a
+   * human who ran `agentgit up` first would be invisible to the next session, which would start a
+   * second daemon on the same workspace - and "one ruling per contention" only holds while exactly
+   * one thing is publishing.
+   */
+  readonly endpointFiles?: readonly string[]
 }
 
 interface WatchedWorkspace {
@@ -63,6 +91,8 @@ interface BoardState {
   readonly html: string
   readonly generatedAt: string
   readonly view: ReturnType<typeof buildBoardView>
+  /** The hub's ruling as of this rebuild. `null` only if computing it failed. */
+  readonly hub: HubVerdict | null
 }
 
 type Listener = (state: BoardState) => void
@@ -92,6 +122,8 @@ export interface BoardServer {
   readonly port: number
   readonly ids: readonly string[]
   readonly workspaces: readonly { readonly id: string; readonly root: string }[]
+  /** Where this daemon advertised itself, one entry per watched workspace. */
+  readonly endpointFiles: readonly string[]
   /**
    * Stop polling, end every open event stream, and release the port.
    *
@@ -198,13 +230,29 @@ export async function startBoard(options: ServeOptions): Promise<BoardServer> {
     return graph
   }
 
+  /*
+   * One publisher per daemon, shared by every watched workspace.
+   *
+   * It owns the three things a pure function cannot: the memory of what was last published
+   * (seeded from the ledger, so a restart republishes nothing), a one-second cache of the `git`
+   * reads the integration order needs, and the containment that turns a defect here into "no
+   * ruling" rather than into a board that will not render. See `./hub.ts`.
+   */
+  const hubPublisher = createHubPublisher({ publish: options.publish })
+  const checksDispatcher = createChecksDispatcher()
+
+  const hubFor = (workspace: WatchedWorkspace, view: ReturnType<typeof buildBoardView>): HubVerdict | null =>
+    hubPublisher.rule(workspace.id, workspace.paths, view)
+
   const rebuild = (workspace: WatchedWorkspace): BoardState => {
     const view = buildBoardView(workspace.paths)
+    const hub = hubFor(workspace, view)
     const state: BoardState = {
       fingerprint: fingerprintOf(workspace.paths),
       html: renderPanel(view),
       generatedAt: view.generatedAt,
       view,
+      hub,
     }
     states.set(workspace.id, state)
     return state
@@ -220,8 +268,11 @@ export async function startBoard(options: ServeOptions): Promise<BoardServer> {
     for (const workspace of watched) {
       const next = fingerprintOf(workspace.paths)
       const previous = states.get(workspace.id)
-      if (previous && previous.fingerprint === next) continue
-      broadcast(workspace.id, rebuild(workspace))
+      if (!previous || previous.fingerprint !== next) broadcast(workspace.id, rebuild(workspace))
+      // Queue/timeout changes do not touch the ledger. Check even when its fingerprint is stable.
+      if (options.publish !== false) void checksDispatcher.tick(workspace.paths).catch(() => {
+        // A busy or corrupt queue must never interrupt a board tick. Its state is retained.
+      })
     }
   }
 
@@ -258,12 +309,38 @@ export async function startBoard(options: ServeOptions): Promise<BoardServer> {
   const port = await listen(server, options.port)
   const workspaces = watched.map((workspace) => ({ id: workspace.id, root: workspace.paths.root }))
 
+  /*
+   * Advertise as soon as the port is known.
+   *
+   * This has to happen after `listen`, because the whole point is to record the port the kernel
+   * actually chose for `--port 0`. It is best effort per file: a workspace whose state directory is
+   * not writable still gets a working board, and the only consequence of a failed write is that the
+   * spine may start one more daemon than it strictly needed.
+   */
+  const endpointFiles = [...(options.endpointFiles ?? [])]
+  for (const file of endpointFiles) {
+    try {
+      writeEndpoint(file, {
+        pid: process.pid,
+        port,
+        url: `http://localhost:${port}`,
+        roots,
+        startedAt: new Date().toISOString(),
+      })
+    } catch {
+      // See above: advertising is best effort, never a reason to fail the board.
+    }
+  }
+
   let closed = false
   const close = async (): Promise<void> => {
     if (closed) return
     closed = true
     clearInterval(poll)
     if (adoption) clearInterval(adoption)
+    // Before releasing the port, so a reader that sees the port free also stops seeing a pid. Each
+    // removal is ownership-checked, so stopping one board cannot delete another board's record.
+    for (const file of endpointFiles) removeEndpoint(file)
     // Ending each stream before closing the server is what stops `close()` from waiting
     // on a browser tab that may never go away.
     for (const stream of streams) {
@@ -286,6 +363,7 @@ export async function startBoard(options: ServeOptions): Promise<BoardServer> {
     port,
     ids,
     workspaces,
+    endpointFiles,
     close,
   }
 }
@@ -362,6 +440,18 @@ function handleRequest(request: IncomingMessage, response: ServerResponse, conte
     return
   }
 
+  if (url.pathname === '/api/hub') {
+    // The same bytes every window reads, which is what makes "one conclusion" checkable
+    // rather than merely asserted: two clients polling this endpoint see one ruling.
+    const state = context.states.get(workspace.id) ?? context.rebuild(workspace)
+    respondJson(response, {
+      workspace: workspace.id,
+      root: workspace.paths.root,
+      hub: state.hub ?? null,
+    })
+    return
+  }
+
   if (url.pathname === '/api/graph') {
     respondJson(response, context.graphFor(workspace))
     return
@@ -402,7 +492,13 @@ function handleRequest(request: IncomingMessage, response: ServerResponse, conte
   if (url.pathname === '/healthz') {
     respondJson(response, {
       ok: true,
-      workspaces: context.watched.map((candidate) => ({ id: candidate.id, root: candidate.paths.root })),
+      workspaces: context.watched.map((candidate) => ({
+        id: candidate.id,
+        root: candidate.paths.root,
+        // Named here so a script can tell "the hub has ruled" from "the hub is up" without
+        // pulling the whole ruling.
+        hubId: context.states.get(candidate.id)?.hub?.id ?? null,
+      })),
     })
     return
   }
@@ -451,10 +547,10 @@ function streamEvents(
   })
 
   const current = context.states.get(workspace.id) ?? context.rebuild(workspace)
-  response.write(`data: ${JSON.stringify({ html: current.html, generatedAt: current.generatedAt })}\n\n`)
+  response.write(`data: ${JSON.stringify(frameOf(current))}\n\n`)
 
   const listener: Listener = (state) => {
-    response.write(`data: ${JSON.stringify({ html: state.html, generatedAt: state.generatedAt })}\n\n`)
+    response.write(`data: ${JSON.stringify(frameOf(state))}\n\n`)
   }
 
   const set = context.listeners.get(workspace.id) ?? new Set<Listener>()
@@ -480,6 +576,22 @@ function streamEvents(
 function respondJson(response: ServerResponse, payload: unknown): void {
   response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
   response.end(`${JSON.stringify(payload)}\n`)
+}
+
+/**
+ * One SSE frame.
+ *
+ * Carries the hub ruling alongside the panel fragment, because a frame is a "the workspace
+ * changed" signal and the ruling is part of what changed. That makes the stream the second
+ * way a ruling reaches a reader that is not an agent, next to `/api/hub`.
+ */
+function frameOf(state: BoardState): Record<string, unknown> {
+  return {
+    html: state.html,
+    generatedAt: state.generatedAt,
+    hubId: state.hub?.id ?? null,
+    hub: state.hub,
+  }
 }
 
 /** Bind, and report the port actually used when `0` was requested. */

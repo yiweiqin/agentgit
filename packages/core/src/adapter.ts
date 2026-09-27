@@ -5,7 +5,7 @@
  * (which tool wrote what, and what the agent said it was doing) is verified
  * without a harness, a model, or a session.
  *
- * @module dsh-coord-governor/adapter
+ * @module @agentgit/core/adapter
  */
 
 import { normalizeEntity, normalizePath } from './ledger.ts'
@@ -160,7 +160,7 @@ export function toEntities(paths: readonly string[], kind = 'file'): Entity[] {
 /**
  * Extract a stable session identity from an unknown host object.
  *
- * Looks for the shapes DSH uses (`id` on a session-like object) and falls back to
+ * Looks for the host shapes it uses (`id` on a session-like object) and falls back to
  * the object's own identity via a WeakMap, so the same object always yields the
  * same key even when it exposes no id. Returning `null` is a hard failure the
  * caller must surface: an unattributable event is not evidence.

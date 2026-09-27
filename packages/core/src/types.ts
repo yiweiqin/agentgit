@@ -1,18 +1,18 @@
 /**
  * Structural vocabulary for the coordination ledger.
  *
- * Deliberately free of any `@deepseek-ai/*` import so that the ledger, the policy
- * and their tests run under plain `node --test` with no packages installed. The
- * DSH adapter casts its real payloads into these shapes at the boundary
- * (`plugin.ts`), which keeps the research-critical logic independently testable.
+ * Deliberately free of any host-SDK import so that the ledger, the policy and
+ * their tests run under plain `node --test` with no packages installed. The
+ * adapter casts host payloads into these shapes at the boundary (`adapter.ts`),
+ * which keeps the verdict logic independently testable.
  *
- * @module dsh-coord-governor/types
+ * @module @agentgit/core/types
  */
 
 /**
- * Lifecycle vocabulary, verbatim from the ISCC v0.1 capsule contract
- * (`03_基准与标注/benchmark/iscc-v0.1/iscc.schema.json`, `lifecycle.state`).
- * Reused rather than re-invented so both artifacts describe the same states.
+ * Lifecycle vocabulary for a capsule. The same states are implemented in
+ * `coord_ledger.py` (same directory), and `tests/interop.test.ts` pins the two
+ * side by side so they cannot drift.
  */
 export type LifecycleState =
   | 'proposed'
@@ -39,7 +39,7 @@ export const DECAYED_STATES: readonly LifecycleState[] = ['stale', 'abandoned']
 /** Terminal state meaning the change actually landed. */
 export const INTEGRATED_STATE: LifecycleState = 'integrated'
 
-/** One touched entity, in the ISCC `scope.entities` shape. */
+/** One touched entity: what kind of thing it is, its name, and its file. */
 export interface Entity {
   readonly kind: string
   readonly identifier: string
@@ -47,10 +47,11 @@ export interface Entity {
 }
 
 /**
- * ISCC v0.1 `provenance.events[].kind`, verbatim from `iscc.schema.json`.
+ * The base event kinds, mirrored from `coord_ledger.py`.
  *
- * Kept because `coord_ledger.py` is the shared analysis instrument and counts
- * entity touches only for its `ENTITY_EVENTS` subset of these names.
+ * Kept in sync because that module is the shared analysis instrument and counts
+ * entity touches only for its `ENTITY_EVENTS` subset of these names;
+ * `tests/interop.test.ts` reads the Python source and fails on any drift.
  */
 export const ISCC_EVENT_KINDS = [
   'task_registered',
@@ -63,17 +64,17 @@ export const ISCC_EVENT_KINDS = [
 ] as const
 
 /**
- * Kinds recorded in the ledger beyond the ISCC v0.1 set.
+ * Kinds recorded in the ledger beyond the base set.
  *
- * Writes deliberately reuse the ISCC kind `file_write` rather than a bespoke
+ * Writes deliberately reuse the kind `file_write` rather than a bespoke
  * `write_intent`, because `coord_ledger.py` counts entity touches only for
  * `ENTITY_EVENTS = {file_write, file_read}`. A private name would be invisible to
  * the Python analyser, silently emptying every contention figure on that side.
  * `tests/interop.test.ts` enforces this against the Python source.
  *
- * `context_compacted` does not exist in ISCC v0.1 — the upstream contract cannot
- * record this framework's own root cause. It is a declared extension; see the
- * package README for why `iscc-0.2` is required.
+ * `context_compacted` has no counterpart in the base set: none of those kinds can
+ * record the moment a session's memory is truncated, which is the very failure
+ * this ledger exists to observe. It is a declared extension.
  */
 export const COORD_EVENT_KINDS = [
   'session_started',
@@ -109,9 +110,9 @@ export const LIFECYCLE_TRANSITIONS: Readonly<Record<string, LifecycleState>> = {
 
 /**
  * One ledger record. Field names here are camelCase for TypeScript ergonomics;
- * {@link toWire} emits the snake_case shape that matches
- * `04_协调插件/coord_ledger.py`, so the existing Python analysis tool reads a
- * DSH ledger with no adapter.
+ * {@link toWire} emits the snake_case shape that matches `coord_ledger.py`
+ * (same directory), so the Python analysis tool reads a ledger written here
+ * with no adapter.
  */
 export interface CoordEvent {
   readonly kind: CoordEventKind
@@ -255,4 +256,14 @@ export interface LedgerReport {
   readonly stateHistogram: Readonly<Record<string, number>>
   readonly topContestedEntities: readonly ContentionRecord[]
   readonly writesAfterContextLoss: number
+  /**
+   * How many recorded preflight decisions ended in each verdict, keyed by the word.
+   *
+   * This is the cost side of the ledger. `parallelism` says whether work overlapped; the
+   * verdict distribution says what the tool did about it — how often it sent a caller to
+   * `replan` or `wait` rather than letting the write through. A change that reduced duplicate
+   * work while quietly raising the share of `replan` looks identical on parallelism and is
+   * visible only here.
+   */
+  readonly verdicts: Readonly<Record<string, number>>
 }

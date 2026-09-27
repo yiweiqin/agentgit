@@ -1,0 +1,23 @@
+{
+  "_comment": [
+    "Template only, and named so Codex cannot mistake it for the real thing.",
+    "`agentgit install` writes spine.json beside it, with the NODE, NODE_FLAGS and",
+    "DAEMON placeholders resolved to this machine.",
+    "",
+    "This file exists because a hook handler's command is exactly \"node plus one",
+    "script\": the daemon's entry point cannot be a third argument on that command",
+    "line without making 'every handler names one script' either false or weaker.",
+    "So spine.mjs reads where the daemon lives from here, beside itself, instead.",
+    "",
+    "NODE_FLAGS is resolved at install time rather than hard-coded because Node only",
+    "strips TypeScript types unflagged from major 23 onward, and the daemon entry is",
+    "TypeScript. Node < 23 needs --experimental-strip-types, and the plugin has to",
+    "work on the Node the user already has.",
+    "",
+    "spine.json is gitignored for the same reason hooks.json is: it holds absolute",
+    "paths from one machine, and committing it would ship them to another."
+  ],
+  "node": "{{NODE}}",
+  "daemon": "{{DAEMON}}",
+  "flags": [{{NODE_FLAGS}}]
+}

@@ -24,23 +24,33 @@ import {
   adoptWorkspace,
   appendEvent,
   buildBoardView,
+  buildBrief,
   buildEvent,
   buildGraphView,
   checkpointCommit,
+  clearInitOffer,
+  computeHubVerdict,
   contractsTouchingPath,
   currentBranch,
   currentVersion,
   defaultBranch,
   DEFAULT_CONFIG,
+  DESKTOP_OFFER_COOLDOWN_MS,
   describeArms,
   describeProtected,
   describeTunables,
+  desktopStatePath,
+  desktopTaskTitle,
   ensureWorkspace,
   ensureWorktree,
   explainCommit,
   findWorkspaceRoot,
   heldBy,
+  hubSeenCount,
+  initOfferFor,
+  initOffersPath,
   integrationOrder,
+  markEnabled,
   isDirty,
   keyOf,
   kindOfVerdict,
@@ -54,16 +64,24 @@ import {
   preflight,
   preflightAndClaim,
   publishContract,
+  publishHubVerdict,
   readAllEvents,
+  readDesktopState,
+  readHubVerdict,
+  readInitOffers,
   recordAssumption,
+  recordPinnedThread,
   registryView,
   releaseLease,
+  resetDesktopState,
   staleAssumptions,
   symbolKeyOf,
   toWorkspaceRelative,
   updateConfig,
   worktreeList,
+  writeInitOffer,
   type Entity,
+  type IntegrationItem,
   type WorkspaceConfig,
   type WorkspacePaths,
 } from '@agentgit/core'
@@ -72,6 +90,7 @@ import { defaultPanelDir, explanationMarkdown, graphMarkdown, panelMarkdown, tru
 import { APP_HTML_FILENAME, APP_RESOURCE_URI, renderAppPanel } from '@agentgit/app'
 
 import { USAGE, parseArgs, type ParsedArgs } from './args.ts'
+import { cmdChecks } from './checks.ts'
 import { install, installReportJson, runDoctor, uninstall, writePluginEnabled } from './install.ts'
 import {
   renderArms,
@@ -108,6 +127,8 @@ async function main(argv: readonly string[]): Promise<number> {
 
     case 'status':
       return cmdStatus(args)
+    case 'brief':
+      return cmdBrief(args)
     case 'board':
       return cmdBoard(args)
     case 'graph':
@@ -120,6 +141,12 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdPreflight(args)
     case 'why':
       return cmdWhy(args)
+    case 'hub':
+      return cmdHub(args)
+    case 'desktop':
+      return cmdDesktop(args)
+    case 'checks':
+      return cmdChecks(args, workspaceOf(args))
     case 'reconcile':
       return cmdReconcile(args)
     case 'config':
@@ -170,6 +197,21 @@ function workspaceOf(args: ParsedArgs): WorkspacePaths {
   return ensureWorkspace(root)
 }
 
+/**
+ * The workspace root, resolved without creating anything in it.
+ *
+ * For the one answer that must not opt a repository in: declining the offer to enable AgenticGit
+ * here. `workspaceOf` creates `.agentgit`, and doing that while recording a refusal would make the
+ * refusal do the very thing it declined - so the machine-level record is written from this root
+ * instead, and the repository stays untouched.
+ */
+function rootWithoutClaiming(args: ParsedArgs): string {
+  const explicit = args.value('workspace') ?? process.env.AGENTGIT_WORKSPACE ?? null
+  const root = explicit ? resolve(explicit) : findWorkspaceRoot(process.cwd())
+  if (!existsSync(root)) throw new UsageError(`workspace does not exist: ${root}`)
+  return root
+}
+
 interface Identity {
   readonly sessionId: string
   readonly taskId: string
@@ -216,6 +258,30 @@ function cmdStatus(args: ParsedArgs): number {
   // without anyone having to parse English.
   const needsAttention = view.collisions.length > 0 || view.debt.breakdown.staleAssumptions > 0
   return needsAttention ? 1 : 0
+}
+
+/**
+ * `agentgit brief` - the facts a truncated context cannot hold.
+ *
+ * Exit 1 when there is something to act on and 0 when there is not, so a caller can wire it
+ * to a re-entry step without parsing the text.
+ */
+function cmdBrief(args: ParsedArgs): number {
+  const paths = workspaceOf(args)
+  const identity = identityOf(args, 'brief')
+  const brief = buildBrief(paths, identity.sessionId)
+
+  if (args.boolean('json')) {
+    process.stdout.write(`${JSON.stringify(brief, null, 2)}\n`)
+  } else if (brief.text === null) {
+    process.stdout.write(
+      'Nothing to re-state: no other task or session is on a recorded entity, and no interface has moved.\n',
+    )
+  } else {
+    process.stdout.write(brief.text.endsWith('\n') ? brief.text : `${brief.text}\n`)
+  }
+
+  return brief.text === null ? 0 : 1
 }
 
 function cmdBoard(args: ParsedArgs): number {
@@ -404,14 +470,15 @@ function keyOfEntity(entity: Entity): string {
   return entity.kind === 'symbol' ? symbolKeyOf(entity.identifier) : keyOf(entity.path ?? entity.identifier)
 }
 
-function cmdReconcile(args: ParsedArgs): number {
-  const paths = workspaceOf(args)
-  const registry = loadContracts(paths)
-  const stale = staleAssumptions(loadAssumptions(paths), registry)
-
-  // Task branches come from Git rather than from the ledger: a branch that exists is
-  // work that exists, whether or not anything recorded it.
-  const view = buildBoardView(paths)
+/**
+ * The task branches, in the order they should land, with the reason for each position.
+ *
+ * Shared by `reconcile` and `hub` so the two can never disagree about the order — a hub whose
+ * ruling and whose reconcile output gave different orders would be the exact failure the hub
+ * exists to prevent. Branches come from Git rather than from the ledger: a branch that exists is
+ * work that exists, whether or not anything recorded it.
+ */
+function integrationOrderFor(paths: WorkspacePaths, view = buildBoardView(paths)): IntegrationItem[] {
   const openedAt = new Map(view.tasks.map((task) => [task.taskId, task.openedAt]))
   const branches = worktreeList(paths.root)
     .filter((entry): entry is typeof entry & { branch: string } => Boolean(entry.branch?.startsWith('agentgit/')))
@@ -421,18 +488,270 @@ function cmdReconcile(args: ParsedArgs): number {
       openedAt: openedAt.get(entry.branch.replace(/^agentgit\//, '')) ?? new Date(0).toISOString(),
     }))
 
+  const registry = loadContracts(paths)
   const publishedBy = new Map<string, string>()
   for (const name of new Set(registry.contracts.map((contract) => contract.name))) {
     const current = currentVersion(registry, name)
     if (current) publishedBy.set(name, current.publishedBy)
   }
 
-  const order = integrationOrder(
+  return integrationOrder(
     branches,
-    loadAssumptions(paths).assumptions.map((assumption) => ({ taskId: assumption.taskId, contract: assumption.contract })),
+    loadAssumptions(paths).assumptions.map((assumption) => ({
+      taskId: assumption.taskId,
+      contract: assumption.contract,
+    })),
     publishedBy,
   )
+}
 
+/**
+ * `agentgit hub` — the one ruling per contention, and the switch that publishes it by hand.
+ *
+ * Reading is the default, and it reads the projection the daemon maintains, so asking the
+ * question never costs a pass over the ledger and never answers from a different moment than the
+ * window next to you. `--refresh` is the manual path for a workspace whose daemon is not running:
+ * it recomputes from the ledger and publishes, which is the one place this command pays the full
+ * cost — and it is explicit, so nobody pays it by accident.
+ *
+ * Publishing by hand does not make the daemon redundant, and the distinction is worth keeping
+ * straight: the daemon publishes *when a ruling changes*, which is a fact that depends on noticing
+ * a file change rather than on somebody remembering to ask.
+ */
+function cmdHub(args: ParsedArgs): number {
+  const paths = workspaceOf(args)
+  const json = args.boolean('json')
+  const read = readHubVerdict(paths)
+
+  /*
+   * Effective parallelism, derived here rather than passed in as zero.
+   *
+   * The ruling and its cost have to be read together — a quiet workspace bought by throttling the
+   * work is not coordination — so a hub answer that reported `P 0.00` because nobody filled the
+   * number in would be worse than one that reported no number at all.
+   */
+  const view = buildBoardView(paths)
+  const parallelism = {
+    mean: view.report.parallelism.mean,
+    peak: view.report.parallelism.peak,
+    parallelFraction: view.report.parallelism.parallelFraction,
+  }
+
+  let verdict = read
+  let published: { readonly published: boolean; readonly reason: string } | null = null
+  if (args.boolean('refresh')) {
+    const computed = computeHubVerdict(paths, new Date(), { integration: integrationOrderFor(paths, view), parallelism })
+    const result = publishHubVerdict(paths, computed)
+    published = { published: result.published, reason: result.reason }
+    verdict = computed
+  } else if (!verdict) {
+    // No projection yet, so the only honest answer is to compute one. It is not published: a read
+    // must not change the ledger, and the note below says so.
+    verdict = computeHubVerdict(paths, new Date(), { integration: integrationOrderFor(paths, view), parallelism })
+  } else {
+    verdict = { ...verdict, parallelism }
+  }
+
+  const shown = hubSeenCount(paths, verdict.id)
+
+  if (json) {
+    process.stdout.write(
+      `${JSON.stringify({ ...verdict, source: read && !args.boolean('refresh') ? 'projection' : 'computed', published, shownToWindows: shown }, null, 2)}\n`,
+    )
+    return verdict.metrics.ambiguous > 0 ? 1 : 0
+  }
+
+  process.stdout.write(`hub ruling    : ${verdict.id}  (${verdict.authority})\n`)
+  process.stdout.write(`recomputed at : ${verdict.generatedAt}\n`)
+  process.stdout.write(
+    `published     : ${
+      published
+        ? published.published
+          ? `yes (${published.reason})`
+          : `no (${published.reason})`
+        : 'read from the projection'
+    }\n`,
+  )
+  process.stdout.write(`shown to      : ${shown} window(s)\n`)
+  process.stdout.write(
+    `metrics       : ${verdict.metrics.rulings} contention(s), ${verdict.metrics.ambiguous} undecided, ` +
+      `${verdict.metrics.owned} with a recommended owner\n`,
+  )
+  process.stdout.write(
+    `              : longest-standing owner recommendation ${verdict.metrics.longestOwnershipMinutes}m; ` +
+      `${verdict.metrics.waitingTasks} task(s) waiting\n`,
+  )
+  process.stdout.write(
+    `              : effective parallelism P ${verdict.metrics.parallelismMean.toFixed(2)} ` +
+      `(reported with the rulings: a quiet workspace bought by throttling is not coordination)\n`,
+  )
+  process.stdout.write(
+    `              : lag ${verdict.metrics.inputLagMinutes}m behind the newest ledger fact; ` +
+      `${verdict.metrics.published} ruling(s) published\n`,
+  )
+  process.stdout.write(`\n${verdict.advisory}\n`)
+
+  if (args.boolean('seen')) {
+    process.stdout.write(
+      `\n${shown} window(s) have been shown this ruling. The line above is the same text the\n` +
+        'tool-call hook injects, which is why it is printed and not re-worded here.\n',
+    )
+  }
+  if (!read) {
+    process.stdout.write(
+      '\nNothing had been published for this workspace, so the ruling above was computed for this\n' +
+        'one answer and not written. Start `agentgit up` to have it published and pushed to the\n' +
+        'windows, or pass --refresh to publish it once from here.\n',
+    )
+  }
+
+  // Exit 1 when something needs a decision, so this composes in a script without parsing English.
+  return verdict.metrics.ambiguous > 0 ? 1 : 0
+}
+
+/**
+ * `agentgit desktop` — the coordination task's bookkeeping, and the way back from a refusal.
+ *
+ * Read-only by default, and the read is the useful half: it answers "has this workspace been
+ * offered a task, and is the heartbeat still reporting?" - which is the question that separates a
+ * quiet task from a dead one, and the one the injected advice cannot answer because it only ever
+ * appears when there is something to say.
+ *
+ * `--reset` exists because the offer is remembered whether it was accepted, refused, or ignored,
+ * and a refusal is permanent by design. Someone who said no to get an interruption out of the way,
+ * and then wanted the task after all, would otherwise have no way back short of editing state by
+ * hand. It clears only this one record; nothing in the ledger moves.
+ */
+function cmdDesktop(args: ParsedArgs): number {
+  const json = args.boolean('json')
+
+  /*
+   * The machine-level record is answered before the workspace is touched, and that order is the
+   * point: a repository that has not opted in has no `.agentgit`, and recording a refusal must not
+   * create one. `--clear-init` is the way back for someone who declined by accident.
+   */
+  if (args.boolean('decline-init') || args.boolean('clear-init')) {
+    const root = rootWithoutClaiming(args)
+    const file = initOffersPath()
+    if (args.boolean('clear-init')) {
+      const removed = clearInitOffer(root)
+      if (json) {
+        process.stdout.write(`${JSON.stringify({ workspace: root, cleared: removed, file }, null, 2)}\n`)
+        return 0
+      }
+      process.stdout.write(
+        removed
+          ? `cleared the record for ${root} in ${file}\nThe next session start may offer to enable it here again.\n`
+          : `nothing to clear for ${root} in ${file}.\n`,
+      )
+      return 0
+    }
+    const offeredAt = initOfferFor(root)?.offeredAt ?? null
+    writeInitOffer(root, { declinedAt: new Date().toISOString() })
+    if (json) {
+      process.stdout.write(`${JSON.stringify({ workspace: root, declined: true, offeredAt, file }, null, 2)}\n`)
+      return 0
+    }
+    process.stdout.write(`AgenticGit will not be enabled in ${root}.\n`)
+    process.stdout.write(`  recorded : ${file}\n`)
+    process.stdout.write('  note     : nothing was created in the repository itself.\n')
+    process.stdout.write('To change that: agentgit desktop --clear-init\n')
+    return 0
+  }
+
+  const paths = workspaceOf(args)
+  const title = desktopTaskTitle(paths.root)
+
+  if (args.boolean('reset')) {
+    const removed = resetDesktopState(paths)
+    if (json) {
+      process.stdout.write(
+        `${JSON.stringify({ workspace: paths.root, reset: removed, state: readDesktopState(paths) }, null, 2)}\n`,
+      )
+      return 0
+    }
+    process.stdout.write(
+      removed
+        ? `cleared ${desktopStatePath(paths)}\n` +
+            'The next session start will offer this workspace a coordination task again.\n'
+        : `nothing to clear: ${desktopStatePath(paths)} does not exist.\n`,
+    )
+    return 0
+  }
+
+  /*
+   * The two records `/agentgit` writes, exposed here as well so a user who did not go through the
+   * injected block can still see and set them. Both are additive and idempotent: pinning a
+   * conversation twice records one instant, and enabling an enabled workspace keeps the first.
+   */
+  const pin = args.value('pin')
+  const enable = args.boolean('enable')
+  if (pin !== null && pin !== '') recordPinnedThread(paths, pin)
+  if (enable) markEnabled(paths)
+
+  const state = readDesktopState(paths)
+  if (json) {
+    process.stdout.write(
+      `${JSON.stringify({ workspace: paths.root, title, state, path: desktopStatePath(paths) }, null, 2)}\n`,
+    )
+    return 0
+  }
+
+  process.stdout.write(`coordination task for "${title}"\n`)
+  process.stdout.write(`  workspace : ${paths.root}\n`)
+  process.stdout.write(`  state     : ${desktopStatePath(paths)}\n`)
+  if (!state) {
+    process.stdout.write('\nNo record yet, so a session start will offer this workspace one task.\n')
+    process.stdout.write('The offer is a question, never an action: a task is only created if you agree.\n')
+    return 0
+  }
+
+  process.stdout.write(`  task      : ${state.threadId ?? '(none)'}\n`)
+  process.stdout.write(`  watcher   : ${state.automationId ?? '(none)'}\n`)
+  process.stdout.write(
+    `  asked     : ${state.offeredAt ?? '(never)'}${state.declinedAt ? `, declined ${state.declinedAt}` : ''}\n`,
+  )
+  process.stdout.write(
+    `  last      : ${state.lastRulingId ?? '(no ruling reported yet)'}` +
+      `${state.lastReportedAt ? `, looked at ${state.lastReportedAt}` : ''}\n`,
+  )
+  const pinned = Object.keys(state.pinnedThreads)
+  process.stdout.write(`  pinned    : ${pinned.length > 0 ? pinned.join(', ') : '(no conversation pinned yet)'}\n`)
+  process.stdout.write(`  enabled   : ${state.enabledAt ?? '(not enabled through /agentgit yet)'}\n`)
+
+  if (state.threadId) {
+    process.stdout.write('\nA task is recorded for this workspace, so no further offer will be made.\n')
+    if (!state.automationId) {
+      process.stdout.write('No watcher is recorded, so nothing will re-report on its own until one is attached.\n')
+    }
+  } else if (state.declinedAt) {
+    process.stdout.write('\nThis workspace was offered a task and it was refused, so it will not be offered again.\n')
+    process.stdout.write('To change that: agentgit desktop --reset\n')
+    return 1
+  } else {
+    const offeredAt = state.offeredAt ? Date.parse(state.offeredAt) : Number.NaN
+    const remaining = Number.isFinite(offeredAt) ? offeredAt + DESKTOP_OFFER_COOLDOWN_MS - Date.now() : 0
+    process.stdout.write(
+      remaining > 0
+        ? `\nAn offer has been made and not answered, so it is not repeated for another ${Math.ceil(remaining / 60_000)} minute(s).\n`
+        : '\nAn offer is due at the next session start.\n',
+    )
+  }
+  return 0
+}
+
+function cmdReconcile(args: ParsedArgs): number {
+  const paths = workspaceOf(args)
+  const registry = loadContracts(paths)
+  const stale = staleAssumptions(loadAssumptions(paths), registry)
+
+  // Task branches come from Git rather than from the ledger: a branch that exists is
+  // work that exists, whether or not anything recorded it.
+  const view = buildBoardView(paths)
+  const order = integrationOrderFor(paths, view)
+  // The branch list is derived from the order rather than gathered a second time, so the ghost
+  // merge can only ever be previewed over branches the order actually names.
+  const branches = order.map((item) => ({ taskId: item.taskId, branch: item.branch }))
   const merge: { a: string; b: string; clean: boolean; message: string }[] = []
   for (let i = 0; i < branches.length; i += 1) {
     for (let j = i + 1; j < branches.length; j += 1) {
@@ -741,8 +1060,41 @@ async function cmdUp(args: ParsedArgs): Promise<number> {
 
   const daemon = await import('@agentgit/daemon')
 
+  /*
+   * Reuse a daemon that is already watching one of these roots.
+   *
+   * `spine.mjs` starts one automatically at session start, so by the time a user types `agentgit
+   * up` there is very often one already there. Two daemons on one workspace would each publish
+   * their own ruling, and "one ruling per contention" only holds while exactly one thing is
+   * publishing - so a covered root is reported and left alone, and only the rest go to a new board.
+   */
+  const covered: { root: string; url: string; pid: number }[] = []
+  const uncovered: string[] = []
+  for (const root of roots) {
+    const record = daemon.readEndpoint(daemon.endpointPathFor(root))
+    if (record && daemon.isProcessAlive(record.pid)) {
+      covered.push({ root, url: record.url, pid: record.pid })
+    } else {
+      uncovered.push(root)
+    }
+  }
+
+  for (const entry of covered) {
+    process.stdout.write(`already watching  ${entry.root}\n`)
+    process.stdout.write(`  board         : ${entry.url} (pid ${entry.pid})\n`)
+  }
+
+  if (uncovered.length === 0) {
+    process.stdout.write(
+      '\nA daemon that started with a session is already watching every workspace asked for, so\n' +
+        'this command started nothing. Stop that process, or delete\n' +
+        '.agentgit/state/daemon.json, to have `agentgit up` start its own.\n',
+    )
+    return 0
+  }
+
   if (args.boolean('adopt')) {
-    for (const root of roots) {
+    for (const root of uncovered) {
       const paths = ensureWorkspace(root)
       const result = adoptWorkspace(paths)
       process.stdout.write(
@@ -753,10 +1105,13 @@ async function cmdUp(args: ParsedArgs): Promise<number> {
   }
 
   return daemon.serve({
-    roots,
+    roots: uncovered,
     port,
     open: args.boolean('open'),
     watch: !args.boolean('no-watch'),
+    // Advertise for exactly the roots this daemon watches, so the next session in any of them
+    // reuses it instead of starting a second publisher of its own.
+    endpointFiles: uncovered.map((root) => daemon.endpointPathFor(root)),
   })
 }
 
@@ -790,6 +1145,7 @@ function cmdInstall(args: ParsedArgs): number {
   process.stdout.write(`  link        : ${report.link.kind} - ${report.link.detail}\n`)
   process.stdout.write(`  hooks       : ${report.files.hooks}\n`)
   process.stdout.write(`  mcp         : ${report.files.mcp}\n`)
+  process.stdout.write(`  spine       : ${report.files.spine}\n`)
   process.stdout.write(`  marketplace : ${report.marketplace.file}${report.marketplace.created ? ' (created)' : ''}\n`)
   process.stdout.write(`  version     : ${report.version.from} -> ${report.version.to}\n`)
   process.stdout.write(`                (the cachebuster; without a change here Codex keeps the cached copy)\n`)
@@ -805,7 +1161,9 @@ function cmdInstall(args: ParsedArgs): number {
     process.stdout.write('  1. Register the plugin in its marketplace:\n')
     process.stdout.write(`       ${report.installCommand}\n`)
     process.stdout.write('\n  Then start a NEW Codex session. Hooks are read when a session starts, so a\n')
-    process.stdout.write('  session that is already open will record nothing.\n')
+    process.stdout.write('  session that is already open will record nothing. If Codex asks you to review\n')
+    process.stdout.write('  and trust the hook handlers, accept: an untrusted handler never runs, and the\n')
+    process.stdout.write('  spine handler is what starts the daemon the hub publishes from.\n')
   } else {
     process.stdout.write('\nTwo steps are left, and both are yours because both change your configuration:\n\n')
     process.stdout.write('  1. Register the plugin in its marketplace:\n')
@@ -815,7 +1173,9 @@ function cmdInstall(args: ParsedArgs): number {
     process.stdout.write('\n  Or let this command do step 2 for you:\n')
     process.stdout.write('       agentgit install --enable\n')
     process.stdout.write('\n  Then start a NEW Codex session. Hooks are read when a session starts, so a\n')
-    process.stdout.write('  session that is already open will record nothing.\n')
+    process.stdout.write('  session that is already open will record nothing. If Codex asks you to review\n')
+    process.stdout.write('  and trust the hook handlers, accept: an untrusted handler never runs, and the\n')
+    process.stdout.write('  spine handler is what starts the daemon the hub publishes from.\n')
   }
 
   if (report.warnings.length > 0) {

@@ -465,6 +465,8 @@ function main() {
   } else if (payload.eventName === 'Stop') {
     entry = { ...base, kind: 'turn_ended', taskId: null, detail: { ...common } }
   } else if (payload.eventName === 'UserPromptSubmit') {
+    // A check request is coordination traffic, not a new statement of the participant's task.
+    if (/^AgenticGit (?:协调检查 check-[0-9a-f]+|自动协调唤醒 [0-9a-f]+)/u.test((payload.prompt ?? '').trimStart())) return
     entry = {
       ...base,
       kind: 'task_registered',

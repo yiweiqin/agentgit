@@ -47,6 +47,26 @@ function counts(n: number, noun: string): string {
   return `${n} ${n === 1 ? noun : plural(noun)}`
 }
 
+/**
+ * Verdict counts, most severe first, so a cost is read before a pass.
+ *
+ * The order is the same one `VERDICT_SEVERITY` uses, kept as a local list because this is a
+ * rendering concern: the words are spelled out for a person, while the core ranks them for an
+ * algorithm. Unknown keys go last rather than being dropped, so a verdict added later shows
+ * up instead of silently vanishing from the total.
+ */
+function formatVerdicts(verdicts: Readonly<Record<string, number>>): string {
+  const severity = ['review', 'wait', 'refresh', 'replan', 'reuse', 'allow']
+  const known = severity
+    .filter((word) => verdicts[word] !== undefined)
+    .map((word) => `${word} ${verdicts[word]}`)
+  const rest = Object.keys(verdicts)
+    .filter((word) => !severity.includes(word))
+    .sort()
+    .map((word) => `${word} ${verdicts[word]}`)
+  return [...known, ...rest].join(', ')
+}
+
 /** `agentgit status` - the answer to "what is going on here". */
 export function renderStatus(view: BoardView, config: WorkspaceConfig): string {
   const lines: string[] = []
@@ -63,6 +83,26 @@ export function renderStatus(view: BoardView, config: WorkspaceConfig): string {
   lines.push(`live leases      : ${counts(view.leases.length, 'lease')}`)
   lines.push(`contracts        : ${counts(view.contracts.length, 'interface')}`)
   lines.push(`stale assumptions: ${counts(view.debt.breakdown.staleAssumptions, 'assumption')}`)
+  /*
+   * Effective parallelism is printed beside the debt, not in a separate report.
+   *
+   * It is the denominator every other number here is judged against: a tool that lowers
+   * collisions by lowering this has throttled rather than coordinated. A reader who has to go
+   * somewhere else to find it will read the collisions on their own, which is the misreading
+   * this line exists to prevent.
+   */
+  const parallelism = view.report.parallelism
+  lines.push(
+    `effective P      : ${parallelism.mean.toFixed(2)} mean${parallelism.peak > 0 ? `, ${parallelism.peak} peak` : ''}` +
+      `${
+        parallelism.observedHours > 0
+          ? `, ${Math.round(parallelism.parallelFraction * 100)}% of the window with 2+ in flight`
+          : '  (window too short to judge)'
+      }`,
+  )
+  if (Object.keys(view.report.verdicts).length > 0) {
+    lines.push(`verdicts         : ${formatVerdicts(view.report.verdicts)}`)
+  }
 
   if (open.length > 0) {
     lines.push(heading('In flight'))
@@ -265,6 +305,14 @@ export function renderDoctor(checks: readonly DoctorCheck[], version: string): s
   }
   lines.push('')
   lines.push(bad.length === 0 ? 'Everything the plugin needs is in place.' : `${counts(bad.length, 'check')} failed.`)
+  if (bad.length === 0) {
+    // The one remaining reason a healthy install can still be silent: a handler Codex has not been
+    // asked to trust never runs, and a hook is only read when a session starts. Both failures look
+    // exactly like a workspace with nothing to coordinate, so the hint belongs here - in the output
+    // of the command someone runs because nothing happened.
+    lines.push('Codex has to be asked to trust each hook handler before any of them runs, and hooks')
+    lines.push('are read when a session starts. Accept that prompt, then open a new session.')
+  }
   return `${lines.join('\n')}\n`
 }
 

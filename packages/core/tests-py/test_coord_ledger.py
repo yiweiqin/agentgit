@@ -1,17 +1,17 @@
 """Regression tests for the coordinator ledger instrument.
 
-These tests protect the properties the framework's measurements depend on:
+These tests protect the properties the product's measurements depend on:
 
 * the ledger must reject events it cannot attribute (a change with no session is not
   usable as evidence and must not be silently recorded);
 * B(t) must be reconstructed exactly, because it is the quantity Git history cannot
-  supply and therefore carries the paper's central empirical claim;
+  supply and therefore the one the backlog report stands on;
 * symbol-level and path-level contention must stay distinguishable, so that repeated
   touching of one target is not conflated with unrelated edits in one file;
 * the recorder must not lose the distinction between a change made before and after a
-  session lost its context, since that distinction is the H3 (quality vs quantity) probe.
+  session lost its context, since that is the quality-vs-quantity probe.
 
-Run:  python -m unittest discover -s tests -v   (from `04_协调插件`)
+Run:  python -m unittest discover -s tests -v   (from `packages/core`)
 """
 
 from __future__ import annotations
