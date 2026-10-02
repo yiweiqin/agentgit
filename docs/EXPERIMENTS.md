@@ -193,6 +193,55 @@ and 4 exist to measure and this paragraph may not claim.
 - Low `recallWithinCeiling` → the detector is broken (it did not see what it could have).
 - Low precision → it is manufacturing noise (it said things it should not have).
 
+### The module layer, and why this pool has no room to measure it
+
+The detector above reads entities. A second, mechanical layer was added that reads the
+**import graph the code already contains** — nobody has to declare it. Its value is a specific
+case the entity layer structurally cannot see: a consumer that shares **no entity** with the
+change and describes its work in **entirely different words**, but whose module imports the
+changed one. That is a cross-module relationship, and it is the one that merges cleanly and
+then fails at run time.
+
+**This pool cannot measure it, and that is the finding.** The pool is built from pairs that
+wrote the *same file* close in time (§3). By construction every collision in it is already
+entity-visible — so a router can only *narrow*, never *add* recall. Measured on this machine:
+
+| | measured |
+|---|---|
+| candidate pairs the scan found | 24 |
+| in a real git repository and source code | 4 |
+| pairs the patch bodies can label | 20 |
+| collisions labelled by the patch bytes | 0 |
+| collisions labelled by the instruction | 1 |
+| independent controls | 19 |
+| recall | 1.000 (1/1) |
+| `entityVisibleCeiling` | 1.000 |
+| `falseRejectionRate` | 0.000 |
+| `controlFlagRate` | 1.000 |
+
+**Read the two 1.000s together.** Recall is already 1.000 *and* the ceiling is 1.000, which
+means there is no headroom: the one labelled collision is entity-visible and caught. A module
+route cannot improve a figure that has reached its own ceiling, and with a single labelled
+collision the ratio is a count in disguise. So **no module-routing recall number is reported
+here** — reporting one would be measuring the wrong layer, and §8's floor permits a count or
+nothing, not a ratio over one case.
+
+What the module layer *can* be held to is determinism, and that is covered by in-tree tests
+rather than by this pool:
+
+- routing preserves recall (a consumer recalled by the edge alone, with no shared entity and no
+  shared words) while comparing strictly fewer sessions — the count, not the rate;
+- `moduleRouting: off` is the control arm, and it restores the pairwise baseline exactly;
+- a candidate the router cannot place is never dropped, so an unresolvable import degrades to
+  the baseline instead of losing a warning;
+- a co-change edge alone never escalates and never widens the route;
+- the mechanical verdict never refuses a write: a module edge produces unconfirmed evidence, so
+  the strongest delivery it can reach is a deferred advisory.
+
+A pool that could measure it would need **cross-module** pairs — one session changing an
+interface in one module while another writes in a module that imports it, sharing no entity and
+no wording. This pool has **zero** such pairs. That gap is stated rather than filled.
+
 ---
 
 ## 4. Experiment 2 · Intervention Impact (does listening help)
@@ -427,6 +476,12 @@ Printed in every report:
    reported with the independent work stopped along the way.**
 6. **Every number must be traceable to a specific case.** A claim that cannot be pointed back
    at the original record is not a claim, it is an impression.
+7. **The module routing layer's recall benefit is unmeasured on the available pool, and no
+   number is reported for it.** Every collision in the pool is entity-visible
+   (`entityVisibleCeiling` 1.000), so there is no headroom for a router to add recall, and the
+   pool contains zero cross-module pairs. Until a pool with cross-module pairs exists, the
+   module layer is claimed for **determinism only** — recall preserved, comparisons reduced,
+   zero false rejections — and never for an accuracy improvement.
 
 ---
 
@@ -438,6 +493,7 @@ npm run test:py                 # the Python ledger analyser, against the same f
 npm run typecheck
 node scripts/strip-bom.mjs --check
 node examples/real/cases.mjs    # the pool numbers of experiments 1 / 3 / 4
+node examples/real/measure.mjs  # the scored fidelity and alert-economy numbers of §3 and §5
 node examples/real/run.mjs      # the before/after report of §7
 node examples/ab/run.mjs        # the paired A/B of experiment 2
 ```

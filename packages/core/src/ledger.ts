@@ -11,6 +11,7 @@
  */
 
 import { createHash } from 'node:crypto'
+import { moduleIdOf, type ModuleRule } from './modules.ts'
 import {
   ALL_EVENT_KINDS,
   DECAYED_STATES,
@@ -425,6 +426,61 @@ export function buildContention(capsules: Map<string, Capsule>): ContentionRecor
       b.touches - a.touches ||
       compareCodepoint(a.entityKey, b.entityKey),
     )
+}
+
+/** Contention in one module: a read-only roll-up, never a decision. See {@link moduleContention}. */
+export interface ModuleContention {
+  readonly module: string
+  readonly rule: ModuleRule
+  readonly entities: number
+  readonly tasks: readonly string[]
+  readonly sessions: readonly string[]
+  readonly touches: number
+}
+
+/**
+ * Contention grouped by the module each contested entity lives in.
+ *
+ * This is a *reporting* view and nothing in the decision path may consume it. Two tasks in one
+ * module is not a conflict: a module is a coarse place, and unrelated work shares one all the
+ * time. The rule that sharing a module is never on its own evidence lives in exactly one place,
+ * `modules.ts`'s `isStructuralModuleCoupling`, and this function deliberately does not restate
+ * it — it counts, and leaves the judgement to the caller that also has the import graph.
+ *
+ * An entity with no path — a bare symbol — is placed by its identifier, so a symbol named after
+ * its file still lands in the right module rather than vanishing from the roll-up.
+ */
+export function moduleContention(records: readonly ContentionRecord[]): ModuleContention[] {
+  const groups = new Map<string, {
+    module: string
+    rule: ModuleRule
+    entities: Set<string>
+    tasks: Set<string>
+    sessions: Set<string>
+    touches: number
+  }>()
+  for (const record of records) {
+    const boundary = moduleIdOf(record.path || record.identifier)
+    let entry = groups.get(boundary.id)
+    if (!entry) {
+      entry = { module: boundary.id, rule: boundary.rule, entities: new Set(), tasks: new Set(), sessions: new Set(), touches: 0 }
+      groups.set(boundary.id, entry)
+    }
+    entry.entities.add(record.entityKey)
+    for (const task of record.tasks) entry.tasks.add(task)
+    for (const session of record.sessions) entry.sessions.add(session)
+    entry.touches += record.touches
+  }
+  return [...groups.values()]
+    .map((entry) => ({
+      module: entry.module,
+      rule: entry.rule,
+      entities: entry.entities.size,
+      tasks: [...entry.tasks].sort(compareCodepoint),
+      sessions: [...entry.sessions].sort(compareCodepoint),
+      touches: entry.touches,
+    }))
+    .sort((a, b) => b.tasks.length - a.tasks.length || b.entities - a.entities || compareCodepoint(a.module, b.module))
 }
 
 /** Reconstruct B(t) by replaying open/close transitions in time order. */

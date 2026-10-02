@@ -8,9 +8,9 @@
 
 import { test, describe, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import {
   acquireLease,
@@ -30,7 +30,7 @@ import {
   staleAssumptions,
 } from '../src/index.ts'
 import { buildEvent, entityKey } from '../src/ledger.ts'
-import { appendEvent, ensureWorkspace, workspacePaths } from '../src/workspace.ts'
+import { appendEvent, ensureWorkspace, updateConfig, workspacePaths } from '../src/workspace.ts'
 import { buildBrief, kindOfVerdict, preflight, preflightAndClaim, summariseTask, symbolKeyOf } from '../src/preflight.ts'
 
 let root: string
@@ -768,5 +768,101 @@ describe('quoting', () => {
     assert.equal(kindOfVerdict('review'), 'blocking')
     assert.equal(kindOfVerdict('allow'), 'clear')
     assert.equal(kindOfVerdict('reuse'), 'advisory')
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/* The module criterion                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The mechanical criterion, on the write path.
+ *
+ * These cases are the ones the entity ledger cannot answer: the other task works in a module
+ * wired to ours but names none of the same entities and shares none of our words. Only the
+ * import graph sees it, and these tests pin both the escalation and the guards that keep it
+ * from firing on ground the ledger already cleared.
+ */
+describe('module impact', () => {
+  function writeFile(rel: string, contents: string): void {
+    const file = join(root, rel)
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, contents, 'utf8')
+  }
+
+  /** `packages/cli` imports `packages/core`, resolved through the package manifest. */
+  function wiredWorkspace(): void {
+    writeFile('packages/core/package.json', JSON.stringify({ name: '@agentgit/core' }))
+    writeFile('packages/core/src/entity.ts', 'export const x = 1\n')
+    writeFile('packages/cli/package.json', JSON.stringify({ name: '@agentgit/cli' }))
+    writeFile('packages/cli/src/main.ts', "import { x } from '@agentgit/core'\n")
+  }
+
+  const mine = {
+    taskId: 'T2',
+    sessionId: 's2',
+    entityKey: symbolKeyOf('entity.x'),
+    entityPath: 'packages/core/src/entity.ts',
+    symbol: 'entity.x',
+    intentText: 'change the identity helper',
+  }
+
+  test('a consumer module in flight escalates an otherwise-allow to review', () => {
+    wiredWorkspace()
+    // Different file, different words: the entity view has nothing, so only the edge can see it.
+    write('s1', 'T1', 'packages/cli/src/main.ts', 'render the settings screen', RECENT)
+
+    const result = preflight(paths(), mine)
+    assert.equal(result.verdict, 'review')
+    // The reason names the edge, the other task and the direction, so the escalation is checkable.
+    assert.match(result.reason, /packages\/cli is imported by packages\/core|packages\/core is imported by packages\/cli/)
+    assert.match(result.reason, /task T1/)
+  })
+
+  test('a module we import escalates to wait, because we are the ones coding against it', () => {
+    writeFile('packages/shared/package.json', JSON.stringify({ name: '@agentgit/shared' }))
+    writeFile('packages/shared/src/util.ts', 'export const util = 1\n')
+    writeFile('packages/core/package.json', JSON.stringify({ name: '@agentgit/core' }))
+    writeFile('packages/core/src/entity.ts', "import { util } from '@agentgit/shared'\nexport const x = util\n")
+    write('s1', 'T1', 'packages/shared/src/util.ts', 'add a util', RECENT)
+
+    const result = preflight(paths(), mine)
+    assert.equal(result.verdict, 'wait')
+    assert.match(result.reason, /task T1/)
+  })
+
+  test('an edge alone, with no interface evidence, stays allow', () => {
+    wiredWorkspace()
+    write('s1', 'T1', 'packages/cli/src/main.ts', 'render the settings screen', RECENT)
+
+    // The wired consumer is in flight, but this edit carries no interface evidence: no symbol,
+    // no named contract, no contract-bearing file. A module edge on its own is not a verdict.
+    const plain = preflight(paths(), {
+      taskId: 'T2',
+      sessionId: 's2',
+      entityKey: 'file::packages/core/src/entity.ts',
+      entityPath: 'packages/core/src/entity.ts',
+      intentText: 'tidy a comment',
+    })
+    assert.equal(plain.verdict, 'allow')
+  })
+
+  test('interface evidence without an edge to the in-flight module stays allow', () => {
+    wiredWorkspace()
+    // The in-flight task is in `packages/mcp`, which nothing imports and which imports nothing
+    // here, so there is no edge to carry the impact however interface-level this change is.
+    write('s3', 'T3', 'packages/mcp/src/tool.ts', 'add a tool', RECENT)
+
+    const result = preflight(paths(), mine)
+    assert.equal(result.verdict, 'allow')
+  })
+
+  test('turning routing off turns the criterion off, which is the ablation', () => {
+    wiredWorkspace()
+    updateConfig(paths(), { moduleRouting: 'off' })
+    write('s1', 'T1', 'packages/cli/src/main.ts', 'render the settings screen', RECENT)
+
+    const result = preflight(paths(), mine)
+    assert.equal(result.verdict, 'allow')
   })
 })

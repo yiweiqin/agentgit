@@ -15,8 +15,11 @@ import {
   compareCodepoint,
   currentVersion,
   kindOfVerdict,
+  moduleDetail,
   type BoardView,
   type CoordEvent,
+  type ModuleGraph,
+  type ModuleNode,
   type PreflightResult,
   type StaleAssumption,
   type TunableView,
@@ -456,4 +459,74 @@ export function renderArms(arms: readonly { name: string; effect: string; curren
   lines.push('One line per arm, because a number is only interpretable if you know which arm produced it.')
   lines.push('Switch with:  agentgit config arm <name>')
   return `${lines.join('\n')}\n`
+}
+
+/**
+ * `agentgit modules` — the coupling graph the code declares, and where a change can reach.
+ *
+ * The report states what the scan did *not* cover, rather than implying completeness. A graph
+ * that silently described a prefix of the workspace would make "no coupling" mean "not looked
+ * at", and that is the one reading a coupling report must never produce.
+ */
+export function renderModules(graph: ModuleGraph, core: readonly ModuleNode[]): string {
+  const lines: string[] = []
+  const importEdges = graph.edges.filter((edge) => edge.kind === 'import').length
+  const coChangeEdges = graph.edges.length - importEdges
+  // Sorted for reading, not for hashing: `graph.modules` stays id-ordered so the cache is stable,
+  // and the ranking a person wants to see is computed here.
+  const ordered = [...graph.modules].sort(
+    (a, b) => b.hubScore - a.hubScore || b.fileCount - a.fileCount || (a.id < b.id ? -1 : 1),
+  )
+  const width = Math.max(12, ...ordered.map((module) => module.id.length))
+  lines.push(`modules (${graph.modules.length}), coupling: ${importEdges} import edge(s), ${coChangeEdges} co-change`)
+  lines.push(`  root        : ${graph.root}`)
+  lines.push(`  fingerprint : ${graph.fingerprint}${graph.truncated ? '  (the scan hit its file cap)' : ''}`)
+  lines.push('')
+  lines.push(`  ${'module'.padEnd(width)}  files    in   out   hub`)
+  for (const module of ordered) {
+    lines.push(
+      `  ${module.id.padEnd(width)}  ${String(module.fileCount).padStart(5)}  ` +
+        `${String(module.fanIn).padStart(4)}  ${String(module.fanOut).padStart(4)}  ${String(module.hubScore).padStart(4)}`,
+    )
+  }
+  lines.push('')
+  lines.push('core modules, highest coupling first (imports only; co-change is never counted here)')
+  if (core.length === 0) {
+    lines.push('  none: no module imports another, so there is nothing to route a change through')
+  } else {
+    for (const module of core) {
+      lines.push(`  ${module.id}  —  ${counts(module.fanIn, 'module')} import it; it imports ${module.fanOut}`)
+    }
+  }
+  lines.push('')
+  lines.push(`unresolved ${graph.unresolved} specifier(s): external packages, path aliases, or files outside the scan`)
+  if (graph.unparsed > 0) lines.push(`skipped ${counts(graph.unparsed, 'file')} over the size cap; counted, not parsed`)
+  lines.push('')
+  lines.push('A shared module is not a shared task: coupling is only evidence when a real import')
+  lines.push('points one way and a contract or an interface actually moves. Look at one module with')
+  lines.push('  agentgit modules <module>')
+  return `${lines.join('\n')}\n`
+}
+
+/** One module's dependencies, dependents and reach. `null` when the id is unknown. */
+export function renderModuleDetail(graph: ModuleGraph, id: string): string | null {
+  const detail = moduleDetail(graph, id)
+  if (!detail) return null
+  const lines: string[] = [
+    `module ${id}`,
+    `  files         : ${detail.module?.fileCount ?? 0}`,
+    `  depends on    : ${listOrNone(detail.dependsOn)}`,
+    `  depended on by: ${listOrNone(detail.dependedOnBy)}`,
+    `  reaches       : ${listOrNone(detail.reaches)}`,
+    `  changed with  : ${listOrNone(detail.coChangedWith)}`,
+    '',
+    'A change here can reach every module above; that is the set a routed search visits, and an',
+    'import edge in either direction is what puts a module in it. "Changed with" is git history',
+    'and is never counted as coupling — two modules edited in one commit prove nothing on their own.',
+  ]
+  return `${lines.join('\n')}\n`
+}
+
+function listOrNone(values: readonly string[]): string {
+  return values.length === 0 ? '(none)' : values.join(', ')
 }

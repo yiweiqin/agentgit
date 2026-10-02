@@ -86,6 +86,7 @@ import { APP_RESOURCE_URI } from '@agentgit/app'
 import { ToolError } from './protocol.ts'
 import type { Identity } from './context.ts'
 import { IMPACT_TOOLS } from './impact.ts'
+import { MODULE_TOOLS } from './modules.ts'
 
 export interface ToolAnnotations {
   readonly readOnlyHint: boolean
@@ -1657,6 +1658,7 @@ const explainTool: ToolDefinition = {
  */
 export const TOOLS: readonly ToolDefinition[] = [
   ...IMPACT_TOOLS,
+  ...MODULE_TOOLS,
   whoami,
   status,
   desktop,

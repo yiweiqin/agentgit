@@ -17,7 +17,16 @@
  * @module @agentgit/core/tunables
  */
 
-import { ARM_EFFECTS, PRODUCT_ARMS, resolveProductArm, type WorkspaceConfig } from './workspace.ts'
+import { MODULE_ROUTINGS } from './modules.ts'
+import {
+  ARM_EFFECTS,
+  MAX_MODULE_HOPS,
+  MIN_MODULE_HOPS,
+  PRODUCT_ARMS,
+  resolveModuleHops,
+  resolveProductArm,
+  type WorkspaceConfig,
+} from './workspace.ts'
 
 export interface TunableRange {
   readonly min: number
@@ -27,12 +36,14 @@ export interface TunableRange {
 export interface Tunable {
   /** The key as written in `.agentgit/config.json` and on the command line. */
   readonly key: keyof WorkspaceConfig
-  readonly type: 'number' | 'arm' | 'list'
+  readonly type: 'number' | 'arm' | 'list' | 'choice'
   readonly effect: string
   /** What goes wrong when this is set too high, too low, or to the wrong thing. */
   readonly caution: string
   /** Present for numbers. Enforced on set, so a bad value is refused rather than clamped. */
   readonly range?: TunableRange
+  /** Present for choices. The values this setting accepts, in the order they are offered. */
+  readonly choices?: readonly string[]
 }
 
 /**
@@ -85,6 +96,33 @@ export const TUNABLES: readonly Tunable[] = [
     caution:
       'Too long and a crashed agent keeps the ground reserved, so others get REPLAN on work nobody is doing. Too ' +
       'short and a long edit loses its reservation midway, which is the collision the lease exists to prevent.',
+  },
+  {
+    key: 'moduleRouting',
+    type: 'choice',
+    choices: MODULE_ROUTINGS,
+    effect:
+      'How far the impact search travels through the module coupling graph the code declares with its imports. ' +
+      'This is what lets a change reach a consumer whose work does not look textually similar, and what narrows ' +
+      'the search from every-session-against-every-change to the modules actually wired to the change.',
+    caution:
+      'This is a recall/precision knob, not a gate: a candidate the router cannot place is never dropped. Set to ' +
+      "'off' it degrades to the pairwise baseline, which recalls everything and narrows nothing. Set too narrow on " +
+      'a repository whose imports do not resolve, it also degrades to the baseline rather than losing work — so a ' +
+      "'narrow' setting that changes nothing usually means the graph is empty, not that the code is uncoupled.",
+  },
+  {
+    key: 'moduleHops',
+    type: 'number',
+    range: { min: MIN_MODULE_HOPS, max: MAX_MODULE_HOPS },
+    effect:
+      'How many import hops `transitive` routing may travel: 1 is the changed module and its direct importers, ' +
+      'higher follows the chain of consumers further. Ignored under `off` and `one-hop`, which are fixed.',
+    caution:
+      'Too high and a connected monorepo is one neighbourhood, so routing recalls everything and narrows nothing ' +
+      'while still looking enabled. Too low and a two-step break — a schema changed, a client regenerated, a ' +
+      'consumer of that client left behind — is out of reach. Compare against `moduleRouting: one-hop` and watch ' +
+      'the comparison count, not just the recalls.',
   },
 ]
 
@@ -151,9 +189,23 @@ export function parseTunable(key: string, raw: string): { key: keyof WorkspaceCo
     return { key: tunable.key, value: resolveProductArm(raw) }
   }
 
+  if (tunable.type === 'choice') {
+    const choices = tunable.choices ?? []
+    if (!choices.includes(raw)) {
+      throw new Error(`${key} must be one of ${choices.join(', ')}, got '${raw}'`)
+    }
+    return { key: tunable.key, value: raw }
+  }
+
   const number = Number(raw)
   if (!Number.isFinite(number)) {
     throw new Error(`${key} takes a number, got '${raw}'`)
+  }
+  if (tunable.key === 'moduleHops') {
+    // Delegated so the CLI refuses exactly what the config read path refuses. An earlier
+    // settings path would otherwise let `config moduleHops=2.5` write a file that `loadConfig`
+    // then rejects, which is the one failure mode that makes a setting untrustworthy.
+    return { key: tunable.key, value: resolveModuleHops(number) }
   }
   if (tunable.key === 'inFlightMinutes' || tunable.key === 'leaseMinutes') {
     if (!Number.isInteger(number) || number < 1) {

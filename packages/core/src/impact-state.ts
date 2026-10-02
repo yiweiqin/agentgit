@@ -5,8 +5,9 @@ import { join } from 'node:path'
 import { contractNames, currentVersion, loadAssumptions, loadContracts, versionHistory } from './contracts.ts'
 import { buildEvent, entityKey, toWire } from './ledger.ts'
 import { seenMarkerName } from './hub.ts'
-import { appendEvent, canonicalEntityPath, invalidateImpactInputs, readAllEvents, type WorkspacePaths } from './workspace.ts'
-import { analyzeImpacts, impactDigest, renderImpactAdvisory, type ImpactAssessment, type ImpactChange, type ImpactOptions, type ImpactSession } from './impact.ts'
+import { moduleGraphFor, type ModuleGraph, type ModuleRouting } from './modules.ts'
+import { appendEvent, canonicalEntityPath, invalidateImpactInputs, loadConfig, readAllEvents, type WorkspacePaths } from './workspace.ts'
+import { analyzeImpacts, impactDigest, notificationTierOf, renderImpactAdvisory, type ImpactAssessment, type ImpactChange, type ImpactOptions, type ImpactSession } from './impact.ts'
 import { parseImpactChange, parseImpactSession, type ImpactIdentity } from './impact-input.ts'
 import type { CoordEvent } from './types.ts'
 
@@ -194,11 +195,36 @@ export function extractImpactState(paths: WorkspacePaths, events: readonly Coord
 function receipt(paths: WorkspacePaths, sessionId: string, id: string): boolean {
   return existsSync(join(paths.state, 'impact-seen', seenMarkerName(sessionId), `${id}.json`))
 }
+/**
+ * The module graph, or null when routing is off or the graph cannot be built.
+ *
+ * Never throws. This runs inside the impact projection the daemon republishes on a timer, and a
+ * repository that cannot be scanned must fall back to the pairwise analysis rather than stop
+ * publishing. A missing graph is a missing optimisation, never a missing warning.
+ */
+function moduleGraphForRouting(paths: WorkspacePaths, routing: ModuleRouting): ModuleGraph | null {
+  if (routing === 'off') return null
+  try {
+    return moduleGraphFor(paths)
+  } catch {
+    return null
+  }
+}
+
 export function computeImpactReport(paths: WorkspacePaths, options: ImpactOptions = {}): ImpactReport {
   const now = options.now ?? new Date()
   const read = readAllEvents(paths)
   const state = extractImpactState(paths, read.events, now)
-  const notifications = analyzeImpacts(state.changes, state.sessions, { ...options, now }).map(assessment => ({ ...assessment,
+  /*
+   * Routing comes from the workspace config unless a caller overrides it, so the ablation is a
+   * setting rather than a code path: the same analysis runs pairwise or routed, and the only
+   * difference is how far recall may travel before the precise predicates are applied.
+   */
+  const config = loadConfig(paths)
+  const moduleRouting = options.moduleRouting ?? config.moduleRouting
+  const moduleHops = options.moduleHops ?? config.moduleHops
+  const moduleGraph = options.moduleGraph !== undefined ? options.moduleGraph : moduleGraphForRouting(paths, moduleRouting)
+  const notifications = analyzeImpacts(state.changes, state.sessions, { ...options, now, moduleGraph, moduleRouting, moduleHops }).map(assessment => ({ ...assessment,
     status: state.acknowledgements.has(JSON.stringify([assessment.targetSessionId, assessment.id])) ? 'acknowledged' as const :
       receipt(paths, assessment.targetSessionId, assessment.id) ? 'delivered' as const : 'pending' as const,
   }))
@@ -238,7 +264,7 @@ export function publishImpactProjection(paths: WorkspacePaths, options: ImpactOp
     atomicJson(join(dir, seenMarkerName(session.sessionId)), {
       version: 1, workspace: paths.root, sessionId: session.sessionId, generatedAt: report.generatedAt, inputStamp: stamp,
       expiresAt: new Date(Date.parse(report.generatedAt) + IMPACT_PROJECTION_TTL_MS).toISOString(),
-      notifications: all.slice(0, 20).map(n => ({ id: n.id, policy: n.policy, text: renderImpactAdvisory(n) })),
+      notifications: all.slice(0, 20).map(n => ({ id: n.id, policy: n.policy, tier: notificationTierOf(n.policy), text: renderImpactAdvisory(n) })),
       remaining: Math.max(0, all.length - 20),
     })
   }

@@ -31,6 +31,7 @@ import {
   clearInitOffer,
   computeHubVerdict,
   contractsTouchingPath,
+  coreModules,
   currentBranch,
   currentVersion,
   defaultBranch,
@@ -60,6 +61,9 @@ import {
   loadLeases,
   machineId,
   mergeTreePreview,
+  moduleDetail,
+  moduleGraphFor,
+  moduleGraphView,
   parseTunable,
   preflight,
   preflightAndClaim,
@@ -101,6 +105,8 @@ import {
   renderContracts,
   renderDoctor,
   renderLeases,
+  renderModuleDetail,
+  renderModules,
   renderPreflight,
   renderReconcile,
   renderStatus,
@@ -144,6 +150,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdWhy(args)
     case 'hub':
       return cmdHub(args)
+    case 'modules':
+      return cmdModules(args)
     case 'impact':
       return cmdImpact(args, workspaceOf(args), identityOf(args, 'impact'))
     case 'desktop':
@@ -419,7 +427,16 @@ function cmdPreflight(args: ParsedArgs): number {
     taskId: identity.taskId,
     sessionId: identity.sessionId,
     entityKey: symbol ? symbolKeyOf(symbol) : keyOf(targets[0]),
-    entityPath: symbol ? undefined : targets[0],
+    /*
+     * The path is the *place*, and it is carried even when the key is a symbol.
+     *
+     * `WriteProposal` keeps the two apart on purpose: a file key says "this ground", a symbol
+     * says "this behaviour". Dropping the path whenever `--symbol` was passed used to leave the
+     * module layer with nothing to place the change in, so a symbol-level preflight could never
+     * see a dependency edge. Passing both is strictly more information, and it is what the
+     * host already knows — it read the path to find the symbol.
+     */
+    entityPath: targets[0],
     symbol: symbol ?? null,
     intentText: args.value('intent') ?? args.value('reason'),
     contracts: args.values('contract').filter((flag) => flag !== 'true'),
@@ -610,6 +627,44 @@ function cmdHub(args: ParsedArgs): number {
 
   // Exit 1 when something needs a decision, so this composes in a script without parsing English.
   return verdict.metrics.ambiguous > 0 ? 1 : 0
+}
+
+/**
+ * `agentgit modules` — the coupling graph the code declares, and where a change can reach.
+ *
+ * Read-only, derived, and rebuildable: it parses imports, groups them into modules, and reports
+ * the result plus what it could not resolve. It never edits a file and never decides anything on
+ * its own — the graph is an input to the impact analysis, which is where a shared module is
+ * still only evidence when a real import points one way.
+ */
+function cmdModules(args: ParsedArgs): number {
+  const paths = workspaceOf(args)
+  const limit = args.number('limit', 5)
+  // Co-change is on by default because it is the only signal for the dependencies that are not
+  // imports; `--no-co-change` turns the git walk off for a repository where it is slow.
+  const graph = moduleGraphFor(paths, { coChange: !args.boolean('no-co-change') })
+
+  const target = args.positionals[0]
+  if (target) {
+    const detail = renderModuleDetail(graph, target)
+    if (detail === null) {
+      process.stderr.write(
+        `agentgit: no module '${target}'. Known modules: ${graph.modules.map((module) => module.id).join(', ')}\n`,
+      )
+      return 2
+    }
+    process.stdout.write(
+      args.boolean('json') ? `${JSON.stringify(moduleDetail(graph, target), null, 2)}\n` : detail,
+    )
+    return 0
+  }
+
+  if (args.boolean('json')) {
+    process.stdout.write(`${JSON.stringify(moduleGraphView(graph, { limit }), null, 2)}\n`)
+    return 0
+  }
+  process.stdout.write(renderModules(graph, coreModules(graph, limit)))
+  return 0
 }
 
 /**

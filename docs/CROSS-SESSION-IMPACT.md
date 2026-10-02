@@ -64,6 +64,50 @@ of the recorded severity.
 Hosts that cannot expose these boundaries can query `agentgit_impacts` or the CLI
 inbox at their own safe point. No model or tool is forcibly interrupted.
 
+The three tiers above have one canonical naming: `interrupt` is `immediate`, `defer` is
+`defer`, and `store-only` is `record`. `notificationTierOf` is the only mapping, so the
+projection and the hook cannot disagree about when a warning arrives.
+
+## Mechanical module coupling
+
+An `import` is a dependency nobody has to declare, which is what lets the analyzer see the
+consumer that never wrote its dependency down. The module layer derives that graph with no
+model call and no hand annotation.
+
+Module boundaries are a pure function of the path, so every surface agrees on them: a
+workspace package directory (`packages/<name>/...`, `apps/`, `plugins/`, ...), else the first
+directory under `src`, else the top-level directory. Edges come in two kinds and are kept
+apart on purpose:
+
+| Edge | Source | Role |
+| --- | --- | --- |
+| `import` | parsed `import` / `require` / `from` statements, resolved against scanned files and workspace package names | the only *structural* coupling; the only kind that routes or scores |
+| `co-change` | modules appearing in one git commit | secondary signal; excluded from degree, from hub score and from routing |
+
+`co-change` is fenced in because two modules a person happened to edit together have no
+declared dependency, and treating that as coupling is how a file-overlap false positive
+returns under a new name. Core modules are ranked by import degree only, and `agentgit
+modules` reports them read-only.
+
+Routing narrows the candidate pool from every-session-against-every-change to the modules
+wired to the change. `moduleRouting` is `off` (the pairwise baseline), `one-hop` (default) or
+`transitive`, with `moduleHops` (default 2) bounding the transitive walk. A candidate the
+router cannot place is never dropped, and one sharing a contract or artifact is never dropped,
+so a repository whose imports do not resolve degrades to the baseline rather than losing
+warnings. Setting `moduleRouting: off` is the ablation.
+
+The resulting `module_coupling` evidence is always unconfirmed, so the strongest tier it can
+reach is `defer`; a mechanical edge alone can never interrupt. On the write path, `preflight`
+consults the same criterion only on the branch that would otherwise answer `allow`, and only
+when the change carries interface evidence (a `symbol::` entity, a named contract, or a
+contract-bearing file). A consumer module in flight escalates to `review`; a module we import
+escalates to `wait`. **Sharing a module is never, on its own, evidence of shared work** — that
+rule has one home, `isStructuralModuleCoupling`, and module overlap without a real import
+produces nothing at all.
+
+Inspect the graph read-only with `agentgit modules [<module>] [--json]`, or the MCP tool
+`agentgit_modules`, which also resolves a path to its module.
+
 ## CLI walkthrough
 
 Run from the workspace root, using the receiving session's actual ID:

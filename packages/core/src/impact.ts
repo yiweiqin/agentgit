@@ -1,10 +1,34 @@
 /** Directional, evidence-based impact inference. Scores are heuristics, not probabilities. */
 import { createHash } from 'node:crypto'
 import { posix } from 'node:path'
+import {
+  directModuleEdge,
+  isStructuralModuleCoupling,
+  moduleIdOf,
+  moduleNeighborhood,
+  type ModuleGraph,
+  type ModuleRouting,
+} from './modules.ts'
 import { intentSimilarity } from './policy.ts'
 
 export type ImpactCategory = 'hard_conflict' | 'breaking_dependency' | 'soft_relevance' | 'background_only'
 export type DeliveryPolicy = 'interrupt' | 'defer' | 'store-only'
+/**
+ * The tier vocabulary a reader and a projection use: when a warning may be injected.
+ *
+ * `immediate` is a boundary before a write, `defer` is the next safe point, and `record` is
+ * never injected — it stays visible only on demand. This is a *derived* name for
+ * {@link DeliveryPolicy}, not a second setting: one mapping, one source of truth, so the two
+ * cannot drift into disagreeing about when a warning arrives.
+ */
+export type NotificationTier = 'immediate' | 'defer' | 'record'
+
+export function notificationTierOf(policy: DeliveryPolicy): NotificationTier {
+  if (policy === 'interrupt') return 'immediate'
+  if (policy === 'defer') return 'defer'
+  return 'record'
+}
+
 export type ImpactPhase = 'planned' | 'working' | 'writing' | 'idle'
 export interface ImpactEntity { key: string; path?: string; access: 'read' | 'write'; parts?: string[] }
 export interface ImpactDependency { entity: string; relation: 'call' | 'import' | 'type' | 'read' | 'consume'; parts?: string[] }
@@ -58,7 +82,7 @@ export interface ImpactChange {
   evidence: string[]
 }
 export interface ImpactEvidence {
-  relation: 'same_entity' | 'caller_callee' | 'shared_contract' | 'same_artifact' | 'upstream_downstream'
+  relation: 'same_entity' | 'caller_callee' | 'shared_contract' | 'same_artifact' | 'upstream_downstream' | 'module_coupling'
   source: string
   target: string
   detail: string
@@ -86,6 +110,22 @@ export interface ImpactOptions {
   now?: Date
   sessionTtlMs?: number
   thresholds?: Partial<Record<ImpactCategory, number>>
+  /**
+   * The code's own dependency graph, derived from real imports by `modules.ts`.
+   *
+   * It is optional, and everything it enables is additive: with no graph the analysis behaves
+   * exactly as it did before, which is what makes the pairwise-vs-routed comparison in the
+   * experiment an honest ablation rather than a rewrite.
+   */
+  moduleGraph?: ModuleGraph | null
+  /** How far recall may travel from a changed file's module. Defaults to `one-hop` with a graph. */
+  moduleRouting?: ModuleRouting
+  /**
+   * Hop bound for `transitive` routing. Ignored under `off` and `one-hop`, which are fixed at
+   * zero and one edge. Left unset the walk is a single edge, so a direct caller cannot
+   * accidentally turn `transitive` into "the whole repository".
+   */
+  moduleHops?: number
 }
 export const IMPACT_SESSION_TTL_MS = 30 * 60_000
 export const IMPACT_THRESHOLDS: Record<ImpactCategory, number> = {
@@ -107,17 +147,182 @@ function sameEntity(a: ImpactEntity, b: ImpactEntity): boolean {
     impactKey(`file::${pathA}`) === impactKey(`file::${pathB}`))
 }
 
+/** The module an entity lives in, or null when nothing about it names a place. */
+function entityModule(entity: ImpactEntity): string | null {
+  if (entity.key.startsWith('file::')) return moduleIdOf(entity.key.slice('file::'.length)).id
+  if (entity.path) return moduleIdOf(entity.path).id
+  // A symbol with no path is real work with no ground: it cannot be placed, and saying so with
+  // null is what keeps the router from silently excluding it.
+  return null
+}
+
+function keyModule(key: string): string | null {
+  return key.startsWith('file::') ? moduleIdOf(key.slice('file::'.length)).id : null
+}
+
+export interface ModuleCouplingProof {
+  readonly category: ImpactCategory
+  readonly score: number
+  readonly evidence: ImpactEvidence
+}
+
+/**
+ * Mechanical coupling evidence between a change and a receiver, from the import graph.
+ *
+ * This is the half of impact analysis nobody has to declare. The declared path
+ * (`agentgit_impact_state`) only sees a receiver that wrote its dependencies down; a module
+ * edge sees the receiver that never did — and it is directional, so the two cases are kept
+ * apart:
+ *
+ * - **the receiver's module imports the changed module** — the change can break a consumer,
+ *   which is the case a text-only matcher misses entirely when the two agents describe their
+ *   work in different words;
+ * - **the changed module imports the receiver's module** — the change may be an adaptation to
+ *   work that is also moving, which is weaker and is reported as background unless the receiver
+ *   is itself mid-write.
+ *
+ * Every proof is `confirmed: false` on purpose. A resolved import proves the modules are wired,
+ * not that this particular change breaks that particular consumer, and a mechanical edge must
+ * never be enough on its own to escalate to an interrupt. Module overlap without a real import
+ * produces nothing at all — see {@link isStructuralModuleCoupling}.
+ */
+export function moduleCouplingEvidence(change: ImpactChange, target: ImpactSession, graph: ModuleGraph): ModuleCouplingProof[] {
+  const changeModules = new Set<string>()
+  for (const entity of change.entities) {
+    const module = entityModule(entity)
+    if (module) changeModules.add(module)
+  }
+  const targetModules = new Set<string>()
+  for (const entity of target.entities) {
+    const module = entityModule(entity)
+    if (module) targetModules.add(module)
+  }
+  for (const dependency of target.dependencies) {
+    const module = keyModule(dependency.entity)
+    if (module) targetModules.add(module)
+  }
+  if (changeModules.size === 0 || targetModules.size === 0) return []
+
+  const breaking = change.compatibility === 'breaking'
+  const proofs: ModuleCouplingProof[] = []
+  for (const changed of changeModules) {
+    for (const receiver of targetModules) {
+      if (changed === receiver) continue
+      // Direction is decided by which edge exists, not by which module was passed first.
+      const consumer = directModuleEdge(graph, receiver, changed)
+      if (consumer && isStructuralModuleCoupling(consumer.kind)) {
+        proofs.push({
+          category: breaking ? 'breaking_dependency' : 'soft_relevance',
+          score: breaking ? 0.85 : 0.62,
+          evidence: {
+            relation: 'module_coupling',
+            source: changed,
+            target: receiver,
+            detail: `${receiver} imports ${changed} (${consumer.weight} reference(s)); this change touches ${changed} and the receiver declared no dependency on it.`,
+            confirmed: false,
+          },
+        })
+      }
+      const producer = directModuleEdge(graph, changed, receiver)
+      if (producer && isStructuralModuleCoupling(producer.kind)) {
+        proofs.push({
+          category: 'soft_relevance',
+          score: 0.55,
+          evidence: {
+            relation: 'module_coupling',
+            source: changed,
+            target: receiver,
+            detail: `${changed} imports ${receiver} (${producer.weight} reference(s)); ${receiver} is also moving, so this change may be adapting to it.`,
+            confirmed: false,
+          },
+        })
+      }
+    }
+  }
+  return proofs
+}
+
+/**
+ * Narrow the candidate pool to the modules the change could reach.
+ *
+ * This is where "route the change to the modules it affects" stops being a metaphor. Without it
+ * every session is compared with every change; with it only the modules wired to the change are
+ * visited.
+ *
+ * Three kinds of session are never dropped, and each is a correctness guard rather than a
+ * convenience:
+ * - one that **shares a contract or artifact**, because those are identifiers with no module and
+ *   the router has no basis to exclude them;
+ * - one with an entity or dependency the router **cannot place** (a bare symbol), since "unknown
+ *   ground" is not evidence of "unrelated";
+ * - one with **no entities at all**, because intent similarity is a global signal this router
+ *   cannot index, and dropping those would silently remove the only recall path for a session
+ *   that described its work without touching anything yet.
+ *
+ * The consequence is deliberate: a repository whose imports do not resolve degrades to the
+ * pairwise baseline instead of losing warnings.
+ */
+function routeSessions(
+  change: ImpactChange,
+  sessions: readonly ImpactSession[],
+  graph: ModuleGraph,
+  routing: ModuleRouting,
+  hops: number,
+): readonly ImpactSession[] {
+  const changeModules = new Set<string>()
+  for (const entity of change.entities) {
+    const module = entityModule(entity)
+    if (module) changeModules.add(module)
+  }
+  // Nothing to route from: every session must stay, or the change would reach nobody.
+  if (changeModules.size === 0) return sessions
+
+  const nearby = new Set<string>()
+  for (const module of changeModules) {
+    for (const reached of moduleNeighborhood(graph, module, routing, hops)) nearby.add(reached)
+  }
+
+  return sessions.filter((session) => {
+    if (session.contracts.some((b) => change.contracts.some((a) => a.name === b.name))) return true
+    if (session.artifacts.some((b) => change.artifacts.some((a) => a.id === b.id))) return true
+    let placed = false
+    for (const entity of session.entities) {
+      const module = entityModule(entity)
+      if (module === null) return true
+      placed = true
+      if (nearby.has(module)) return true
+    }
+    for (const dependency of session.dependencies) {
+      const module = keyModule(dependency.entity)
+      if (module === null) return true
+      placed = true
+      if (nearby.has(module)) return true
+    }
+    return !placed
+  })
+}
+
 /** Recall is intentionally broader than inference; lexical similarity never proves impact. */
-export function retrieveImpactCandidates(change: ImpactChange, sessions: readonly ImpactSession[], options: ImpactOptions = {}): ImpactSession[] {
+export function retrieveImpactCandidates(
+  change: ImpactChange,
+  sessions: readonly ImpactSession[],
+  options: ImpactOptions = {},
+): ImpactSession[] {
   const now = options.now ?? new Date()
-  const keys = new Set(change.entities.map(entity => impactKey(entity.key)))
-  return sessions.filter(session => session.sessionId !== change.sessionId && session.workspace === change.workspace &&
+  const graph = options.moduleGraph ?? null
+  const routing: ModuleRouting = options.moduleRouting ?? (graph ? 'one-hop' : 'off')
+  const hops = options.moduleHops ?? 1
+  // Without a graph, or with routing off, the pool is every session: the pairwise baseline.
+  const pool = graph && routing !== 'off' ? routeSessions(change, sessions, graph, routing, hops) : sessions
+  const keys = new Set(change.entities.map((entity) => impactKey(entity.key)))
+  return pool.filter((session) => session.sessionId !== change.sessionId && session.workspace === change.workspace &&
     activeSession(session, now, options.sessionTtlMs ?? IMPACT_SESSION_TTL_MS) && (
       session.entities.some(b => change.entities.some(a => sameEntity(a, b) || Boolean(a.path && a.path === b.path))) ||
       session.dependencies.some(dep => keys.has(impactKey(dep.entity)) || change.artifacts.some(a => a.id === dep.entity)) ||
       session.contracts.some(b => change.contracts.some(a => a.name === b.name)) ||
       session.artifacts.some(b => change.artifacts.some(a => a.id === b.id)) ||
-      intentSimilarity(change.goal, session.goal) >= 0.2
+      intentSimilarity(change.goal, session.goal) >= 0.2 ||
+      (graph !== null && moduleCouplingEvidence(change, session, graph).length > 0)
     ))
 }
 
@@ -189,6 +394,14 @@ export function assessImpact(change: ImpactChange, target: ImpactSession, option
       })
     }
   }
+  // Mechanical coupling, added last so it can only ever escalate a pair that the declared
+  // evidence left at background. Every proof is unconfirmed, so a module edge alone lands on
+  // `defer` at most and can never produce an `interrupt`.
+  if (options.moduleGraph) {
+    for (const proof of moduleCouplingEvidence(change, target, options.moduleGraph)) {
+      add(proof.category, proof.score, proof.evidence)
+    }
+  }
   // Never label a recalled pair as a risk solely because its goals look alike.
   const selected = category as ImpactCategory
   const high = selected === 'hard_conflict' || selected === 'breaking_dependency'
@@ -225,8 +438,11 @@ export function currentImpactChanges(changes: readonly ImpactChange[], now = new
 }
 
 export function analyzeImpacts(changes: readonly ImpactChange[], sessions: readonly ImpactSession[], options: ImpactOptions = {}): ImpactAssessment[] {
+  const graph = options.moduleGraph ?? null
+  const moduleRouting: ModuleRouting = options.moduleRouting ?? (graph ? 'one-hop' : 'off')
+  const resolved: ImpactOptions = { ...options, moduleGraph: graph, moduleRouting }
   return currentImpactChanges(changes, options.now).flatMap(change =>
-    retrieveImpactCandidates(change, sessions, options).map(target => assessImpact(change, target, options)))
+    retrieveImpactCandidates(change, sessions, resolved).map(target => assessImpact(change, target, resolved)))
 }
 
 export function renderImpact(impact: ImpactAssessment): string {

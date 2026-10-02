@@ -11,6 +11,7 @@
 
 export * from './types.ts'
 export * from './entity.ts'
+export * from './modules.ts'
 export * from './paths.ts'
 export * from './ledger.ts'
 export * from './policy.ts'

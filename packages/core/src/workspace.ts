@@ -22,6 +22,7 @@ import { hostname } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
 import { fromWire, parseWireLine, serializeEvent } from './ledger.ts'
+import { MODULE_ROUTINGS, type ModuleRouting } from './modules.ts'
 import type { CoordEvent, WireEvent } from './types.ts'
 
 /** The directory every coordinate lived in. */
@@ -273,7 +274,34 @@ export interface WorkspaceConfig {
    * longer than any plausible single session and shorter than a forgotten one.
    */
   readonly inFlightMinutes: number
+  /**
+   * How far the impact search may travel from a changed file's module, through the coupling
+   * graph the code itself declares with its imports.
+   *
+   * `off` is the control — every session is compared with every change, which is the pairwise
+   * baseline. `one-hop` keeps the changed module and the modules wired directly to it, which is
+   * where a breaking change is actually consumed. `transitive` follows the whole reachable set,
+   * which recalls more and narrows less.
+   *
+   * This is a recall/precision knob, not a gate: a candidate the router cannot place is never
+   * dropped, so setting it too narrow degrades to the pairwise baseline rather than losing work.
+   */
+  readonly moduleRouting: ModuleRouting
+  /**
+   * How many import hops `transitive` routing may travel.
+   *
+   * Ignored under `off` and `one-hop`, which are fixed at zero and one edge respectively. It
+   * exists because an unbounded transitive walk in a connected monorepo reaches nearly every
+   * module, at which point routing recalls everything and narrows nothing — the knob would look
+   * set while behaving like the baseline. Bounding it keeps `transitive` meaningfully wider than
+   * `one-hop` without making it a no-op.
+   */
+  readonly moduleHops: number
 }
+
+/** Bounds on {@link WorkspaceConfig.moduleHops}, enforced on set so it cannot be mistyped. */
+export const MIN_MODULE_HOPS = 1
+export const MAX_MODULE_HOPS = 8
 
 export const DEFAULT_CONFIG: WorkspaceConfig = {
   version: 1,
@@ -283,6 +311,37 @@ export const DEFAULT_CONFIG: WorkspaceConfig = {
   duplicateIntentThreshold: 0.42,
   leaseMinutes: 20,
   inFlightMinutes: 720,
+  moduleRouting: 'one-hop',
+  moduleHops: 2,
+}
+
+/**
+ * Resolve a configured routing mode, refusing anything unknown.
+ *
+ * Throws for the same reason {@link resolveProductArm} throws: a typo in the config would
+ * otherwise fall back to a default that the user did not choose and cannot see, and this knob
+ * directly changes which sessions can be warned.
+ */
+export function resolveModuleRouting(value: string | null | undefined): ModuleRouting {
+  if (value == null || value === '') return DEFAULT_CONFIG.moduleRouting
+  if ((MODULE_ROUTINGS as readonly string[]).includes(value)) return value as ModuleRouting
+  throw new Error(`unknown moduleRouting '${value}'. Choose one of ${MODULE_ROUTINGS.join(', ')}.`)
+}
+
+/**
+ * Resolve a configured hop count, refusing anything that is not a whole number in range.
+ *
+ * Refused rather than clamped for the same reason as {@link resolveModuleRouting}: a value
+ * silently rounded to the nearest legal hop would leave the user believing they had set
+ * something the router is not doing.
+ */
+export function resolveModuleHops(value: unknown): number {
+  if (value == null || value === '') return DEFAULT_CONFIG.moduleHops
+  const hops = typeof value === 'number' ? value : Number(value)
+  if (!Number.isInteger(hops) || hops < MIN_MODULE_HOPS || hops > MAX_MODULE_HOPS) {
+    throw new Error(`moduleHops must be a whole number between ${MIN_MODULE_HOPS} and ${MAX_MODULE_HOPS}, got '${String(value)}'.`)
+  }
+  return hops
 }
 
 /**
@@ -312,6 +371,8 @@ export function loadConfig(paths: WorkspacePaths): WorkspaceConfig {
         : DEFAULT_CONFIG.duplicateIntentThreshold,
     leaseMinutes: typeof raw.leaseMinutes === 'number' ? raw.leaseMinutes : DEFAULT_CONFIG.leaseMinutes,
     inFlightMinutes: typeof raw.inFlightMinutes === 'number' ? raw.inFlightMinutes : DEFAULT_CONFIG.inFlightMinutes,
+    moduleRouting: resolveModuleRouting(raw.moduleRouting),
+    moduleHops: resolveModuleHops(raw.moduleHops),
   }
 }
 
@@ -354,6 +415,8 @@ export function updateConfig(paths: WorkspacePaths, patch: Partial<WorkspaceConf
     ...(current ?? {}),
     ...patch,
     arm: resolveProductArm(patch.arm ?? current?.arm ?? DEFAULT_CONFIG.arm),
+    moduleRouting: resolveModuleRouting(patch.moduleRouting ?? current?.moduleRouting ?? DEFAULT_CONFIG.moduleRouting),
+    moduleHops: resolveModuleHops(patch.moduleHops ?? current?.moduleHops ?? DEFAULT_CONFIG.moduleHops),
   } as WorkspaceConfig
   mkdirSync(paths.agentgit, { recursive: true })
   writeFileSync(paths.config, `${JSON.stringify(merged, null, 2)}\n`, 'utf8')

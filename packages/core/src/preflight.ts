@@ -50,6 +50,7 @@ import {
 } from './policy.ts'
 import type { ContentionRecord, CoordEvent } from './types.ts'
 import { entitySubjectOf, matchStrength as strengthOf, subjectOfProposal, type MatchStrength } from './entity.ts'
+import { directModuleEdge, isStructuralModuleCoupling, moduleGraphFor, moduleIdOf } from './modules.ts'
 import {
   appendEvent,
   armOffersActions,
@@ -435,6 +436,112 @@ function buildReplan(
 }
 
 /**
+ * A mechanical dependency between this change's module and an in-flight task's module.
+ *
+ * Recorded so the verdict's reason can name the edge, the other task and the direction, which
+ * is what makes the escalation checkable rather than a black box.
+ */
+export interface ModuleImpact {
+  /** The module this change lands in. */
+  readonly module: string
+  /** The module the other in-flight task is working in. */
+  readonly otherModule: string
+  readonly taskId: string
+  /**
+   * Which way the import runs.
+   *
+   * `consumer` — the other module imports ours, so our interface change can break work in
+   * flight, which is what `review` is for. `dependency` — we import theirs, so we are the one
+   * coding against a moving interface, which is what `wait` is for.
+   */
+  readonly direction: 'consumer' | 'dependency'
+  readonly weight: number
+}
+
+/**
+ * The module-level mechanical criterion: a real import edge plus interface-change evidence.
+ *
+ * This is the half of cross-session impact that nobody has to declare. The entity ledger can only
+ * see a collision someone's *words* or *paths* already made visible; a resolved import sees the
+ * consumer that never wrote its dependency down. Two guards keep it from becoming a false
+ * positive machine:
+ *
+ * - **interface evidence is required.** A change that does not touch a symbol, a named contract
+ *   or a contract-bearing file produces nothing, because a module edge alone says the two
+ *   modules are wired — not that this edit crosses the wire. This is the same discipline as
+ *   `modules.ts`'s `isStructuralModuleCoupling`: module overlap is never, on its own, a verdict.
+ * - **the graph is built last.** Everything before that is `moduleIdOf`, a pure path function, so
+ *   the common case — no other in-flight task in a different module — costs no scan at all. A
+ *   preflight runs before every write, and a full graph rebuild on that path would be a real
+ *   regression on a large repository.
+ *
+ * Returns `null` when routing is off, so the ablation knob has teeth on the write path too.
+ */
+function moduleImpactOf(
+  context: CoordinationContext,
+  query: PreflightQuery,
+  entityPath: string,
+  registry: ReturnType<typeof loadContracts>,
+): ModuleImpact | null {
+  if (context.config.moduleRouting === 'off') return null
+
+  // Interface-change evidence, reusing the two mechanisms that already exist: the `symbol::`
+  // entity level and the published-contract version ledger.
+  const interfaceEvidence =
+    query.symbol != null ||
+    (query.contracts?.length ?? 0) > 0 ||
+    contractsTouchingPath(registry, entityPath).length > 0
+  if (!interfaceEvidence) return null
+
+  const mine = moduleIdOf(entityPath.replace(/\\/g, '/')).id
+
+  // Cheap pass first: which *other* in-flight tasks touch ground in some other module. Until one
+  // does, there is nothing a graph could add, and the graph is not built.
+  const candidates: Array<{ taskId: string; modules: string[] }> = []
+  for (const [taskId, capsule] of context.capsules) {
+    if (taskId === query.taskId) continue
+    if (capsule.closedAtUtc !== null) continue
+    const modules = new Set<string>()
+    for (const record of capsule.entities.values()) {
+      if (!record.path) continue
+      const module = moduleIdOf(record.path.replace(/\\/g, '/')).id
+      if (module !== mine) modules.add(module)
+    }
+    if (modules.size > 0) candidates.push({ taskId, modules: [...modules].sort() })
+  }
+  if (candidates.length === 0) return null
+  candidates.sort((a, b) => compareCodepoint(a.taskId, b.taskId))
+
+  let graph: ReturnType<typeof moduleGraphFor>
+  try {
+    graph = moduleGraphFor(context.paths)
+  } catch {
+    // A repository that cannot be scanned loses the optimisation, never the verdict.
+    return null
+  }
+
+  // Once per module, and deterministic: the consumer direction (a breaking change) is checked
+  // before the dependency direction (an adaptation), so the more severe reading wins a tie.
+  for (const candidate of candidates) {
+    for (const other of candidate.modules) {
+      const consumedBy = directModuleEdge(graph, other, mine)
+      if (consumedBy && isStructuralModuleCoupling(consumedBy.kind)) {
+        return { module: mine, otherModule: other, taskId: candidate.taskId, direction: 'consumer', weight: consumedBy.weight }
+      }
+    }
+  }
+  for (const candidate of candidates) {
+    for (const other of candidate.modules) {
+      const consumes = directModuleEdge(graph, mine, other)
+      if (consumes && isStructuralModuleCoupling(consumes.kind)) {
+        return { module: mine, otherModule: other, taskId: candidate.taskId, direction: 'dependency', weight: consumes.weight }
+      }
+    }
+  }
+  return null
+}
+
+/**
  * Decide one write.
  *
  * Ordering is by severity, and it is fixed rather than scored. A scoring function
@@ -510,6 +617,39 @@ export function preflight(
     replan: verdict === 'allow' ? null : buildReplan(context, query, entityPath, staleNamed),
   })
 
+  /**
+   * Escalate an otherwise-`allow` write on a mechanical dependency edge, or return `null`.
+   *
+   * Kept as one closure because the rule must be reachable from every branch that can answer
+   * `allow`, and duplicating it is how the two answers would drift apart. The direction decides
+   * the word: if the other module consumes ours, our interface change can break work in flight
+   * (`review`); if we consume theirs, we are coding against a moving interface (`wait`).
+   */
+  const moduleEscalation = (): PreflightResult | null => {
+    const impact = moduleImpactOf(context, query, entityPath, registry)
+    if (!impact) return null
+    const edge =
+      impact.direction === 'consumer'
+        ? `${impact.module} is imported by ${impact.otherModule}`
+        : `${impact.module} imports ${impact.otherModule}`
+    if (impact.direction === 'consumer') {
+      return decide(
+        'review',
+        `${edge} (${impact.weight} reference(s)), and task ${impact.taskId} is writing in ` +
+          `${impact.otherModule} while this change edits the interface in ${impact.module}. ` +
+          'Align on the contract before both land.',
+        [`agentgit modules ${impact.module}`, `agentgit board`],
+      )
+    }
+    return decide(
+      'wait',
+      `${edge} (${impact.weight} reference(s)), and task ${impact.taskId} is writing in ` +
+        `${impact.otherModule} while this change depends on it. Code against the published ` +
+        'signature, or wait for it to land.',
+      [`agentgit modules ${impact.module}`, `agentgit board`],
+    )
+  }
+
   /* 1. wait — the interface is being landed right now, so re-reading would race it.
    *
    * Before `review`, deliberately. `review` says "the interface settled at a new
@@ -551,11 +691,18 @@ export function preflight(
   /* 3. refresh — an assumption is behind, even though nothing is landing now. */
   if (staleNamed.length > 0) {
     const worst = staleNamed.find((entry) => entry.breaking) ?? staleNamed[0]
+    if (worst.breaking) {
+      return decide(
+        'refresh',
+        `${worst.contract} is at v${worst.currentVersion}; you are coded against v${worst.assumedVersion}: ${worst.summary}.`,
+        [`agentgit contracts show ${worst.contract}`],
+      )
+    }
+    const escalated = moduleEscalation()
+    if (escalated) return escalated
     return decide(
-      worst.breaking ? 'refresh' : 'allow',
-      worst.breaking
-        ? `${worst.contract} is at v${worst.currentVersion}; you are coded against v${worst.assumedVersion}: ${worst.summary}.`
-        : `${worst.contract} moved to v${worst.currentVersion} without a breaking change: ${worst.summary}.`,
+      'allow',
+      `${worst.contract} moved to v${worst.currentVersion} without a breaking change: ${worst.summary}.`,
       [`agentgit contracts show ${worst.contract}`],
     )
   }
@@ -617,7 +764,14 @@ export function preflight(
     )
   }
 
-  /* 6. allow — nothing else is on this ground. */
+  /* 6. allow — nothing else is on this ground.
+   *
+   * The module criterion is consulted here and only here, on the branch that would otherwise
+   * say "nothing is in the way". A mechanical dependency edge cannot outrank evidence the
+   * ledger already found; it can only refuse to stay silent when the entity view saw nothing.
+   */
+  const escalated = moduleEscalation()
+  if (escalated) return escalated
   const note = decision.detection === 'below-threshold'
     ? 'no other task or session is working on this entity'
     : 'no in-flight change, lease or contract on this entity'

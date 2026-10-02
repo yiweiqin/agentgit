@@ -78,6 +78,11 @@ export const BARE_SAFE = new Set([
   // (`preflight src/a.ts --claim`). Left off this list it would swallow the next
   // positional and the entity under discussion would become the flag's value.
   'claim',
+  // `agentgit modules --no-co-change` skips the git walk for the co-change edges; the positive
+  // form is accepted too. Both are bare switches, so without these entries the module being
+  // asked about would silently become the flag's value.
+  'no-co-change',
+  'co-change',
 ])
 
 export function parseArgs(argv: readonly string[]): ParsedArgs {
@@ -169,6 +174,10 @@ export const USAGE = `agentgit - coordination for agents sharing one repository
                                                Read from the projection the daemon writes.
                                                --refresh recomputes and publishes it, which is
                                                what to use when no daemon is running
+  agentgit modules [<module>] [--limit N] [--no-co-change] [--json]
+                                               the module coupling graph, derived from the
+                                               imports the code already contains; one module
+                                               shows its dependencies, dependents and reach
   agentgit reconcile [--json]                  stale assumptions, integration order, ghost merge
   agentgit impact state|publish --file <json> --session <id> [--task <id>]
                                                declare current state or a versioned change
