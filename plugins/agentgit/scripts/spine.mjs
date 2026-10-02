@@ -47,6 +47,8 @@ import { spawn } from 'node:child_process'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
+import { isDirectRun, noteFailure } from './hook-errors.mjs'
+
 /** Must match `ENDPOINT_VERSION` in `packages/daemon/src/endpoint.ts`. */
 const ENDPOINT_VERSION = 1
 
@@ -312,8 +314,14 @@ function openLog(file) {
 /* main                                                                        */
 /* -------------------------------------------------------------------------- */
 
-function main() {
-  const payload = normalizePayload(readStdin())
+/**
+ * Make sure one daemon is watching this workspace. Returns nothing: this hook never speaks.
+ *
+ * Exported so `hook.mjs` can run it in-process, which is what makes a session start pay for one
+ * Node startup instead of four. Standalone use is unchanged — see {@link isDirectRun} below.
+ */
+export function run(payloadText) {
+  const payload = normalizePayload(payloadText)
   if (!payload) return
   if (!EVENTS.has(payload.eventName)) return
   // No `cwd` means no directory this hook is allowed to start a watcher for. See the note in
@@ -383,9 +391,13 @@ function main() {
   }
 }
 
-try {
-  main()
-} catch {
-  // Starting a watcher is never worth failing a session over.
+if (isDirectRun(import.meta.url)) {
+  try {
+    run(readStdin())
+  } catch (error) {
+    // Starting a watcher is never worth failing a session over, but a spine that never starts is
+    // worth writing down: the push channel is silent either way, and only one of them is a bug.
+    noteFailure('spine', error, { cwd: process.cwd() })
+  }
+  process.exit(0)
 }
-process.exit(0)

@@ -11,6 +11,7 @@
 
 export * from './types.ts'
 export * from './entity.ts'
+export * from './paths.ts'
 export * from './ledger.ts'
 export * from './policy.ts'
 export * from './store.ts'
@@ -34,6 +35,7 @@ export * from './graph.ts'
 export * from './sessions.ts'
 export * from './codex-rollout.ts'
 export * from './rollout-patches.ts'
+export * from './reconcile.ts'
 export * from './governor.ts'
 // The E2 harness, exported because a published accuracy number has to be reproducible from
 // outside the package. `examples/real/measure.mjs` scores a real pack through this, and a

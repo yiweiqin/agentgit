@@ -9,6 +9,7 @@ import { test, describe } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { buildCapsules, buildContention, entityTouches } from '../src/ledger.ts'
+import { HUB_DECIDE_BAND } from '../src/hub.ts'
 import {
   DEFAULT_POLICY,
   bestSimilarity,
@@ -148,6 +149,22 @@ describe('intent similarity', () => {
     )
     const proseOnly = intentSimilarity('make the page faster please', 'speed up that screen somehow')
     assert.ok(withIdentifiers > proseOnly, `${withIdentifiers} should exceed ${proseOnly}`)
+  })
+
+  test('folds synonyms and plurals, so a rephrase of one job is not read as a different one', () => {
+    // Without this the matcher saw "throttle" and "rate limiting" as unrelated words and scored
+    // one change near zero, which the hub then read as "different purpose". The canonical map is
+    // what makes the commonest rephrase land in the undecidable band instead of below it.
+    assert.deepEqual(
+      new Set(tokenize('throttle the login attempts')),
+      new Set(tokenize('rate limiting the login attempt')),
+    )
+
+    const reworded = intentSimilarity('add rate limiting to the login endpoint', 'throttle repeated login attempts')
+    assert.ok(
+      reworded > HUB_DECIDE_BAND.replan && reworded < DEFAULT_POLICY.duplicateIntentThreshold,
+      `a reworded duplicate must land in the undecidable band, got ${reworded}`,
+    )
   })
 
   /**

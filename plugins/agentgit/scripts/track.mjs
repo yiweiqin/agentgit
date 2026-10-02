@@ -27,6 +27,8 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 
+import { isDirectRun, noteFailure } from './hook-errors.mjs'
+
 /** Must match `SCHEMA_VERSION` in `packages/core/src/ledger.ts` and `coord_ledger.py`. */
 const SCHEMA_VERSION = 'coord-ledger-0.1'
 
@@ -408,8 +410,14 @@ function appendLine(file, line) {
 /* main                                                                        */
 /* -------------------------------------------------------------------------- */
 
-function main() {
-  const payload = normalizePayload(readStdin())
+/**
+ * Record one hook payload. Returns nothing: this script never speaks to the host.
+ *
+ * Exported so `hook.mjs` can run it in-process, which is what removes two of the three Node
+ * startups per tool call. Standalone use is unchanged — see {@link isDirectRun} below.
+ */
+export function run(payloadText) {
+  const payload = normalizePayload(payloadText)
   if (!payload) return
   if (!payload.sessionId) return
 
@@ -528,9 +536,13 @@ function main() {
   appendLine(file, `${JSON.stringify(wire)}\n`)
 }
 
-try {
-  main()
-} catch {
-  // A coordination record is never worth failing a tool call over.
+if (isDirectRun(import.meta.url)) {
+  try {
+    run(readStdin())
+  } catch (error) {
+    // A coordination record is never worth failing a tool call over, but a hook that fails is
+    // worth writing down: otherwise a broken recorder and a quiet session look the same.
+    noteFailure('track', error, { cwd: process.cwd() })
+  }
+  process.exit(0)
 }
-process.exit(0)

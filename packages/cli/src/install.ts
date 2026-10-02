@@ -236,6 +236,7 @@ export interface GeneratedFiles {
 export function writeGeneratedFiles(paths: InstallPaths, target = paths.target): GeneratedFiles {
   const node = process.execPath
   const flags = nodeFlags()
+  const hook = join(target, 'scripts', 'hook.mjs')
   const track = join(target, 'scripts', 'track.mjs')
   const spine = join(target, 'scripts', 'spine.mjs')
   const hub = join(target, 'scripts', 'hub.mjs')
@@ -249,6 +250,9 @@ export function writeGeneratedFiles(paths: InstallPaths, target = paths.target):
 
   const hooks = renderTemplate(hooksTemplate, {
     NODE: node,
+    HOOK: hook,
+    // Kept so a custom template, or one written by an older build, still renders. The generated
+    // file names only HOOK; these are here for the Windows-escape test and for compatibility.
     TRACK: track,
     SPINE: spine,
     HUB: hub,
@@ -511,7 +515,7 @@ export interface DoctorReport {
  * that never fires looks like an agent that simply did not write anything, and an
  * MCP server that never starts looks like a plugin with no tools.
  */
-export function runDoctor(options: { home?: string } = {}): DoctorReport {
+export function runDoctor(options: { home?: string; workspace?: string } = {}): DoctorReport {
   const paths = installPaths({ home: options.home })
   const checks: DoctorCheck[] = []
 
@@ -562,11 +566,11 @@ export function runDoctor(options: { home?: string } = {}): DoctorReport {
     checks.push({ name, ok: present && valid, detail, fix: 'agentgit install' })
   }
 
-  const track = join(paths.target, 'scripts', 'track.mjs')
+  const hook = join(paths.target, 'scripts', 'hook.mjs')
   checks.push({
-    name: 'hook script',
-    ok: existsSync(track),
-    detail: existsSync(track) ? track : `missing: ${track}`,
+    name: 'hook dispatcher',
+    ok: existsSync(hook),
+    detail: existsSync(hook) ? hook : `missing: ${hook}`,
     fix: 'agentgit install',
   })
 
@@ -602,48 +606,59 @@ export function runDoctor(options: { home?: string } = {}): DoctorReport {
   const hookScripts = hookScriptPaths(existsSync(hooksFile) ? readTemplate(hooksFile) : null)
 
   /*
-   * Both scripts, and every matcher group.
+   * The dispatcher, and the scripts it runs.
    *
-   * Scanned across the whole file rather than read off `PreToolUse[0]`, which is what this
-   * check used to do. There is more than one handler now, and reading only the first would have
-   * let a missing `hub.mjs` pass doctor — and doctor is the one command a user runs when
-   * nothing works, so a check that cannot see half the install is worse than no check.
+   * `hooks.json` names exactly one script now (`hook.mjs`), so reading the handlers off the file
+   * only proves the dispatcher is wired. Everything the dispatcher imports is checked by its
+   * presence beside it, because a missing component fails inside the merged process and looks
+   * exactly like a step that had nothing to say.
    */
   checks.push(
     describeScriptCheck(
       'hook path resolves',
-      'track.mjs',
+      'hook.mjs',
       hookScripts,
       'the hook would fire and fail, and nothing would say why',
     ),
   )
   checks.push(
-    describeScriptCheck(
+    describeComponentCheck(
       'hub hook path resolves',
       'hub.mjs',
-      hookScripts,
+      paths.target,
       'the hub could rule but never reach a session, which looks exactly like a workspace with nothing to say',
     ),
   )
   checks.push(
-    describeScriptCheck(
+    describeComponentCheck(
       'spine hook path resolves',
       'spine.mjs',
-      hookScripts,
+      paths.target,
       'no daemon would ever start, so the hub would have nothing to publish and every push would stay silent',
     ),
   )
   checks.push(
-    describeScriptCheck(
+    describeComponentCheck(
       'desktop hook path resolves',
       'desktop.mjs',
-      hookScripts,
+      paths.target,
       'the workspace would never be offered its coordination task, and nothing would say why',
+    ),
+  )
+  checks.push(
+    describeComponentCheck(
+      'hook error recorder present',
+      'hook-errors.mjs',
+      paths.target,
+      'a hook failure would be swallowed with no record of why, which is how a quiet ledger hides a bug',
     ),
   )
 
   checks.push(describeSpineTargetCheck(join(paths.target, 'spine.json')))
   checks.push(describeAssetsCheck(join(paths.target, '.codex-plugin', 'plugin.json'), paths.target))
+  // The workspace can be named explicitly so this check is testable without writing into the
+  // checkout the suite runs from; the default is the same repository the rest of doctor inspects.
+  checks.push(describeHookErrorsCheck(options.workspace ?? paths.repo))
 
   checks.push({
     name: 'workspace ledger',
@@ -696,7 +711,36 @@ export function hookScriptPaths(text: string | null): string[] | null {
   }
 }
 
-/** One `doctor` check for one script, so a missing handler cannot hide behind a present one. */
+/** Must match `HOOK_ERRORS_FILE` in `plugins/agentgit/scripts/hook-errors.mjs`. */
+const HOOK_ERRORS_FILE = 'hook-errors.jsonl'
+
+/**
+ * Read one `hook-errors.jsonl` and count all failures, and the recent ones.
+ *
+ * Kept here rather than imported from the plugin: `install.ts` is TypeScript compiled against the
+ * library, and the hook scripts must stay dependency-free so they can run from an installed plugin
+ * directory. The name is the contract, asserted by a test on both sides.
+ */
+function countHookErrors(file: string, sinceMs = 24 * 60 * 60 * 1000, now = Date.now()): { total: number; recent: number } {
+  try {
+    let total = 0
+    let recent = 0
+    for (const raw of readTemplate(file).split('\n')) {
+      if (!raw.trim()) continue
+      total += 1
+      try {
+        const at = Date.parse(JSON.parse(raw).at)
+        if (Number.isFinite(at) && now - at <= sinceMs) recent += 1
+      } catch {
+        // An unreadable line still counts as a recorded failure, just not a dated one.
+      }
+    }
+    return { total, recent }
+  } catch {
+    return { total: 0, recent: 0 }
+  }
+}
+/** One `doctor` check for the dispatcher handler, so a broken wire cannot hide behind a file. */
 function describeScriptCheck(
   name: string,
   script: string,
@@ -714,6 +758,49 @@ function describeScriptCheck(
   return missing
     ? { name, ok: false, detail: `${missing} does not exist; ${why}`, fix }
     : { name, ok: true, detail: matches[0], fix }
+}
+
+/**
+ * `doctor` check for a script the dispatcher imports.
+ *
+ * These are not named in `hooks.json` any more — one handler runs them all — so their absence
+ * cannot be read off the generated file. It is checked directly instead, because a component
+ * that is missing fails *inside* the merged process and is indistinguishable from a step that
+ * simply had nothing to say.
+ */
+function describeComponentCheck(name: string, script: string, target: string, why: string): DoctorCheck {
+  const fix = 'agentgit install'
+  const file = join(target, 'scripts', script)
+  if (!existsSync(file)) return { name, ok: false, detail: `${file} does not exist; ${why}`, fix }
+  return { name, ok: true, detail: file, fix }
+}
+
+/**
+ * `doctor` check for hook failures the hooks recorded instead of throwing.
+ *
+ * Every hook ends in `catch {}` and `exit 0`, which it must: a hook that throws can break a tool
+ * call. But that makes a crashing hook and a session that did nothing look identical, and the
+ * symptom — a ledger that is quietly short — is the exact thing this plugin exists to surface.
+ * So `hook-errors.mjs` writes failures down and this check reads them back. A failure in the
+ * last day is reported as not-ok, because that is the moment a user is looking at `doctor`.
+ */
+function describeHookErrorsCheck(repo: string): DoctorCheck {
+  const name = 'hook failures'
+  const fix = 'Open the record; set AGENTGIT_HOOK_DEBUG=1 to also print hook errors to stderr.'
+  const file = join(repo, '.agentgit', 'state', HOOK_ERRORS_FILE)
+  if (!existsSync(file)) {
+    return { name, ok: true, detail: 'no hook failure has been recorded', fix }
+  }
+  const { total, recent } = countHookErrors(file)
+  if (recent === 0) {
+    return { name, ok: true, detail: `${total} recorded, none in the last 24h (${file})`, fix }
+  }
+  return {
+    name,
+    ok: false,
+    detail: `${recent} hook failure(s) in the last 24h, ${total} recorded in ${file}`,
+    fix,
+  }
 }
 
 /**

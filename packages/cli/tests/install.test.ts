@@ -54,29 +54,32 @@ describe('generated hooks.json', () => {
     assert.deepEqual(discovered.hooks, legacy.hooks)
     assert.deepEqual(Object.keys(discovered).sort(), ['description', 'hooks'])
   })
-  test('names an absolute node and absolute scripts, and every one of them exists', () => {
+  test('names an absolute node and one dispatcher, and every path exists', () => {
     const report = installHere()
     const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
       hooks: Record<string, { matcher?: string; hooks: { type: string; command: string }[] }[]>
     }
 
+    let handlers = 0
     for (const event of EVENTS) {
       const entry = hooks.hooks[event]
       assert.ok(entry && entry.length >= 1, `${event} must be wired, or the ledger never sees it`)
-      // Recording is always the first handler. If the hub ever ran first, a slow read here
-      // would delay the one piece of the plugin that has to happen on every tool call.
+      // One process per event. Four handlers here meant four Node startups on a session start, and
+      // process boot — not the work — was the whole cost.
+      assert.equal(entry[0].hooks.length, 1, `${event} must run one dispatcher, not a list of scripts`)
       assert.equal(entry[0].hooks[0].type, 'command')
       assert.ok(
-        /track\.mjs"/.test(entry[0].hooks[0].command),
-        `${event}'s first handler must be the recorder`,
+        /hook\.mjs"/.test(entry[0].hooks[0].command),
+        `${event}'s handler must be the dispatcher`,
       )
     }
 
-    // Every script path in the whole file, not just the first one: there are two handlers now,
-    // and a path that does not exist fails silently at runtime rather than loudly at install.
+    // Every script path in the whole file, not just the first handler: a path that does not
+    // exist fails silently at runtime rather than loudly at install.
     for (const groups of Object.values(hooks.hooks)) {
       for (const group of groups) {
         for (const handler of group.hooks) {
+          handlers += 1
           const found = [...handler.command.matchAll(/"([^"]+)"/g)].map((match) => match[1])
           assert.equal(found.length, 2, `expected a node and a script in ${handler.command}`)
           for (const path of found) {
@@ -87,63 +90,33 @@ describe('generated hooks.json', () => {
         }
       }
     }
+    assert.equal(handlers, EVENTS.length, 'exactly one handler per event is the point of the dispatcher')
   })
 
-  test('wires the hub at safe boundaries, with pre-tool delivery limited to file edits', () => {
+  test('keeps every matcher broad, and ships the components the dispatcher imports', () => {
     const report = installHere()
     const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
       hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]>
     }
 
-    const hubEvents = Object.entries(hooks.hooks)
-      .filter(([, groups]) => groups.some((group) => group.hooks.some((h) => /hub\.mjs"/.test(h.command))))
-      .map(([event]) => event)
-      .sort()
-    assert.deepEqual(hubEvents, ['PostToolUse', 'PreToolUse', 'SessionStart', 'UserPromptSubmit'])
-
-    // The write-time nudge is narrowed to file edits. A ruling is only worth interrupting a
-    // write with when the write is about the ground it rules on.
-    const editGroup = hooks.hooks.PreToolUse.find((group) =>
-      group.hooks.some((handler) => /hub\.mjs"/.test(handler.command)),
-    )
-    assert.equal(editGroup?.matcher, 'apply_patch|Edit|Write')
-
-    // And the recorder still sees everything, so narrowing the hub cannot narrow the ledger.
-    assert.equal(hooks.hooks.PreToolUse[0].matcher, '.*')
-  })
-
-  test('wires the spine and the offer where a session can act on them, and never before an edit', () => {
-    const report = installHere()
-    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
-      hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]>
+    // The hub used to be its own handler, narrowed with `apply_patch|Edit|Write`, and spine and
+    // desktop had handlers of their own. A matcher is a host-owned string: when Codex renames a
+    // tool, a narrow one stops matching and the ruling disappears with no error, and a handler
+    // that is missing fails inside the merged process where it looks like a step with nothing to
+    // say. So the matcher is `.*` everywhere and one dispatcher classifies the tool from the
+    // payload. Which events reach which step, and in what order, is asserted against the
+    // dispatcher in `dispatcher.test.ts`, because that is where the behaviour now lives.
+    for (const event of ['PreToolUse', 'PostToolUse'] as const) {
+      assert.equal(hooks.hooks[event][0].matcher, '.*', `${event} must not narrow by tool name`)
     }
 
-    // A daemon is started, and a question is asked, when a session begins or a prompt arrives.
-    // Putting either on PreToolUse would put process spawning and a user-facing question between an
-    // agent and its next edit, which is the one place the plugin has promised to be cheap and quiet.
-    const spineEvents = Object.entries(hooks.hooks)
-      .filter(([, groups]) => groups.some((group) => group.hooks.some((h) => /spine\.mjs"/.test(h.command))))
-      .map(([event]) => event)
-      .sort()
-    assert.deepEqual(spineEvents, ['SessionStart', 'UserPromptSubmit'])
-
-    const desktopEvents = Object.entries(hooks.hooks)
-      .filter(([, groups]) => groups.some((group) => group.hooks.some((h) => /desktop\.mjs"/.test(h.command))))
-      .map(([event]) => event)
-      .sort()
-    assert.deepEqual(desktopEvents, ['SessionStart', 'UserPromptSubmit'])
-
-    // Record first, then make sure there is something to rule, then read the ruling, and only then
-    // consider asking the user a question. The order is load-bearing: a hub read before the recorder
-    // would describe a workspace one line out of date, and the offer must never delay the three
-    // above it - it can inject context, but it changes no coordination state.
-    for (const event of ['SessionStart', 'UserPromptSubmit'] as const) {
-      const commands = hooks.hooks[event].flatMap((group) => group.hooks.map((handler) => handler.command))
-      const scripts = commands.map((command) => /([^"\\/]+\.mjs)"/.exec(command)?.[1] ?? '')
-      assert.deepEqual(
-        scripts,
-        ['track.mjs', 'spine.mjs', 'hub.mjs', 'desktop.mjs'],
-        `${event} has the wrong handler order`,
+    // The narrowing is not gone, only moved inside the dispatcher: the scripts it imports have to
+    // ship beside it, because a missing one fails inside the merged process and looks exactly like
+    // a step that had nothing to say.
+    for (const component of ['track.mjs', 'spine.mjs', 'hub.mjs', 'desktop.mjs', 'hook-errors.mjs']) {
+      assert.ok(
+        existsSync(join(report.paths.target, 'scripts', component)),
+        `${component} must ship with the dispatcher`,
       )
     }
   })
@@ -156,6 +129,7 @@ describe('generated hooks.json', () => {
 
     const commands = new Set(EVENTS.map((event) => hooks.hooks[event][0].hooks[0].command))
     assert.equal(commands.size, 1, 'one script answers every event; it branches on the event name internally')
+    assert.match([...commands][0], /hook\.mjs/, 'that one script is the dispatcher')
     assert.ok(!readFileSync(report.files.hooks, 'utf8').includes('{{'), 'no placeholder may survive an install')
   })
 
@@ -510,7 +484,7 @@ describe('doctor', () => {
     const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
       hooks: Record<string, { hooks: { command: string }[] }[]>
     }
-    hooks.hooks.PreToolUse[0].hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/track.mjs"`
+    hooks.hooks.PreToolUse[0].hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/hook.mjs"`
     writeFileSync(report.files.hooks, JSON.stringify(hooks, null, 2), 'utf8')
 
     const check = runDoctor({ home }).checks.find((entry) => entry.name === 'hook path resolves')
@@ -519,31 +493,20 @@ describe('doctor', () => {
 
   test('catches a missing hub script, which would look like a workspace with nothing to say', () => {
     const report = installHere()
-    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
-      hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]>
-    }
-    const group = hooks.hooks.PreToolUse.find((candidate) =>
-      candidate.hooks.some((handler) => /hub\.mjs"/.test(handler.command)),
-    )!
-    group.hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/hub.mjs"`
-    writeFileSync(report.files.hooks, JSON.stringify(hooks, null, 2), 'utf8')
+    // The dispatcher names no component in hooks.json - one handler runs them all - so a broken
+    // component is a file missing from the directory the dispatcher imports from, not a bad path
+    // in the generated file.
+    rmSync(join(report.paths.target, 'scripts', 'hub.mjs'), { force: true })
 
     const check = runDoctor({ home }).checks.find((entry) => entry.name === 'hub hook path resolves')
     assert.equal(check?.ok, false, 'the hub could rule and never reach a session, with nothing to say why')
   })
 
-  test('still passes the recorder check when only the hub path is broken, and the reverse', () => {
-    // The two checks must be independent, or a broken recorder would be reported as a broken
-    // hub and send the user looking in the wrong place.
+  test('still passes the dispatcher check when only a component is missing', () => {
+    // The checks must be independent, or a missing component would be reported as a broken
+    // dispatcher and send the user looking in the wrong place.
     const report = installHere()
-    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
-      hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]>
-    }
-    const group = hooks.hooks.PreToolUse.find((candidate) =>
-      candidate.hooks.some((handler) => /hub\.mjs"/.test(handler.command)),
-    )!
-    group.hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/hub.mjs"`
-    writeFileSync(report.files.hooks, JSON.stringify(hooks, null, 2), 'utf8')
+    rmSync(join(report.paths.target, 'scripts', 'hub.mjs'), { force: true })
 
     const checks = runDoctor({ home }).checks
     assert.equal(checks.find((entry) => entry.name === 'hook path resolves')?.ok, true)
@@ -552,17 +515,18 @@ describe('doctor', () => {
 
   test('catches a missing spine script, which would leave the push channel permanently empty', () => {
     const report = installHere()
-    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
-      hooks: Record<string, { hooks: { command: string }[] }[]>
-    }
-    const group = hooks.hooks.SessionStart.find((candidate) =>
-      candidate.hooks.some((handler) => /spine\.mjs"/.test(handler.command)),
-    )!
-    group.hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/spine.mjs"`
-    writeFileSync(report.files.hooks, JSON.stringify(hooks, null, 2), 'utf8')
+    rmSync(join(report.paths.target, 'scripts', 'spine.mjs'), { force: true })
 
     const check = runDoctor({ home }).checks.find((entry) => entry.name === 'spine hook path resolves')
     assert.equal(check?.ok, false, 'no daemon would start, and the hub would have nothing to publish')
+  })
+
+  test('catches a missing error recorder, which is how a swallowed failure stays hidden', () => {
+    const report = installHere()
+    rmSync(join(report.paths.target, 'scripts', 'hook-errors.mjs'), { force: true })
+
+    const check = runDoctor({ home }).checks.find((entry) => entry.name === 'hook error recorder present')
+    assert.equal(check?.ok, false, 'without it a crash is indistinguishable from a quiet session')
   })
 
   test('catches a spine.json pointing at a daemon that is gone, which a session cannot warn about', () => {
@@ -589,17 +553,46 @@ describe('doctor', () => {
 
   test('catches a missing desktop script, which would leave the offer permanently unspoken', () => {
     const report = installHere()
-    const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
-      hooks: Record<string, { hooks: { command: string }[] }[]>
-    }
-    const group = hooks.hooks.SessionStart.find((candidate) =>
-      candidate.hooks.some((handler) => /desktop\.mjs"/.test(handler.command)),
-    )!
-    group.hooks[0].command = `"${process.execPath}" "C:/definitely/not/here/desktop.mjs"`
-    writeFileSync(report.files.hooks, JSON.stringify(hooks, null, 2), 'utf8')
+    rmSync(join(report.paths.target, 'scripts', 'desktop.mjs'), { force: true })
 
     const check = runDoctor({ home }).checks.find((entry) => entry.name === 'desktop hook path resolves')
     assert.equal(check?.ok, false, 'the workspace would never be offered its task, and nothing would say why')
+  })
+
+  test('surfaces hook failures the hooks recorded instead of throwing', () => {
+    // A hook has to swallow its errors, so a crashing hook and a quiet session look the same from
+    // outside. The check reads the record the hooks write, which is the only thing that tells them
+    // apart; the workspace is passed in so the suite never writes into its own checkout.
+    installHere()
+    const workspace = mkdtempSync(join(tmpdir(), 'agentgit-doctor-ws-'))
+    try {
+      const state = join(workspace, '.agentgit', 'state')
+      mkdirSync(state, { recursive: true })
+      writeFileSync(
+        join(state, 'hook-errors.jsonl'),
+        `${JSON.stringify({ at: new Date().toISOString(), script: 'hook', message: 'boom', event: 'hub' })}\n`,
+        'utf8',
+      )
+
+      const check = runDoctor({ home, workspace }).checks.find((entry) => entry.name === 'hook failures')
+      assert.equal(check?.ok, false, 'a failure in the last day is what doctor is run to find')
+      assert.match(check?.detail ?? '', /1 hook failure/)
+      assert.match(check?.detail ?? '', /hook-errors\.jsonl/)
+    } finally {
+      rmSync(workspace, { recursive: true, force: true })
+    }
+  })
+
+  test('reports no hook failures when the record has none, rather than inventing one', () => {
+    installHere()
+    const workspace = mkdtempSync(join(tmpdir(), 'agentgit-doctor-clean-'))
+    try {
+      const check = runDoctor({ home, workspace }).checks.find((entry) => entry.name === 'hook failures')
+      assert.equal(check?.ok, true)
+      assert.match(check?.detail ?? '', /no hook failure/)
+    } finally {
+      rmSync(workspace, { recursive: true, force: true })
+    }
   })
 
   test('catches a manifest whose icons are missing, which is how the plugin lost its face', () => {

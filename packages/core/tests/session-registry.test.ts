@@ -256,6 +256,23 @@ describe('which session this process is, when more than one fits', () => {
     assert.equal(claim({ cwd: 'C:/proj' }).sessionId, 'mine')
   })
 
+  test('matches the working directory by identity, not by the spelling the session recorded', () => {
+    // The Windows bug: a session started as `c:\users\me` and a server reporting `C:\Users\me`
+    // are one directory, but a string comparison made them two and sent the session id to the
+    // wrong window. Case is folded exactly where the filesystem folds it, so on Linux these are
+    // two different directories and recency is allowed to win.
+    session('mine', 'C:/proj', minutesAgo(20))
+    session('somebody-elses', 'C:/other', minutesAgo(1))
+
+    const claimed = claim({ cwd: 'c:/PROJ' })
+    if (process.platform === 'win32' || process.platform === 'darwin') {
+      assert.equal(claimed.sessionId, 'mine', 'one directory, one match')
+      assert.match(claimed.explanation, /working directory matches/)
+    } else {
+      assert.equal(claimed.sessionId, 'somebody-elses', 'on Linux the casing names a real second directory')
+    }
+  })
+
   test('recency decides when no directory distinguishes them', () => {
     session('older', null, minutesAgo(20))
     session('newer', null, minutesAgo(1))

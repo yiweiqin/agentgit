@@ -41,6 +41,7 @@ import { removeScratch } from './housekeeping.ts'
 /** The checkout root, found from this file rather than from the working directory. */
 const REPO = join(import.meta.dirname, '..', '..', '..')
 const SPINE = join(REPO, 'plugins', 'agentgit', 'scripts', 'spine.mjs')
+const HOOK_ERRORS = join(REPO, 'plugins', 'agentgit', 'scripts', 'hook-errors.mjs')
 
 /** A pid that cannot be running: used to stand in for a daemon that crashed. */
 const DEAD_PID = 2_147_483_647
@@ -114,6 +115,9 @@ function installSpine(overrides: { daemon?: string; node?: string; flags?: strin
   const shim = join(home, 'scripts', 'spine.mjs')
   mkdirSync(join(home, 'scripts'), { recursive: true })
   writeFileSync(shim, readFileSync(SPINE, 'utf8'), 'utf8')
+  // The error recorder is a sibling import the installed plugin ships alongside this script, so
+  // the shim has to carry it too — otherwise the copy is not the install it stands in for.
+  writeFileSync(join(home, 'scripts', 'hook-errors.mjs'), readFileSync(HOOK_ERRORS, 'utf8'), 'utf8')
   writeFileSync(
     join(home, 'spine.json'),
     `${JSON.stringify(
@@ -245,6 +249,7 @@ describe('the spine cannot fail a session', () => {
     const shim = join(home, 'scripts', 'spine.mjs')
     mkdirSync(join(home, 'scripts'), { recursive: true })
     writeFileSync(shim, readFileSync(SPINE, 'utf8'), 'utf8')
+    writeFileSync(join(home, 'scripts', 'hook-errors.mjs'), readFileSync(HOOK_ERRORS, 'utf8'), 'utf8')
     claim()
 
     const result = runSpine(sessionStart(), shim)
@@ -398,12 +403,24 @@ describe('the hot path stays constant and self-contained', () => {
     }
   })
 
-  test('imports nothing outside node:, because it runs with no node_modules', () => {
+  test('imports nothing outside node: or its own directory, because it runs with no node_modules', () => {
+    // The constraint is "no node_modules, no build step, no path back to this repository". A
+    // sibling file in the same installed directory satisfies all three; a bare specifier does not.
     const source = readFileSync(SPINE, 'utf8')
     const imports = [...source.matchAll(/^import .*?from '([^']+)'/gm)].map((match) => match[1])
     assert.ok(imports.length > 0, 'it has to import something, or this test proves nothing')
     for (const specifier of imports) {
-      assert.ok(specifier.startsWith('node:'), `${specifier} would not resolve from an installed plugin`)
+      const local = specifier.startsWith('./') || specifier.startsWith('../')
+      assert.ok(
+        specifier.startsWith('node:') || local,
+        `${specifier} would not resolve from an installed plugin`,
+      )
+      if (local) {
+        assert.ok(
+          existsSync(join(SPINE, '..', specifier)),
+          `${specifier} is imported but not shipped in scripts/`,
+        )
+      }
     }
   })
 

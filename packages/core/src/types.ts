@@ -187,6 +187,14 @@ export interface ContentionRecord {
   readonly tasks: string[]
   readonly sessions: string[]
   readonly intents: string[]
+  /**
+   * Intent sentence -> the tasks that stated it.
+   *
+   * `intents` keeps one copy of each distinct sentence, so it cannot answer "did more than
+   * one task say this?". Two tasks writing the *same* sentence is the strongest duplicate
+   * signal there is, and this map is what keeps the dedup from erasing it.
+   */
+  readonly intentHolders?: Readonly<Record<string, readonly string[]>>
   touches: number
 }
 

@@ -1,91 +1,61 @@
 {
   "_comment": [
     "Template only, and named so Codex cannot mistake it for the real thing.",
-    "`agentgit install` writes hooks.json beside it, with the NODE, TRACK, SPINE,",
-    "HUB and DESKTOP placeholders replaced by absolute paths on this machine. Codex",
-    "performs no command substitution and does not resolve a POSIX-style relative",
-    "script path on Windows, so absolute paths are the only form that works everywhere.",
-    "That is why hooks.json is gitignored and this template is not.",
+    "`agentgit install` writes hooks.json beside it, with the NODE and HOOK",
+    "placeholders replaced by absolute paths on this machine. Codex performs no",
+    "command substitution and does not resolve a POSIX-style relative script path on",
+    "Windows, so absolute paths are the only form that works everywhere. That is why",
+    "hooks.json is gitignored and this template is not.",
     "",
-    "Matchers are deliberately broad. The hook script classifies the tool itself",
-    "and ignores anything that cannot change a file, so a tool Codex renames or",
-    "adds still gets recorded instead of silently dropping out of the ledger.",
+    "Matchers are deliberately broad. The dispatcher classifies the tool itself and",
+    "ignores anything that cannot change a file, so a tool Codex renames or adds still",
+    "gets recorded instead of silently dropping out of the ledger.",
     "",
-    "Two scripts, on purpose, with different costs and different jobs:",
-    "  - track.mjs records one ledger line. It runs on every tool call and does no",
-    "    analysis at all.",
-    "  - spine.mjs makes sure one daemon is watching this workspace, and says nothing.",
-    "    It runs at session start and on each prompt, because the daemon is what writes",
-    "    the projection hub.mjs reads: without it the push channel is permanently silent.",
-    "  - hub.mjs pushes the hub's ruling into the session. It reads one small file",
-    "    the daemon writes and never reads the ledger, so its cost does not grow with",
-    "    the workspace. It is a second handler rather than a separate event so both",
-    "    scripts see the same payload, and track.mjs stays first so recording can",
-    "    never be delayed by anything the hub does.",
-    "  - desktop.mjs speaks at the three moments before anything is in flight: a repository",
-    "    that has not opted in is offered the chance to (remembered on the machine, never in",
-    "    the repository), an opted-in workspace is offered a pinned coordination task, and a",
-    "    message that starts with /agentgit is carried out rather than asked about - because",
-    "    the command is itself the explicit user request the host requires. A plugin cannot",
-    "    create a Codex task, so the two offers are the whole of what a hook can do here,",
-    "    and every one of the three is remembered so none of them becomes a nag.",
+    "One handler per event, and it is the dispatcher. Four scripts ran here before -",
+    "track, spine, hub, desktop - so a session start spawned four Node processes and a",
+    "file edit spawned two. Process startup, not the work, was the cost: scripts that do",
+    "milliseconds of work paid tens of milliseconds each to boot. hook.mjs reads stdin",
+    "once and runs the same steps in the same order inside one process.",
     "",
-    "The order on SessionStart and UserPromptSubmit is track, spine, hub, desktop: record",
-    "first, then make sure there is something to rule, then read the ruling, and only then",
-    "consider asking the user a question. desktop.mjs can inject context but changes no",
-    "coordination state - the only thing it writes is the record of a question it asked,",
-    "and never the ledger - so it goes last: nothing it does may delay the three above it.",
-    "spine.mjs and desktop.mjs are deliberately absent from PreToolUse: starting a daemon",
-    "and asking a question are both things that have no business between an agent and its",
-    "next edit.",
+    "The order lives in hook.mjs and is what it always was: record first, then make sure a",
+    "daemon is watching, then read the ruling, and only then consider asking the user a",
+    "question. Spine and desktop are absent from PreToolUse on purpose - starting a daemon",
+    "and asking a question have no business between an agent and its next edit - and the",
+    "hub on PreToolUse is narrowed to file edits, because a ruling is only worth",
+    "interrupting a write with when the write is about the ground it rules on.",
     "",
-    "The hub handler on PreToolUse is narrowed to file edits. A ruling is only worth",
-    "interrupting a write with when the write is about the ground it rules on, and",
-    "the host's own event schema is what says which tools those are."
+    "PostToolUse runs the hub as well, which it does not do for a global ruling: a ruling",
+    "is only worth interrupting a write with, and by the time a tool has finished there is",
+    "nothing left to interrupt. It is there for the impact protocol, whose deferred",
+    "notifications are explicitly not allowed to reach an in-progress tool. PreToolUse",
+    "carries that protocol's interrupt-class items, PostToolUse its deferred ones."
   ],
   "hooks": {
     "SessionStart": [
       {
-        "hooks": [
-          { "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" },
-          { "type": "command", "command": "\"{{NODE}}\" \"{{SPINE}}\"" },
-          { "type": "command", "command": "\"{{NODE}}\" \"{{HUB}}\"" },
-          { "type": "command", "command": "\"{{NODE}}\" \"{{DESKTOP}}\"" }
-        ]
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{HOOK}}\"" }]
       }
     ],
     "UserPromptSubmit": [
       {
-        "hooks": [
-          { "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" },
-          { "type": "command", "command": "\"{{NODE}}\" \"{{SPINE}}\"" },
-          { "type": "command", "command": "\"{{NODE}}\" \"{{HUB}}\"" },
-          { "type": "command", "command": "\"{{NODE}}\" \"{{DESKTOP}}\"" }
-        ]
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{HOOK}}\"" }]
       }
     ],
     "PreToolUse": [
       {
         "matcher": ".*",
-        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" }]
-      },
-      {
-        "matcher": "apply_patch|Edit|Write",
-        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{HUB}}\"" }]
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{HOOK}}\"" }]
       }
     ],
     "PostToolUse": [
       {
         "matcher": ".*",
-        "hooks": [
-          { "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" },
-          { "type": "command", "command": "\"{{NODE}}\" \"{{HUB}}\"" }
-        ]
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{HOOK}}\"" }]
       }
     ],
     "Stop": [
       {
-        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" }]
+        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{HOOK}}\"" }]
       }
     ]
   }

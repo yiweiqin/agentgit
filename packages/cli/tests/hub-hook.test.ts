@@ -329,12 +329,24 @@ describe('the hot path stays constant', () => {
     }
   })
 
-  test('imports nothing outside node:, because it runs with no node_modules', () => {
+  test('imports nothing outside node: or its own directory, because it runs with no node_modules', () => {
+    // The constraint is "no node_modules, no build step, no path back to this repository". A
+    // sibling file in the same installed directory satisfies all three; a bare specifier does not.
     const source = readFileSync(HUB, 'utf8')
     const imports = [...source.matchAll(/^import .*?from '([^']+)'/gm)].map((match) => match[1])
     assert.ok(imports.length > 0)
     for (const specifier of imports) {
-      assert.ok(specifier.startsWith('node:'), `${specifier} would not resolve from an installed plugin`)
+      const local = specifier.startsWith('./') || specifier.startsWith('../')
+      assert.ok(
+        specifier.startsWith('node:') || local,
+        `${specifier} would not resolve from an installed plugin`,
+      )
+      if (local) {
+        assert.ok(
+          existsSync(join(HUB, '..', specifier)),
+          `${specifier} is imported but not shipped in scripts/`,
+        )
+      }
     }
   })
 })

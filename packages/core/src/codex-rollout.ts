@@ -27,10 +27,11 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, relative, resolve, sep } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 
 import { buildEvent, toWire } from './ledger.ts'
 import { isCheckMessage } from './checks.ts'
+import { isWithinRoot } from './paths.ts'
 import type { CoordEvent, Entity } from './types.ts'
 import { appendEvent, readAllEvents, toWorkspaceRelative, type WorkspacePaths } from './workspace.ts'
 
@@ -51,8 +52,30 @@ export function sessionsRoot(home: string = codexHome()): string {
  * Walks the date directories rather than globbing, because the nesting is the only
  * bounded part of the layout: a repository can accumulate thousands of sessions and
  * a recursive scan would stat all of them on every daemon tick.
+ *
+ * The walk is memoized for {@link ROLLOUT_LISTING_TTL_MS}. The daemon calls this every
+ * fifteen seconds to adopt sessions, and re-reading the same date tree four times a minute
+ * buys nothing: a session that appears in the meantime is picked up on the next walk, which
+ * is a minute of extra latency on a *backfill* path — the live session is already recorded by
+ * its own hook. A one-shot caller (the CLI, the board) starts with an empty cache, so only a
+ * long-lived process ever sees the memo.
  */
 export function listRolloutFiles(home: string = codexHome(), maxDays = 14): string[] {
+  const key = `${home}\u0000${maxDays}`
+  const now = Date.now()
+  const cached = listingCache.get(key)
+  if (cached && now - cached.at < ROLLOUT_LISTING_TTL_MS) return cached.files
+  const files = walkRolloutFiles(home, maxDays)
+  listingCache.set(key, { at: now, files })
+  // Bounded: one entry per distinct sessions root, of which a machine has a handful.
+  if (listingCache.size > ROLLOUT_LISTING_MAX) {
+    const oldest = listingCache.keys().next().value
+    if (oldest !== undefined) listingCache.delete(oldest)
+  }
+  return files
+}
+
+function walkRolloutFiles(home: string, maxDays: number): string[] {
   const root = sessionsRoot(home)
   if (!existsSync(root)) return []
   const files: string[] = []
@@ -328,14 +351,14 @@ export function parseRolloutText(text: string, file: string): RolloutSession | n
   }
 }
 
-/** Whether `candidate` is `root` itself or inside it, compared on path boundaries. */
-function isWithin(root: string, candidate: string): boolean {
-  const parent = resolve(root)
-  const child = resolve(candidate)
-  if (parent === child) return true
-  const prefix = parent.endsWith(sep) ? parent : `${parent}${sep}`
-  return child.startsWith(prefix)
-}
+/**
+ * Whether a session belongs to a workspace, by containment on path boundaries.
+ *
+ * Delegates to {@link isWithinRoot} so the one place that decides directory identity also
+ * decides containment: on Windows `c:\repo` and `C:\Repo` are one directory, and a
+ * case-sensitive comparison here made a session invisible to its own workspace.
+ */
+const isWithin = isWithinRoot
 
 /**
  * Sessions belonging to one workspace.
@@ -358,6 +381,48 @@ function isWithin(root: string, candidate: string): boolean {
  */
 const rolloutCache = new Map<string, { size: number; mtime: number; session: RolloutSession | null }>()
 
+/** Cap on parsed sessions kept in memory. See {@link rememberRollout} for the eviction rule. */
+const ROLLOUT_CACHE_MAX = 256
+
+/** How long a directory listing is trusted before the date tree is walked again. */
+export const ROLLOUT_LISTING_TTL_MS = 60_000
+
+/** How many distinct sessions roots are memoized. */
+const ROLLOUT_LISTING_MAX = 8
+
+const listingCache = new Map<string, { at: number; files: string[] }>()
+
+/**
+ * Remember one parsed rollout, evicting the least recently used when full.
+ *
+ * The obvious alternative — clearing the whole cache once it passes the cap — was a cliff:
+ * a workspace with more rollouts than the cap re-parsed every file on every tick, and the
+ * parse is the expensive part (reading and parsing the whole transcript, not stat-ing it).
+ * Evicting one entry keeps a hot set resident and makes the steady-state cost proportional
+ * to what actually changed.
+ */
+function rememberRollout(file: string, size: number, mtime: number, session: RolloutSession | null): void {
+  // Re-inserting moves the key to the end, which is what makes `Map` insertion order an LRU
+  // order. Without this an entry read every tick but written once would still be evicted first.
+  rolloutCache.delete(file)
+  rolloutCache.set(file, { size, mtime, session })
+  if (rolloutCache.size > ROLLOUT_CACHE_MAX) {
+    const oldest = rolloutCache.keys().next().value
+    if (oldest !== undefined) rolloutCache.delete(oldest)
+  }
+}
+
+/**
+ * Drop every memoized listing and parsed session.
+ *
+ * Exported for tests, which create a fresh scratch sessions root per case and must not inherit
+ * the previous one's memo.
+ */
+export function resetRolloutCaches(): void {
+  listingCache.clear()
+  rolloutCache.clear()
+}
+
 export function sessionsForWorkspace(root: string, home: string = codexHome(), updatedSince = -Infinity): RolloutSession[] {
   const target = resolve(root)
   const out: RolloutSession[] = []
@@ -368,8 +433,7 @@ export function sessionsForWorkspace(root: string, home: string = codexHome(), u
     const cached = rolloutCache.get(file)
     const session = cached?.size === signature.size && cached.mtime === signature.mtimeMs
       ? cached.session : parseRollout(file)
-    if (rolloutCache.size > 256) rolloutCache.clear()
-    rolloutCache.set(file, { size: signature.size, mtime: signature.mtimeMs, session })
+    rememberRollout(file, signature.size, signature.mtimeMs, session)
     if (!session) continue
     const candidates = [session.cwd, ...session.workspaceRoots].filter(
       (value): value is string => typeof value === 'string' && value.length > 0,

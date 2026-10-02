@@ -267,6 +267,58 @@ describe('what the hub concludes about one contention', () => {
     assert.equal(ruling.needsResolution, false, 'a model call is not the answer to missing evidence')
   })
 
+  test('two tasks that wrote the same sentence are one job, not two purposes', () => {
+    // The ledger keeps one copy of each distinct sentence, so an identical intent collapsed to a
+    // single entry and the pairwise matcher saw nothing to compare - the strongest duplicate
+    // signal there is came back as "insufficient intent" and was answered with a replan. The
+    // holder map restores the count, so agreeing in exactly the same words reads as agreement.
+    write('task-a', FILE, SAME_WORK_A, ago(10))
+    write('task-b', FILE, SAME_WORK_A, ago(9))
+
+    const ruling = computeHubVerdict(paths(), clock).rulings[0]
+    assert.equal(ruling.word, 'reuse')
+    assert.equal(ruling.basis, 'intent-similarity')
+    assert.equal(ruling.similarity, 1)
+  })
+
+  test('a reworded duplicate goes to the brain, not to a replan', () => {
+    // The rephrase that used to be dismissed. One job, two vocabularies: the lexical score lands
+    // inside the undecidable band, so the ruling asks and a window answers - which reuses work -
+    // instead of asserting "different purpose" and telling two agents doing one change to split.
+    write('task-a', FILE, 'add rate limiting to the login endpoint', ago(10))
+    write('task-b', FILE, 'throttle repeated login attempts', ago(9))
+
+    const ruling = computeHubVerdict(paths(), clock).rulings[0]
+    assert.equal(ruling.word, 'ambiguous')
+    assert.equal(ruling.basis, 'lexical-undecidable')
+    assert.equal(ruling.needsResolution, true, 'the rephrase is exactly what the brain exists for')
+  })
+
+  test('one job in two differently-named files is a question, never a silent pass', () => {
+    // A ruling is keyed by an entity, so two agents doing one change in two differently-named
+    // files never enter one. That is the commonest duplication there is and the one a per-entity
+    // ruler is blind to by construction, so it is reported here - as a question with no owner and
+    // no word, because sharing no ground is not on its own evidence of anything.
+    write('task-a', 'src/limit-a.ts', SAME_WORK_A, ago(10))
+    write('task-b', 'src/limit-b.ts', SAME_WORK_A, ago(9))
+
+    const verdict = computeHubVerdict(paths(), clock)
+    assert.deepEqual(verdict.rulings, [], 'no shared ground means nothing for an entity-keyed ruler to rule on')
+    assert.equal(verdict.duplicateWork.length, 1)
+    assert.deepEqual(verdict.duplicateWork[0].tasks, ['task-a', 'task-b'])
+    assert.equal(verdict.duplicateWork[0].similarity, 1)
+    assert.match(verdict.advisory, /Possibly one job on different files/)
+  })
+
+  test('a pair that shares ground is ruled on and not repeated as cross-file', () => {
+    write('task-a', FILE, SAME_WORK_A, ago(10))
+    write('task-b', FILE, SAME_WORK_B, ago(9))
+
+    const verdict = computeHubVerdict(paths(), clock)
+    assert.equal(verdict.rulings.length, 1, 'this pair shares an entity, which is the ruler\'s job')
+    assert.deepEqual(verdict.duplicateWork, [], 'the same pair must not also be reported as a cross-file question')
+  })
+
   test('a live lease outranks who wrote first', () => {
     write('task-a', FILE, SAME_WORK_A, ago(10))
     write('task-b', FILE, SAME_WORK_B, ago(9))

@@ -36,6 +36,7 @@ import { join } from 'node:path'
 
 import { compareCodepoint } from './ledger.ts'
 import { isHubEvent } from './hub.ts'
+import { rootKey } from './paths.ts'
 import { machineId, readAllEvents, type WorkspacePaths } from './workspace.ts'
 import type { CoordEvent } from './types.ts'
 
@@ -290,10 +291,14 @@ export function claimSession(paths: WorkspacePaths, input: ClaimInput): ClaimedS
    * ago, which is the failure this module replaces.
    */
   const wanted = input.cwd ?? null
+  const wantedKey = wanted === null ? null : rootKey(wanted)
   const ranked = [...candidates].sort((a, b) => {
-    if (wanted !== null) {
-      const aMatch = a.cwd === wanted ? 1 : 0
-      const bMatch = b.cwd === wanted ? 1 : 0
+    if (wantedKey !== null) {
+      // Compared by identity, not by the recorded spelling: a session started as `c:\users\me`
+      // and a server reporting `C:\Users\me` are the same directory on Windows, and a string
+      // comparison made them two - which sent the session id to the wrong window.
+      const aMatch = a.cwd !== null && rootKey(a.cwd) === wantedKey ? 1 : 0
+      const bMatch = b.cwd !== null && rootKey(b.cwd) === wantedKey ? 1 : 0
       if (aMatch !== bMatch) return bMatch - aMatch
     }
     return compareCodepoint(b.lastSeenAt, a.lastSeenAt) || compareCodepoint(a.sessionId, b.sessionId)
@@ -310,7 +315,7 @@ export function claimSession(paths: WorkspacePaths, input: ClaimInput): ClaimedS
       cwd: wanted,
     }
     if (tryCreateClaim(paths, claim)) {
-      const matched = wanted !== null && candidate.cwd === wanted
+      const matched = wantedKey !== null && candidate.cwd !== null && rootKey(candidate.cwd) === wantedKey
       return {
         sessionId: candidate.sessionId,
         source: 'registry',

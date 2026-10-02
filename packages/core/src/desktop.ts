@@ -33,6 +33,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
+import { rootKey } from './paths.ts'
 import type { WorkspacePaths } from './workspace.ts'
 
 /** Bumped only if the shape below changes incompatibly; a mismatch reads as "never offered". */
@@ -445,15 +446,40 @@ export function writeInitOffer(
   env: Record<string, string | undefined> = process.env,
 ): InitOffersState {
   const current = readInitOffers(env)
-  const key = resolve(root)
-  const existing = current.workspaces[key] ?? { offeredAt: null, declinedAt: null }
+  const key = rootKey(root)
+  const found = findInitOffer(current.workspaces, root)
+  const existing = found?.record ?? { offeredAt: null, declinedAt: null }
+  const next: Record<string, InitOfferRecord> = { ...current.workspaces }
+  // A record written by an older build carries the caller's spelling. Re-key it onto the folded
+  // key rather than leaving both, which is what made one repository look like two.
+  if (found && found.key !== key) delete next[found.key]
+  next[key] = { ...existing, ...patch }
   return persistInitOffers(
     {
       version: INIT_OFFERS_VERSION,
-      workspaces: pruneInitOffers({ ...current.workspaces, [key]: { ...existing, ...patch } }),
+      workspaces: pruneInitOffers(next),
     },
     env,
   )
+}
+
+/**
+ * The record for one root, tolerating a key written before paths were case-normalised.
+ *
+ * Looked up by identity rather than by literal key so the first run after an upgrade finds the
+ * record an earlier spelling left behind, instead of treating the repository as never offered.
+ */
+function findInitOffer(
+  workspaces: Readonly<Record<string, InitOfferRecord>>,
+  root: string,
+): { key: string; record: InitOfferRecord } | null {
+  const key = rootKey(root)
+  const direct = workspaces[key]
+  if (direct) return { key, record: direct }
+  for (const [dir, record] of Object.entries(workspaces)) {
+    if (rootKey(dir) === key) return { key: dir, record }
+  }
+  return null
 }
 
 /**
@@ -464,11 +490,11 @@ export function writeInitOffer(
  */
 export function clearInitOffer(root: string, env: Record<string, string | undefined> = process.env): boolean {
   const current = readInitOffers(env)
-  const key = resolve(root)
-  if (!Object.prototype.hasOwnProperty.call(current.workspaces, key)) return false
+  const key = rootKey(root)
+  if (!findInitOffer(current.workspaces, root)) return false
   const rest: Record<string, InitOfferRecord> = {}
   for (const [dir, record] of Object.entries(current.workspaces)) {
-    if (dir !== key) rest[dir] = record
+    if (rootKey(dir) !== key) rest[dir] = record
   }
   persistInitOffers({ version: INIT_OFFERS_VERSION, workspaces: rest }, env)
   return true
@@ -505,5 +531,5 @@ export function initOfferFor(
   root: string,
   env: Record<string, string | undefined> = process.env,
 ): InitOfferRecord | null {
-  return readInitOffers(env).workspaces[resolve(root)] ?? null
+  return findInitOffer(readInitOffers(env).workspaces, root)?.record ?? null
 }

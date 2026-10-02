@@ -46,6 +46,8 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
 
+import { isDirectRun, noteFailure } from './hook-errors.mjs'
+
 /** Hook events this script answers. Anything else is not its business. */
 const EVENTS = new Set(['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse'])
 
@@ -271,10 +273,16 @@ function writeMarker(paths, sessionId, rulingId, event) {
 /* main                                                                        */
 /* -------------------------------------------------------------------------- */
 
-/** Targeted protocol: one bounded inbox; never broadcast another session's context. */
+/**
+ * Targeted delivery for the impact protocol: one bounded inbox, never another session's
+ * context. Returns the hook-output line to print, or `null` when there is nothing to deliver.
+ *
+ * The inbox is revalidated against the declarations it was computed from, so an inbox built
+ * from state that has since moved on is dropped rather than delivered late.
+ */
 function deliverImpacts(paths, payload) {
   const file = join(paths.state, 'impact-inbox', seenMarkerName(payload.sessionId))
-  if (!existsSync(file)) return
+  if (!existsSync(file)) return null
   const inbox = JSON.parse(readFileSync(file, 'utf8'))
   if (inbox.version !== 1 || inbox.sessionId !== payload.sessionId || inbox.workspace !== paths.root ||
       !Array.isArray(inbox.notifications) || Date.parse(inbox.expiresAt) <= Date.now() ||
@@ -301,7 +309,7 @@ function deliverImpacts(paths, payload) {
     selected.push({ ...item, text })
     length += text.length + 2
   }
-  if (!selected.length) return
+  if (!selected.length) return null
   mkdirSync(dir, { recursive: true })
   // Only mark the items actually included: bounded output must not silently lose the rest.
   const claimed = selected.filter(item => {
@@ -312,28 +320,36 @@ function deliverImpacts(paths, payload) {
       return true
     } catch { return false }
   })
-  if (!claimed.length) return
-  process.stdout.write(`${JSON.stringify({ hookSpecificOutput: {
+  if (!claimed.length) return null
+  return `${JSON.stringify({ hookSpecificOutput: {
     hookEventName: payload.eventName, additionalContext: claimed.map(item => item.text).join('\n\n'),
-  } })}\n`)
+  } })}\n`
 }
 
-function main() {
-  const payload = normalizePayload(readStdin())
-  if (!payload || !payload.sessionId) return
-  if (!EVENTS.has(payload.eventName)) return
+/**
+ * The hook-output object to print, or `null` when this payload needs no advisory.
+ *
+ * Returns the string rather than printing it so `hook.mjs` can merge this with the desktop
+ * hook's context into a single response, and so a standalone run prints exactly what it always
+ * did. Standalone use is unchanged — see {@link isDirectRun} below.
+ */
+export function run(payloadText) {
+  const payload = normalizePayload(payloadText)
+  if (!payload || !payload.sessionId) return null
+  if (!EVENTS.has(payload.eventName)) return null
 
   const found = findWorkspace(payload.cwd)
-  if (!found.root) return
+  if (!found.root) return null
 
   const paths = { root: found.root, state: stateDir(found.root) }
-  if (existsSync(join(paths.state, 'impact-protocol.json'))) {
-    deliverImpacts(paths, payload)
-    return
-  }
-  if (payload.eventName === 'PostToolUse') return
+  // The impact protocol reads only this receiver's bounded inbox, so it is the whole answer
+  // when it is on. The global ruling path below is kept for older daemon projections.
+  if (existsSync(join(paths.state, 'impact-protocol.json'))) return deliverImpacts(paths, payload)
+  // A global ruling is never delivered after a tool has finished: it exists to interrupt a
+  // write about the ground it is about to touch, and there is no write left to interrupt.
+  if (payload.eventName === 'PostToolUse') return null
   const hubFile = join(paths.state, 'hub.json')
-  if (!existsSync(hubFile)) return
+  if (!existsSync(hubFile)) return null
 
   let hub = null
   try {
@@ -341,9 +357,9 @@ function main() {
   } catch {
     // A torn projection is a tick mid-write. Saying nothing is correct; the next tool call
     // will read the finished file.
-    return
+    return null
   }
-  if (!hub || typeof hub.id !== 'string' || typeof hub.advisory !== 'string') return
+  if (!hub || typeof hub.id !== 'string' || typeof hub.advisory !== 'string') return null
   /*
    * Something has to be in it.
    *
@@ -378,16 +394,20 @@ function main() {
       : `${hub.advisory.slice(0, MAX_ADVISORY_CHARS - 3)}...`
 
   writeMarker(paths, payload.sessionId, hub.id, payload.eventName)
-  process.stdout.write(
-    `${JSON.stringify({
-      hookSpecificOutput: { hookEventName: payload.eventName, additionalContext: advisory },
-    })}\n`,
-  )
+  return `${JSON.stringify({
+    hookSpecificOutput: { hookEventName: payload.eventName, additionalContext: advisory },
+  })}\n`
 }
 
-try {
-  main()
-} catch {
-  // Coordination advice is never worth failing a tool call over.
+if (isDirectRun(import.meta.url)) {
+  let output = null
+  try {
+    output = run(readStdin())
+  } catch (error) {
+    // Coordination advice is never worth failing a tool call over, but the failure is worth
+    // writing down: a hub that throws and a hub with nothing to say both print nothing.
+    noteFailure('hub', error, { cwd: process.cwd() })
+  }
+  if (output) process.stdout.write(output)
+  process.exit(0)
 }
-process.exit(0)

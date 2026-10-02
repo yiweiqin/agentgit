@@ -60,8 +60,27 @@ export const HUB_PROJECTION_VERSION = 1
  * guess: below it, two intents share so little that calling them the same work would be a
  * fabrication. Between the two the evidence is genuinely insufficient, and that is the one
  * case worth spending a model call on.
+ *
+ * The floor is deliberately low. Rewording one job is the normal case — "add rate limiting to
+ * the login endpoint" and "throttle repeated login attempts" are one change — and a rephrase
+ * that falls above the floor is routed to `ambiguous` and answered by the brain, which is the
+ * outcome that reuses work. A high floor turned exactly those pairs into `replan`, i.e. it
+ * told two agents doing one job to split the interface.
  */
-export const HUB_DECIDE_BAND = { reuse: 0.42, replan: 0.2 } as const
+export const HUB_DECIDE_BAND = { reuse: 0.42, replan: 0.1 } as const
+
+/**
+ * Similarity at which two tasks are flagged as probably doing one job on *different* ground.
+ *
+ * Below `HUB_DECIDE_BAND.reuse` on purpose. A ruling needs to be sure, because it names an
+ * owner and a decision; this only raises a question, and a question costs a sentence of
+ * context. It is the one signal that crosses filenames, which is the most common duplication
+ * and the one a per-entity ruler structurally cannot see.
+ */
+export const HUB_DUPLICATE_WORK_THRESHOLD = 0.3
+
+/** How many cross-file duplicate pairs the advisory names before it stops. */
+export const HUB_DUPLICATE_WORK_LIMIT = 5
 
 /** Cap on the injected advisory. It is handed to a context that is already under pressure. */
 export const HUB_ADVISORY_MAX_CHARS = 1200
@@ -184,6 +203,23 @@ export interface HubStaleItem {
   readonly breaking: boolean
 }
 
+/**
+ * Two tasks whose intents say one job, on ground they do not share.
+ *
+ * This exists because a {@link HubRuling} cannot: rulings are keyed by an entity, so two
+ * agents doing one thing in two differently-named files never enter one and are invisible to
+ * each other. This is a *question*, not a decision — no owner, no word — so it adds no ruling
+ * and changes nothing a window is allowed to do. It only makes the commonest duplication
+ * visible instead of silent, which is the whole of the fix.
+ */
+export interface HubDuplicateWork {
+  /** The two tasks, sorted, so the pair has one spelling. */
+  readonly tasks: readonly [string, string]
+  readonly similarity: number
+  /** The two intent sentences that matched, in `tasks` order. */
+  readonly intents: readonly [string, string]
+}
+
 export interface HubParallelism {
   readonly mean: number
   readonly peak: number
@@ -241,6 +277,14 @@ export interface HubVerdict {
   readonly holders: readonly HubHolder[]
   readonly integration: readonly HubIntegrationItem[]
   readonly stale: readonly HubStaleItem[]
+  /**
+   * Tasks that look like one job on ground they do not share. See {@link HubDuplicateWork}.
+   *
+   * Not part of {@link hubVerdictId}: this is a standing question about the whole workspace, not
+   * a conclusion, and folding it into the id would republish the ruling whenever a new task's
+   * wording drifted. It rides along with a ruling that is already being published.
+   */
+  readonly duplicateWork: readonly HubDuplicateWork[]
   readonly parallelism: HubParallelism
   readonly metrics: HubMetrics
   /** The exact text injected into an agent's context. Rendered here so the hook does no work. */
@@ -391,6 +435,9 @@ export function readHubVerdict(paths: WorkspacePaths): HubVerdict | null {
       holders: Array.isArray(raw.holders) ? (raw.holders as HubHolder[]) : [],
       integration: Array.isArray(raw.integration) ? (raw.integration as HubIntegrationItem[]) : [],
       stale: Array.isArray(raw.stale) ? (raw.stale as HubStaleItem[]) : [],
+      // Absent from a projection written before this field existed: an older cache degrades to
+      // "no cross-file question", which is the same as having none rather than an error.
+      duplicateWork: Array.isArray(raw.duplicateWork) ? (raw.duplicateWork as HubDuplicateWork[]) : [],
       parallelism: raw.parallelism ?? { mean: 0, peak: 0, parallelFraction: 0 },
       metrics: raw.metrics ?? {
         rulings: 0,
@@ -641,6 +688,23 @@ function ruleOn(
   }
 
   /*
+   * The ledger keeps one copy of each distinct sentence, so two tasks that wrote the *same*
+   * intent collapse to a single entry and the loop above finds nothing to compare - the
+   * clearest duplicate there is, read as "insufficient intent" and answered with a replan.
+   * The holder map remembers who said what, so an identical sentence from more than one task
+   * is scored as the duplicate it is instead of being punished for agreeing.
+   */
+  const holders = record.intentHolders
+  if (holders) {
+    for (const intent of intents) {
+      if ((holders[intent]?.length ?? 0) > 1) {
+        similarity = 1
+        break
+      }
+    }
+  }
+
+  /*
    * A record keyed by `symbol::` is two tasks naming the same behaviour, which stands on
    * its own — the same reason `isStructuralDuplicate` refuses to let file overlap qualify.
    * It is read off the key rather than inferred from intents, so the structural case cannot
@@ -699,6 +763,8 @@ export function computeHubVerdict(
   const contention = entityTouches(capsules).filter(
     (record) => record.tasks.length > 1 || record.sessions.length > 1,
   )
+  // Cross-file duplication, which the entity-keyed contention above cannot see by construction.
+  const duplicateWork = crossFileDuplicateWork(entityTouches(capsules))
   const leases = liveLeases(loadLeases(paths), now)
   const answers = hubAnswers(events)
   const since = ownershipSince(ownershipHistory(events))
@@ -831,6 +897,7 @@ export function computeHubVerdict(
     holders,
     integration,
     stale: hubStale,
+    duplicateWork,
     parallelism,
     metrics,
   }
@@ -979,6 +1046,65 @@ function actionFor(ruling: HubRuling): string {
  * one renderer, one string, and a hook that only reads a file. Session-neutral on purpose —
  * it is the same conclusion for every window, which is what "one answer" has to mean.
  */
+/**
+ * Pairs of tasks whose intents say one job, on ground they do not share.
+ *
+ * The blind spot this closes: a {@link HubRuling} is keyed by an entity, so two agents doing
+ * one change in two differently-named files never meet one, and the ledger is silent about the
+ * commonest duplication there is. This compares the intents across entities instead, and only
+ * where the two tasks share no entity at all — shared ground is a ruling's business, and
+ * reporting it here too would double-count and dilute the rulings.
+ *
+ * Bounded on both ends: at most {@link HUB_DUPLICATE_WORK_LIMIT} pairs are returned, and only
+ * the first 60 tasks by id are compared, so the cost cannot grow without limit in a workspace
+ * with hundreds of capsules.
+ */
+function crossFileDuplicateWork(records: readonly ContentionRecord[]): HubDuplicateWork[] {
+  const byTask = new Map<string, { intents: Set<string>; entities: Set<string> }>()
+  for (const record of records) {
+    for (const task of record.tasks) {
+      let entry = byTask.get(task)
+      if (!entry) {
+        entry = { intents: new Set(), entities: new Set() }
+        byTask.set(task, entry)
+      }
+      entry.entities.add(record.entityKey)
+      for (const intent of record.intents) {
+        if (intent.trim().length > 0) entry.intents.add(intent)
+      }
+    }
+  }
+
+  const tasks = [...byTask.keys()].sort(compareCodepoint).slice(0, 60)
+  const found: HubDuplicateWork[] = []
+  for (let i = 0; i < tasks.length; i += 1) {
+    for (let j = i + 1; j < tasks.length; j += 1) {
+      const a = byTask.get(tasks[i])!
+      const b = byTask.get(tasks[j])!
+      if (a.intents.size === 0 || b.intents.size === 0) continue
+      // Shared ground is what the rulings are for; this pass is only for the disjoint case.
+      if ([...a.entities].some((key) => b.entities.has(key))) continue
+
+      let best = 0
+      let pair: [string, string] | null = null
+      for (const ia of a.intents) {
+        for (const ib of b.intents) {
+          const score = intentSimilarity(ia, ib)
+          if (score > best) {
+            best = score
+            pair = [ia, ib]
+          }
+        }
+      }
+      if (pair === null || best < HUB_DUPLICATE_WORK_THRESHOLD) continue
+      found.push({ tasks: [tasks[i], tasks[j]], similarity: Math.round(best * 100) / 100, intents: pair })
+    }
+  }
+  return found
+    .sort((x, y) => y.similarity - x.similarity || compareCodepoint(x.tasks[0], y.tasks[0]))
+    .slice(0, HUB_DUPLICATE_WORK_LIMIT)
+}
+
 export function renderHubAdvisory(verdict: HubVerdict, maxChars = HUB_ADVISORY_MAX_CHARS): string {
   const lines: string[] = []
   lines.push('## Coordination hub — one ruling per contention (advisory)')
@@ -1033,6 +1159,27 @@ export function renderHubAdvisory(verdict: HubVerdict, maxChars = HUB_ADVISORY_M
   if (verdict.integration.length > 0) {
     lines.push('', `Integration order: ${verdict.integration.map((item) => item.taskId).join(' -> ')}`)
   }
+
+  /*
+   * The cross-file pass. Rendered after the rulings because it is a weaker claim than any of
+   * them: same work, different ground, no owner and no decision. A window reads it as a
+   * question — "is this the change you are already making?" — which is the one thing a
+   * per-entity ruler can never ask.
+   */
+  if (verdict.duplicateWork.length > 0) {
+    lines.push(
+      '',
+      'Possibly one job on different files — no shared ground, so no ruling; check before writing:',
+    )
+    for (const pair of verdict.duplicateWork) {
+      lines.push(
+        `- ${pair.tasks[0]} and ${pair.tasks[1]} (intent similarity ${pair.similarity}):` +
+          ` "${pair.intents[0]}" vs "${pair.intents[1]}"`,
+      )
+    }
+    lines.push('  → if it is one change, one of you should reuse the other\'s work rather than repeat it')
+  }
+
   if (verdict.stale.length > 0) {
     lines.push('', 'Interfaces that moved (re-read before relying on the old shape):')
     for (const item of verdict.stale) {

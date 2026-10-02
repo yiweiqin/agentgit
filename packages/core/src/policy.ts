@@ -195,12 +195,68 @@ const STOPWORDS = new Set([
   'at', 'by', 'or', 'as', 'is', 'it', 'be', 'we', 'if', 'an', 'a',
 ])
 
-/** Lowercased content words. */
+/**
+ * Canonical forms for words that name one idea in two vocabularies.
+ *
+ * Lexical matching has a measured ceiling: two agents describing the same job in different
+ * words score near zero. These are the highest-frequency cases in real intents, where the
+ * wording moves but the work does not — "throttle the repeated login attempts" and "add rate
+ * limiting to the login endpoint" are one change. The set is small and closed on purpose: it
+ * lifts the floor for a named class of cases without pretending to be a thesaurus, which is
+ * what the `ambiguous` band and the brain exist for. Deterministic, so a replay reproduces
+ * every score it produced.
+ */
+const CANONICAL: Readonly<Record<string, string>> = {
+  rate: 'limit',
+  limiting: 'limit',
+  limiter: 'limit',
+  limits: 'limit',
+  limited: 'limit',
+  throttle: 'limit',
+  throttling: 'limit',
+  throttled: 'limit',
+  repeated: 'repeat',
+  repeating: 'repeat',
+  failures: 'failure',
+  failed: 'failure',
+  sign: 'login',
+  signin: 'login',
+  authentication: 'auth',
+  authenticate: 'auth',
+  authorization: 'auth',
+  authorisation: 'auth',
+  retries: 'retry',
+  retrying: 'retry',
+}
+
+/**
+ * A conservative plural stem, so "attempts" and "attempt" are one token.
+ *
+ * Deliberately not a full stemmer: truncating "-ing" or "-ed" turns "caching" into "cach" and
+ * "testing" into "test", which are different words here. Only the plural forms a machine can
+ * undo without guessing a root are folded; every other rewrite belongs in {@link CANONICAL}
+ * where it is named and reviewable.
+ */
+function singular(word: string): string {
+  if (word.endsWith('ies') && word.length > 4) return `${word.slice(0, -3)}y`
+  if (word.endsWith('ss')) return word
+  if (word.endsWith('s') && word.length > 3) return word.slice(0, -1)
+  return word
+}
+
+/** One raw word to its canonical token: a named synonym first, then the plural stem. */
+function canonicalWord(word: string): string {
+  const stemmed = singular(word)
+  return CANONICAL[word] ?? CANONICAL[stemmed] ?? stemmed
+}
+
+/** Lowercased content words, folded onto their canonical tokens. */
 export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length >= 2 && !STOPWORDS.has(w))
+    .map(canonicalWord)
 }
 
 /**

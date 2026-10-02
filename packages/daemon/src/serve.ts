@@ -38,6 +38,7 @@ import {
   buildGraphView,
   ensureWorkspace,
   explainCommit,
+  reconcileShellWrites,
   type GraphView,
   type HubVerdict,
   type WorkspacePaths,
@@ -295,6 +296,14 @@ export async function startBoard(options: ServeOptions): Promise<BoardServer> {
         } catch {
           // A transcript format change must never take the board down. Degrading to
           // hooks-only is the documented behaviour; the ledger keeps working either way.
+        }
+        try {
+          // Shell commands write files the hook cannot see. Recovery runs here, not in the
+          // hook: a `git status` does not belong on the path of every tool call, and the
+          // ledger read it needs is one this loop already pays for.
+          reconcileShellWrites(workspace.paths)
+        } catch {
+          // An unreadable working tree degrades to "no reconciled writes", never to a dead board.
         }
       }
       tick()

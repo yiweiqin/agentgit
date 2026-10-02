@@ -31,6 +31,7 @@ import {
   listRolloutFiles,
   parseRollout,
   readAllEvents,
+  resetRolloutCaches,
   sessionIntent,
   sessionsForWorkspace,
   workspacePaths,
@@ -45,6 +46,9 @@ let workspace: string
 let paths: ReturnType<typeof workspacePaths>
 
 beforeEach(() => {
+  // The listing and parse memos are process-wide and keyed by sessions root; a fresh scratch
+  // home per case must not inherit the previous one's.
+  resetRolloutCaches()
   home = mkdtempSync(join(tmpdir(), 'agentgit-rollout-home-'))
   workspace = mkdtempSync(join(tmpdir(), 'agentgit-rollout-ws-'))
   paths = workspacePaths(workspace)
@@ -317,6 +321,61 @@ describe('binding sessions to a workspace', () => {
     writeFileSync(join(home, 'sessions', '2026', '09', '23', 'notes.txt'), 'ignore me', 'utf8')
     assert.deepEqual(listRolloutFiles(home), [file])
     assert.deepEqual(listRolloutFiles(join(home, 'nowhere')), [])
+  })
+
+  test('memoizes the listing for the daemon, and says so by requiring a reset to see a new file', () => {
+    // The trade-off made explicit: the daemon adopts every fifteen seconds, so re-walking the
+    // same date tree four times a minute buys nothing. A rollout written after the first walk
+    // is therefore invisible until the memo expires or is dropped - which is acceptable for a
+    // backfill, because the live session is recorded by its own hook in the meantime.
+    const first = fullSession()
+    assert.deepEqual(listRolloutFiles(home), [first])
+
+    const second = writeRollout(
+      [sessionMeta(workspace), userMessage('a second session', at(5))],
+      'rollout-2026-09-23T11-00-00.jsonl',
+    )
+    assert.deepEqual(listRolloutFiles(home), [first], 'the memo is still serving the earlier walk')
+
+    resetRolloutCaches()
+    assert.deepEqual(listRolloutFiles(home).sort(), [first, second].sort(), 'a reset sees the new rollout')
+  })
+
+  test('memoizes a parsed session, and evicts the least recently used at the cap', () => {
+    // The cap keeps a workspace with hundreds of rollouts from growing the daemon's memory
+    // without bound, and the rule has to be evict-one: clearing the whole cache once it fills
+    // would re-parse every file on the following tick, which is the cost the memo exists to avoid.
+    const target = fullSession()
+    const first = sessionsForWorkspace(workspace, home)
+    assert.equal(first.length, 1)
+    assert.equal(sessionsForWorkspace(workspace, home)[0], first[0], 'an unchanged file is a memo hit')
+
+    // A second sessions root: its *listing* starts cold, while the parse memo is process-wide and
+    // already holds `target` as its least recently used entry.
+    const other = mkdtempSync(join(tmpdir(), 'agentgit-rollout-other-'))
+    try {
+      const day = join(other, 'sessions', '2026', '09', '23')
+      mkdirSync(day, { recursive: true })
+      for (let index = 0; index < 256; index += 1) {
+        writeFileSync(
+          join(day, `rollout-2026-09-23T13-${String(index).padStart(2, '0')}-00.jsonl`),
+          `${[sessionMeta(workspace)].join('\n')}\n`,
+          'utf8',
+        )
+      }
+
+      const fillers = sessionsForWorkspace(workspace, other)
+      assert.equal(fillers.length, 256)
+      assert.equal(sessionsForWorkspace(workspace, other)[255], fillers[255], 'the rest of the cache survives')
+
+      assert.notEqual(
+        sessionsForWorkspace(workspace, home)[0],
+        first[0],
+        'the oldest entry was evicted, so the target had to be parsed again',
+      )
+    } finally {
+      rmSync(other, { recursive: true, force: true })
+    }
   })
 })
 

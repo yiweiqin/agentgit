@@ -50,9 +50,11 @@
  * @module agentgit/hook-desktop
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
+
+import { isDirectRun, noteFailure } from './hook-errors.mjs'
 
 /** Must match `DESKTOP_VERSION` in `packages/core/src/desktop.ts`. */
 const DESKTOP_VERSION = 2
@@ -339,7 +341,39 @@ function readInitOffers() {
 
 /** One repository's record, or `null` when this machine has not offered it. */
 function initOfferFor(root) {
-  return readInitOffers().workspaces[resolve(root)] ?? null
+  return findInitOffer(readInitOffers().workspaces, root)?.record ?? null
+}
+
+/**
+ * The machine-level record's key for a directory, mirroring `rootKey` in `packages/core/src/paths.ts`.
+ *
+ * On Windows `C:\repo` and `c:\repo` are one directory but two strings, and keying by the string
+ * asked the same repository to opt in twice — the nag this record exists to prevent. Case is
+ * folded exactly where the filesystem folds it, so two genuinely distinct directories on Linux
+ * stay distinct.
+ */
+const CASE_INSENSITIVE_FS = process.platform === 'win32' || process.platform === 'darwin'
+
+function rootKey(input) {
+  const absolute = resolve(input)
+  let canonical = absolute
+  try {
+    canonical = realpathSync.native(absolute)
+  } catch {
+    // The path does not exist, or cannot be read; `resolve` is as much as can be known.
+  }
+  return CASE_INSENSITIVE_FS ? canonical.toLowerCase() : canonical
+}
+
+/** The record for one root, tolerating a key an older build wrote with the caller's spelling. */
+function findInitOffer(workspaces, root) {
+  const key = rootKey(root)
+  const direct = workspaces[key]
+  if (direct) return { key, record: direct }
+  for (const [dir, record] of Object.entries(workspaces)) {
+    if (rootKey(dir) === key) return { key: dir, record }
+  }
+  return null
 }
 
 /** The most recent timestamp a record carries, for ordering, or `0` when it has none. */
@@ -372,9 +406,15 @@ function pruneInitOffers(workspaces) {
 /** Apply a patch to one repository's record. A failure costs one repeated question, nothing more. */
 function writeInitOffer(root, patch) {
   const current = readInitOffers()
-  const key = resolve(root)
-  const existing = current.workspaces[key] ?? { offeredAt: null, declinedAt: null }
-  const workspaces = pruneInitOffers({ ...current.workspaces, [key]: { ...existing, ...patch } })
+  const found = findInitOffer(current.workspaces, root)
+  // Re-key under the canonical spelling so the next read does not have to search.
+  const existing = found?.record ?? { offeredAt: null, declinedAt: null }
+  const withoutStaleKey = { ...current.workspaces }
+  if (found && found.key !== rootKey(root)) delete withoutStaleKey[found.key]
+  const workspaces = pruneInitOffers({
+    ...withoutStaleKey,
+    [rootKey(root)]: { ...existing, ...patch },
+  })
   try {
     const file = initOffersPath()
     mkdirSync(dirname(file), { recursive: true })
@@ -523,14 +563,12 @@ function enableText(title, pinnedThreadId, pinNow) {
 /* main                                                                        */
 /* -------------------------------------------------------------------------- */
 
-/** Write the one hook response, capped, so no single block can reach a session unbounded. */
+/** The one hook response, capped, as a string the dispatcher can merge. */
 function emit(eventName, advisory, maxChars) {
   const capped = advisory.length <= maxChars ? advisory : `${advisory.slice(0, maxChars - 3)}...`
-  process.stdout.write(
-    `${JSON.stringify({
-      hookSpecificOutput: { hookEventName: eventName, additionalContext: capped },
-    })}\n`,
-  )
+  return `${JSON.stringify({
+    hookSpecificOutput: { hookEventName: eventName, additionalContext: capped },
+  })}\n`
 }
 
 /**
@@ -549,14 +587,20 @@ function emit(eventName, advisory, maxChars) {
  *
  * A directory that is neither is not spoken to at all.
  */
-function main() {
-  const payload = normalizePayload(readStdin())
-  if (!payload) return
-  if (!EVENTS.has(payload.eventName)) return
-  if (!payload.cwd) return
+/**
+ * The hook-output object to print, or `null` when no block applies.
+ *
+ * Returns the string rather than printing it so `hook.mjs` can merge this with the hub's context
+ * into one response. Standalone use is unchanged — see {@link isDirectRun} below.
+ */
+export function run(payloadText) {
+  const payload = normalizePayload(payloadText)
+  if (!payload) return null
+  if (!EVENTS.has(payload.eventName)) return null
+  if (!payload.cwd) return null
 
   const found = findWorkspace(payload.cwd)
-  if (!found.root) return
+  if (!found.root) return null
 
   const now = new Date()
   const threadId = hostThreadId() ?? payload.threadId
@@ -570,33 +614,38 @@ function main() {
     // No id means the record cannot be consulted, so the pin is asked for rather than skipped; an
     // id means the workspace's own record decides, which is what makes the block idempotent.
     const pinNow = !threadId || shouldPinOnEnable(state, threadId)
-    emit(payload.eventName, enableText(desktopTaskTitle(found.root), threadId, pinNow), MAX_ENABLE_CHARS)
-    return
+    return emit(payload.eventName, enableText(desktopTaskTitle(found.root), threadId, pinNow), MAX_ENABLE_CHARS)
   }
 
   if (found.kind === 'claimed') {
     const file = desktopStatePath(found.root)
     const stateDir = join(found.root, '.agentgit', 'state')
     const state = readState(file)
-    if (!shouldOfferDesktop(state, now)) return
+    if (!shouldOfferDesktop(state, now)) return null
 
     // Recorded before printing, so a crash between the two costs an unanswered offer rather than
     // the same offer on every subsequent session.
     writeOfferedAt(file, state, stateDir, found.root, now)
-    emit(payload.eventName, offerText(desktopTaskTitle(found.root), 'references/watch.md'), MAX_OFFER_CHARS)
-    return
+    return emit(payload.eventName, offerText(desktopTaskTitle(found.root)), MAX_OFFER_CHARS)
   }
 
   if (['repo', 'folder'].includes(found.kind) && shouldOfferInit(initOfferFor(found.root), found.kind, now)) {
     // Recorded before printing, for the same reason as above.
     writeInitOffer(found.root, { offeredAt: now.toISOString() })
-    emit(payload.eventName, initOfferText(desktopTaskTitle(found.root)), MAX_INIT_CHARS)
+    return emit(payload.eventName, initOfferText(desktopTaskTitle(found.root)), MAX_INIT_CHARS)
   }
+  return null
 }
 
-try {
-  main()
-} catch {
-  // Offering a task is never worth failing a session over.
+if (isDirectRun(import.meta.url)) {
+  let output = null
+  try {
+    output = run(readStdin())
+  } catch (error) {
+    // Offering a task is never worth failing a session over, but the failure is worth writing
+    // down: an offer that never prints and an offer that was declined both look like silence.
+    noteFailure('desktop', error, { cwd: process.cwd() })
+  }
+  if (output) process.stdout.write(output)
+  process.exit(0)
 }
-process.exit(0)

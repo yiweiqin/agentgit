@@ -356,6 +356,7 @@ function aggregateEntities(capsules: Map<string, Capsule>): Array<{
   tasks: string[]
   sessions: string[]
   intents: string[]
+  intentHolders: Record<string, string[]>
   touches: number
 }> {
   const byEntity = new Map<string, {
@@ -366,6 +367,7 @@ function aggregateEntities(capsules: Map<string, Capsule>): Array<{
     tasks: string[]
     sessions: string[]
     intents: string[]
+    intentHolders: Record<string, string[]>
     touches: number
   }>()
 
@@ -381,6 +383,7 @@ function aggregateEntities(capsules: Map<string, Capsule>): Array<{
           tasks: [],
           sessions: [],
           intents: [],
+          intentHolders: {},
           touches: 0,
         }
         byEntity.set(key, entry)
@@ -391,6 +394,10 @@ function aggregateEntities(capsules: Map<string, Capsule>): Array<{
       }
       for (const intent of record.intents) {
         if (!entry.intents.includes(intent)) entry.intents.push(intent)
+        // Keep the holder count alongside the deduplicated sentence: the ruler needs to know
+        // that a single wording was said by more than one task, which `intents` alone loses.
+        const holders = entry.intentHolders[intent] ?? (entry.intentHolders[intent] = [])
+        if (!holders.includes(capsule.taskId)) holders.push(capsule.taskId)
       }
       entry.touches += record.touches
     }

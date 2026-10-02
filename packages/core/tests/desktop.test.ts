@@ -35,6 +35,7 @@ import {
   readInitOffers,
   recordPinnedThread,
   resetDesktopState,
+  rootKey,
   shouldOfferDesktop,
   shouldOfferInit,
   shouldPinOnEnable,
@@ -432,9 +433,25 @@ describe('the machine-level record, which lives outside the repository', () => {
 
     writeInitOffer(root, { declinedAt: '2026-01-02T00:00:00.000Z' }, env())
     const state = readInitOffers(env())
-    assert.equal(state.workspaces[resolve(root)]?.declinedAt, '2026-01-02T00:00:00.000Z')
-    assert.equal(state.workspaces[resolve(root)]?.offeredAt, '2026-01-01T00:00:00.000Z', 'a patch merges')
+    // Keyed by directory identity rather than by the caller's spelling, so this is `rootKey`.
+    assert.equal(state.workspaces[rootKey(root)]?.declinedAt, '2026-01-02T00:00:00.000Z')
+    assert.equal(state.workspaces[rootKey(root)]?.offeredAt, '2026-01-01T00:00:00.000Z', 'a patch merges')
     assert.equal(initOfferFor(join(machine, 'never-seen'), env()), null)
+  })
+
+  test('two spellings of one directory are one record, not two offers', () => {
+    // The Windows bug: `C:\repo` and `c:\repo` are one directory, and keying by the string asked
+    // the same repository to opt in twice — which is the nag this store exists to prevent.
+    const other = join(root).replace(/^([A-Za-z]):/, (m) => (m === m.toUpperCase() ? m.toLowerCase() : m.toUpperCase()))
+    writeInitOffer(root, { declinedAt: '2026-01-02T00:00:00.000Z' }, env())
+    writeInitOffer(other, { offeredAt: '2026-01-03T00:00:00.000Z' }, env())
+
+    const state = readInitOffers(env())
+    const keys = Object.keys(state.workspaces).filter((key) => rootKey(key) === rootKey(root))
+    assert.equal(keys.length, 1, 'one directory, one record')
+    if (process.platform === 'win32' || process.platform === 'darwin') {
+      assert.equal(initOfferFor(other, env())?.declinedAt, '2026-01-02T00:00:00.000Z', 'the refusal is found either way')
+    }
   })
 
   test('records for directories that no longer exist are dropped', () => {
@@ -443,13 +460,13 @@ describe('the machine-level record, which lives outside the repository', () => {
     const gone = join(machine, 'gone-repo')
     mkdirSync(gone, { recursive: true })
     writeInitOffer(gone, { offeredAt: '2026-01-01T00:00:00.000Z' }, env())
-    assert.ok(readInitOffers(env()).workspaces[resolve(gone)], 'recorded while it existed')
+    assert.ok(readInitOffers(env()).workspaces[rootKey(gone)], 'recorded while it existed')
     rmSync(gone, { recursive: true, force: true })
     writeInitOffer(root, { offeredAt: '2026-01-02T00:00:00.000Z' }, env())
 
     const state = readInitOffers(env())
-    assert.equal(state.workspaces[resolve(gone)], undefined, 'a deleted directory cannot be offered again')
-    assert.ok(state.workspaces[resolve(root)])
+    assert.equal(state.workspaces[rootKey(gone)], undefined, 'a deleted directory cannot be offered again')
+    assert.ok(state.workspaces[rootKey(root)])
     assert.ok(Object.keys(state.workspaces).length <= INIT_OFFERS_MAX)
   })
 })

@@ -322,6 +322,9 @@ describe('the installed command', () => {
             tool_input: `*** Update File: ${join(workspace, 'src', 'from-hook.ts')}`,
           }),
           encoding: 'utf8',
+          // The dispatcher runs the offer step on a session start, and its machine-level record
+          // must land in the throwaway home rather than in the real one.
+          env: { ...process.env, AGENTGIT_HOME: home },
         })
         assert.equal(result.status, 0, `${name} failed: ${result.stderr}`)
       }
@@ -335,7 +338,7 @@ describe('the installed command', () => {
     }
   })
 
-  test('every event in the generated file answers with the same script', () => {
+  test('every event in the template answers with one dispatcher command', () => {
     const hooks = JSON.parse(readFileSync(join(REPO, 'plugins', 'agentgit', 'hooks.json.template'), 'utf8')) as {
       hooks: Record<string, { hooks: { command: string }[] }[]>
     }
@@ -344,6 +347,12 @@ describe('the installed command', () => {
       ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'UserPromptSubmit'],
       'these five are the whole documented hook surface; a sixth would never fire',
     )
+    // One handler per event, and the same one everywhere: a session start spawning four `node`
+    // processes, and an edit spawning two, was the cost this replaced.
+    for (const [event, groups] of Object.entries(hooks.hooks)) {
+      const commands = groups.flatMap((group) => group.hooks.map((handler) => handler.command))
+      assert.deepEqual(commands, ['"{{NODE}}" "{{HOOK}}"'], `${event} must run the dispatcher once`)
+    }
   })
 })
 
