@@ -331,6 +331,14 @@ describe('an ambiguous ruling is answered once, and only once', () => {
     assert.equal(recorded.length, 2, 'the losing answer is still in the ledger, as an append-only system requires')
   })
 
+  test('a later answer in the same millisecond cannot replace the first', () => {
+    const { ruling } = ambiguous()
+    const signature = contentionSignature(ruling)
+    answer({ entityKey: ruling.entityKey, decision: 'reuse', signature, sessionId: 'first', at: ago(1) })
+    answer({ entityKey: ruling.entityKey, decision: 'replan', signature, sessionId: 'second', at: ago(1) })
+    assert.equal(computeHubVerdict(paths(), clock).rulings[0].word, 'reuse')
+  })
+
   test('an answer about different contention is not applied', () => {
     // A third task joining is a materially different question, so an answer to the old
     // question must not silently bind the new one.

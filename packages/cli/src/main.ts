@@ -91,6 +91,7 @@ import { APP_HTML_FILENAME, APP_RESOURCE_URI, renderAppPanel } from '@agentgit/a
 
 import { USAGE, parseArgs, type ParsedArgs } from './args.ts'
 import { cmdChecks } from './checks.ts'
+import { cmdImpact } from './impact.ts'
 import { install, installReportJson, runDoctor, uninstall, writePluginEnabled } from './install.ts'
 import {
   renderArms,
@@ -143,6 +144,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdWhy(args)
     case 'hub':
       return cmdHub(args)
+    case 'impact':
+      return cmdImpact(args, workspaceOf(args), identityOf(args, 'impact'))
     case 'desktop':
       return cmdDesktop(args)
     case 'checks':

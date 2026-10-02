@@ -16,7 +16,8 @@
  * @module @agentgit/core/workspace
  */
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 
@@ -97,6 +98,16 @@ export function ensureWorkspace(root: string): WorkspacePaths {
     mkdirSync(dir, { recursive: true })
   }
   return paths
+}
+
+/** A small generation token lets delivery hooks reject a cache without scanning the ledger. */
+export function invalidateImpactInputs(paths: WorkspacePaths): void {
+  mkdirSync(paths.state, { recursive: true })
+  const file = join(paths.state, 'impact-input.json')
+  const revision = randomUUID()
+  const temp = `${file}.${process.pid}.${revision}.tmp`
+  writeFileSync(temp, `${JSON.stringify({ revision })}\n`, 'utf8')
+  renameSync(temp, file)
 }
 
 /** Record one event into the current machine's shard. */

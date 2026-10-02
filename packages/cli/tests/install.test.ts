@@ -89,7 +89,7 @@ describe('generated hooks.json', () => {
     }
   })
 
-  test('wires the hub only where a session can act on it, and only for file edits', () => {
+  test('wires the hub at safe boundaries, with pre-tool delivery limited to file edits', () => {
     const report = installHere()
     const hooks = JSON.parse(readFileSync(report.files.hooks, 'utf8')) as {
       hooks: Record<string, { matcher?: string; hooks: { command: string }[] }[]>
@@ -99,7 +99,7 @@ describe('generated hooks.json', () => {
       .filter(([, groups]) => groups.some((group) => group.hooks.some((h) => /hub\.mjs"/.test(h.command))))
       .map(([event]) => event)
       .sort()
-    assert.deepEqual(hubEvents, ['PreToolUse', 'SessionStart', 'UserPromptSubmit'])
+    assert.deepEqual(hubEvents, ['PostToolUse', 'PreToolUse', 'SessionStart', 'UserPromptSubmit'])
 
     // The write-time nudge is narrowed to file edits. A ruling is only worth interrupting a
     // write with when the write is about the ground it rules on.

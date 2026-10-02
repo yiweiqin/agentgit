@@ -28,6 +28,10 @@
  *
  * What it injects, and when
  * -------------------------
+ * With impact-protocol.json present, read only this receiver's bounded inbox and revalidate
+ * its input generation. Urgent items may appear at PreToolUse; deferred items wait for
+ * PostToolUse, SessionStart or UserPromptSubmit. Nothing cancels an in-progress tool.
+ * The global ruling behavior below is retained for older daemon projections only:
  * - `SessionStart` and `UserPromptSubmit`: the whole ruling, once per ruling.
  * - `PreToolUse`: only when the pending call names a file the hub has actually ruled on, so a
  *   write to contested ground is where the window finds out. Nothing is injected for a write to
@@ -39,11 +43,11 @@
  */
 
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, resolve } from 'node:path'
 
 /** Hook events this script answers. Anything else is not its business. */
-const EVENTS = new Set(['SessionStart', 'UserPromptSubmit', 'PreToolUse'])
+const EVENTS = new Set(['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse'])
 
 /** Belt-and-braces cap. The daemon already caps its advisory; a tampered file must not flood a context. */
 const MAX_ADVISORY_CHARS = 1500
@@ -267,6 +271,53 @@ function writeMarker(paths, sessionId, rulingId, event) {
 /* main                                                                        */
 /* -------------------------------------------------------------------------- */
 
+/** Targeted protocol: one bounded inbox; never broadcast another session's context. */
+function deliverImpacts(paths, payload) {
+  const file = join(paths.state, 'impact-inbox', seenMarkerName(payload.sessionId))
+  if (!existsSync(file)) return
+  const inbox = JSON.parse(readFileSync(file, 'utf8'))
+  if (inbox.version !== 1 || inbox.sessionId !== payload.sessionId || inbox.workspace !== paths.root ||
+      !Array.isArray(inbox.notifications) || Date.parse(inbox.expiresAt) <= Date.now() ||
+      !Number.isFinite(Date.parse(inbox.expiresAt)) || Date.parse(inbox.generatedAt) > Date.now()) return
+  // Recheck declarations and contract assumptions at delivery, including self-adaptation.
+  const stamp = JSON.stringify(['impact-input.json', 'assumptions.json', '../contracts/index.json'].map(name => {
+    if (name === 'impact-input.json') {
+      try { return [name, readFileSync(join(paths.state, name), 'utf8')] } catch { return [name, null] }
+    }
+    try { const stat = statSync(join(paths.state, name)); return [name, stat.size, stat.mtimeMs] } catch { return [name, null] }
+  }))
+  if (stamp !== inbox.inputStamp) return
+  const dir = join(paths.state, 'impact-seen', seenMarkerName(payload.sessionId))
+  const selected = []
+  let length = 0
+  for (const item of inbox.notifications.slice(0, 20)) {
+    if (!/^impact-[0-9a-f]{24}$/.test(item.id) || typeof item.text !== 'string' || !item.text.trim()) continue
+    if (!['interrupt', 'defer'].includes(item.policy)) continue
+    // Pre-tool is a boundary before a write; deferred updates wait until a completed tool or new turn.
+    if (payload.eventName === 'PreToolUse' && item.policy !== 'interrupt') continue
+    if (existsSync(join(dir, `${item.id}.json`))) continue
+    const text = item.text.slice(0, 1400)
+    if (length + text.length + 2 > MAX_ADVISORY_CHARS) break
+    selected.push({ ...item, text })
+    length += text.length + 2
+  }
+  if (!selected.length) return
+  mkdirSync(dir, { recursive: true })
+  // Only mark the items actually included: bounded output must not silently lose the rest.
+  const claimed = selected.filter(item => {
+    try {
+      writeFileSync(join(dir, `${item.id}.json`), JSON.stringify({
+        id: item.id, sessionId: payload.sessionId, at: new Date().toISOString(), event: payload.eventName,
+      }), { flag: 'wx' })
+      return true
+    } catch { return false }
+  })
+  if (!claimed.length) return
+  process.stdout.write(`${JSON.stringify({ hookSpecificOutput: {
+    hookEventName: payload.eventName, additionalContext: claimed.map(item => item.text).join('\n\n'),
+  } })}\n`)
+}
+
 function main() {
   const payload = normalizePayload(readStdin())
   if (!payload || !payload.sessionId) return
@@ -276,6 +327,11 @@ function main() {
   if (!found.root) return
 
   const paths = { root: found.root, state: stateDir(found.root) }
+  if (existsSync(join(paths.state, 'impact-protocol.json'))) {
+    deliverImpacts(paths, payload)
+    return
+  }
+  if (payload.eventName === 'PostToolUse') return
   const hubFile = join(paths.state, 'hub.json')
   if (!existsSync(hubFile)) return
 

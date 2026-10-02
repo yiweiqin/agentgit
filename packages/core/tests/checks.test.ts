@@ -7,6 +7,7 @@ import { beginSetup, endSetup, configureChecks, editChecks, isCheckMessage, need
 import { writeDesktopState } from '../src/desktop.ts'
 import { ensureWorkspace, type WorkspacePaths } from '../src/workspace.ts'
 import type { HubVerdict } from '../src/hub.ts'
+import { acknowledgeImpact, publishImpactProjection, recordImpactChange, recordImpactSession } from '../src/impact-state.ts'
 
 const coordinator = '11111111-1111-4111-8111-111111111111'
 const target = '22222222-2222-4222-8222-222222222222'
@@ -47,6 +48,27 @@ test('only opt-in workspaces enqueue checks, and the coordinator is not messaged
   assert.equal(syncChecks(paths, hub, now).jobs.length, 1)
   editChecks(paths, state => { state.config!.enabled = false })
   assert.equal(needsWake(syncChecks(paths, hub, now)), null)
+})
+
+test('directional checks select only the affected recipient and cancel after acknowledgement', () => {
+  recordImpactSession(paths, { contracts: [{ name: 'api', version: 1 }] }, { sessionId: target, taskId: 'consumer-task' }, now)
+  recordImpactChange(paths, { stream: 'api', revision: 1, summary: 'new return type', contracts: [{ name: 'api', version: 2, breaking: true }] },
+    { sessionId: coordinator, taskId: 'producer-task' }, now)
+  const report = publishImpactProjection(paths, { now })
+  const jobs = syncChecks(paths, hub, now).jobs
+  assert.equal(jobs.length, 1)
+  assert.equal(jobs[0].target, target)
+  assert.equal(jobs[0].verdict, 'breaking_dependency')
+  acknowledgeImpact(paths, target, report.notifications[0].id, now)
+  assert.equal(syncChecks(paths, hub, now).jobs[0].status, 'cancelled')
+})
+
+test('deferred relevance and lexical overlap do not wake the cross-chat coordinator', () => {
+  recordImpactSession(paths, { goal: 'shared goal', contracts: [{ name: 'api', version: 1 }] }, { sessionId: target, taskId: 'consumer' }, now)
+  recordImpactChange(paths, { goal: 'shared goal', stream: 'api', revision: 1, summary: 'additive feature',
+    contracts: [{ name: 'api', version: 2, breaking: false }] }, { sessionId: coordinator, taskId: 'producer' }, now)
+  publishImpactProjection(paths, { now })
+  assert.equal(syncChecks(paths, hub, now).jobs.length, 0)
 })
 test('unrelated global ruling changes, session order and restarts do not duplicate a check', () => {
   const first = syncChecks(paths, hub, now).jobs[0]

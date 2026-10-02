@@ -26,7 +26,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { compareCodepoint } from './ledger.ts'
-import type { WorkspacePaths } from './workspace.ts'
+import { invalidateImpactInputs, type WorkspacePaths } from './workspace.ts'
 
 /** One published version of one named interface. */
 export interface ContractVersion {
@@ -215,7 +215,9 @@ export function publishContract(
   }
 
   const next: ContractRegistry = { version: registry.version, contracts: [...registry.contracts, contract] }
+  invalidateImpactInputs(paths)
   writeJson(registryPath(paths), next)
+  invalidateImpactInputs(paths)
 
   return { contract, previous, newlyStale: contract.breaking ? staleAssumptions(assumptions, next) : [] }
 }
@@ -240,7 +242,9 @@ export function recordAssumption(paths: WorkspacePaths, assumption: Assumption):
     (existing) => !(existing.taskId === assumption.taskId && existing.contract === assumption.contract),
   )
   const next: AssumptionLedger = { version: ledger.version, assumptions: [...kept, assumption] }
+  invalidateImpactInputs(paths)
   writeJson(assumptionsPath(paths), next)
+  invalidateImpactInputs(paths)
   return next
 }
 
@@ -282,7 +286,9 @@ export function staleAssumptions(
       contract: assumption.contract,
       assumedVersion: assumption.version,
       currentVersion: current.version,
-      breaking: current.breaking,
+      breaking: versionHistory(registry, assumption.contract).some(
+        version => version.version > assumption.version && version.version <= current.version && version.breaking,
+      ),
       publishedBy: current.publishedBy,
       summary: current.summary,
       symbol: current.symbol,

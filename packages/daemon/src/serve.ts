@@ -269,6 +269,10 @@ export async function startBoard(options: ServeOptions): Promise<BoardServer> {
       const next = fingerprintOf(workspace.paths)
       const previous = states.get(workspace.id)
       if (!previous || previous.fingerprint !== next) broadcast(workspace.id, rebuild(workspace))
+      else if (Date.now() - Date.parse(previous.generatedAt) >= 5000) {
+        // Refresh delivery validity and activity expiry even when no ledger fact changed.
+        broadcast(workspace.id, rebuild(workspace))
+      }
       // Queue/timeout changes do not touch the ledger. Check even when its fingerprint is stable.
       if (options.publish !== false) void checksDispatcher.tick(workspace.paths).catch(() => {
         // A busy or corrupt queue must never interrupt a board tick. Its state is retained.

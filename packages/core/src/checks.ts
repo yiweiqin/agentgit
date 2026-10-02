@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { readDesktopState } from './desktop.ts'
 import { readHubVerdict, type HubVerdict } from './hub.ts'
 import type { WorkspacePaths } from './workspace.ts'
+import { computeImpactReport } from './impact-state.ts'
 
 export const CHAT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 /** Protocol messages inspect a task; they must not replace the task's original intent. */
@@ -130,10 +131,21 @@ export function syncChecks(paths: WorkspacePaths, hub: HubVerdict | null = readH
         state.jobs.push({ id, issue, rulingId: hub.id, target, entity, verdict, evidence, status: 'pending', createdAt: now.toISOString(), updatedAt: now.toISOString(), token: null, attempts: 0, deadline: null, result: null, clearedAt: null })
       }
     }
-    for (const rule of hub.rulings) {
-      add(rule.entityKey, rule.word, rule.sessions, { path: rule.path, intents: [...rule.intents].sort(), owner: rule.owner.taskId })
+    if (existsSync(join(paths.state, 'impact-protocol.json'))) {
+      // Deferred updates use recipient safe-point hooks. Only confirmed urgent risks wake
+      // the opted-in coordinator; semantic overlap cannot trigger cross-chat checks.
+      for (const impact of computeImpactReport(paths, { now }).notifications) {
+        if (impact.policy !== 'interrupt' || impact.status !== 'pending') continue
+        add(impact.evidence[0]?.source ?? impact.sourceEventId, impact.category, [impact.targetSessionId], {
+          id: impact.id, summary: impact.summary, evidence: impact.evidence, references: impact.references, action: impact.action,
+        })
+      }
+    } else {
+      for (const rule of hub.rulings) {
+        add(rule.entityKey, rule.word, rule.sessions, { path: rule.path, intents: [...rule.intents].sort(), owner: rule.owner.taskId })
+      }
+      for (const stale of hub.stale) add(`contract::${stale.contract}`, stale.breaking ? 'review' : 'refresh', [stale.taskId], stale)
     }
-    for (const stale of hub.stale) add(`contract::${stale.contract}`, stale.breaking ? 'review' : 'refresh', [stale.taskId], stale)
     for (const job of state.jobs) {
       if (!active.has(job.issue) && !job.clearedAt) job.clearedAt = now.toISOString()
       if (!active.has(job.issue) && ['pending', 'reserved', 'sent', 'timed_out', 'failed'].includes(job.status)) {

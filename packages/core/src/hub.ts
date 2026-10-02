@@ -478,9 +478,9 @@ export function hubAnswers(events: readonly CoordEvent[]): HubAnswer[] {
       superseded: false,
     })
   }
-  // The conclusion is the earliest answer, tie-broken by event id — the same total order the
-  // ledger itself uses. Anything later is recorded, and marked, but changes nothing.
-  found.sort((a, b) => compareCodepoint(a.at, b.at) || compareCodepoint(a.eventId, b.eventId))
+  // Preserve ledger append order for answers in the same millisecond. Hash order would let
+  // a later answer replace one already published. Shards are read in deterministic order.
+  found.sort((a, b) => compareCodepoint(a.at, b.at))
   const winners = new Set<string>()
   for (const answer of found) {
     const key = `${answer.entityKey}\u0000${answer.signature}`

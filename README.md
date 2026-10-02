@@ -4,6 +4,11 @@
 
 **Coordination for coding agents that share one repository.**
 
+Cross-session impact analysis now routes changes using the receiver's dependencies,
+contract assumptions and artifact versions, with separate severity and safe-point
+delivery policies. See the [guide and CLI/MCP examples](docs/CROSS-SESSION-IMPACT.md),
+or run `node examples/impact/run.mjs`.
+
 Git tells you two branches touched the same line — after both are finished. It cannot tell
 you that two agents are working on the same thing *right now*, that the interface one of
 them is changing is the one the other has already coded against, or that the second agent's

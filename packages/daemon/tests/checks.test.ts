@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { appendEvent, buildEvent, configureChecks, readChecks, ensureWorkspace, type WorkspacePaths } from '@agentgit/core'
+import { configureChecks, readChecks, ensureWorkspace, recordImpactChange, recordImpactSession, type WorkspacePaths } from '@agentgit/core'
 import { createChecksDispatcher } from '../src/checks.ts'
 import { startBoard } from '../src/serve.ts'
 
@@ -49,13 +49,15 @@ test('the actual daemon timer discovers ledger changes and records a rejected tr
   const board = await startBoard({ roots: [root], port: 0, quiet: true, watch: false, intervalMs: 25 })
   try {
     const now = new Date()
-    for (const sessionId of [coordinator, target]) appendEvent(paths, buildEvent({
-      kind: 'file_write', timestampUtc: now.toISOString(), sessionId, taskId: sessionId,
-      entities: [{ kind: 'file', identifier: 'timer.ts', path: 'timer.ts' }], intentText: 'implement timer',
-    }), now)
+    recordImpactSession(paths, { dependencies: [{ entity: 'file::timer.ts', relation: 'import' }] },
+      { sessionId: target, taskId: target }, now)
+    recordImpactChange(paths, { stream: 'timer', revision: 1, summary: 'Timer API changed', compatibility: 'breaking',
+      entities: [{ key: 'file::timer.ts', access: 'write' }] }, { sessionId: coordinator, taskId: coordinator }, now)
     const deadline = Date.now() + 5000
     while (!readChecks(paths).wake && Date.now() < deadline) await new Promise(r => setTimeout(r, 25))
     assert.equal(readChecks(paths).jobs[0]?.entity, 'file::timer.ts')
+    assert.equal(readChecks(paths).jobs[0]?.target, target)
+    assert.equal(readChecks(paths).jobs[0]?.verdict, 'breaking_dependency')
     assert.equal(readChecks(paths).wake?.status, 'failed')
   } finally { await board.close() }
 })

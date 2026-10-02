@@ -134,7 +134,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   }
 }
 
-const COMMANDS_WITH_SUBCOMMANDS = new Set(['task', 'contracts', 'contract', 'lease', 'config', 'checks'])
+const COMMANDS_WITH_SUBCOMMANDS = new Set(['task', 'contracts', 'contract', 'lease', 'config', 'checks', 'impact'])
 
 function push(flags: Map<string, string[]>, name: string, value: string): void {
   const list = flags.get(name) ?? []
@@ -170,6 +170,12 @@ export const USAGE = `agentgit - coordination for agents sharing one repository
                                                --refresh recomputes and publishes it, which is
                                                what to use when no daemon is running
   agentgit reconcile [--json]                  stale assumptions, integration order, ghost merge
+  agentgit impact state|publish --file <json> --session <id> [--task <id>]
+                                               declare current state or a versioned change
+  agentgit impact analyze|inbox [--session <id>] [--refresh] [--json]
+                                               directional evidence, severity and delivery policy
+  agentgit impact ack <notification-id> --session <id>
+                                               acknowledge a current notification for this session
   agentgit checks enable --coordinator <chat-uuid> --codex <absolute-exe>
                                                opt in to automatic cross-chat checks
   agentgit checks scan|status|disable           durable queue, receipts and delivery errors

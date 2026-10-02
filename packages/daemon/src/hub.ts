@@ -29,6 +29,7 @@ import {
   loadAssumptions,
   loadContracts,
   publishHubVerdict,
+  publishImpactProjection,
   readAllEvents,
   worktreeList,
   type HubIntegrationItem,
@@ -145,6 +146,8 @@ export function createHubPublisher(options: HubPublisherOptions = {}): HubPublis
 
   return {
     rule(workspaceId, paths, view) {
+      // Failure in a delivery cache must not suppress the existing hub ruling.
+      try { publishImpactProjection(paths, { now: clock() }) } catch { /* retry on the next tick */ }
       try {
         const verdict = computeHubVerdict(paths, clock(), {
           integration: integrationFor(workspaceId, paths),

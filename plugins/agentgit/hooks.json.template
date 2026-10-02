@@ -77,7 +77,10 @@
     "PostToolUse": [
       {
         "matcher": ".*",
-        "hooks": [{ "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" }]
+        "hooks": [
+          { "type": "command", "command": "\"{{NODE}}\" \"{{TRACK}}\"" },
+          { "type": "command", "command": "\"{{NODE}}\" \"{{HUB}}\"" }
+        ]
       }
     ],
     "Stop": [
