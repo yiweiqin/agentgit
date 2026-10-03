@@ -505,33 +505,7 @@ directories. `run.mjs` takes the same flag, and `--refs A,B` for the final-merge
 
 ---
 
-## 10. Targeted impact notifications: executable task replay
-
-[The impact-effectiveness example](../examples/impact-effectiveness/README.md) compares
-final-only validation, recording without delivery, early/late/ignored notifications,
-and validation after each work item. Its fixed matrix contains compatible changes,
-unused fields, already-adapted consumers, missing declarations, incorrect declarations,
-and a shared-adapter case where the repair footprint is small.
-
-The mechanical checks reconcile real artifact rewrites, independent Node validations,
-and actual delivery-handler output. Every arm must finish with the same file hashes;
-dropping failed pairs or uncounted notifications fails the accounting checks. This guards
-the product's directed delivery, deduplication and clearing-after-adaptation behavior,
-and the distinction between a message being delivered and work actually being avoided.
-
-See the [measured report](../examples/impact-effectiveness/results/REPORT.md), including
-machine costs and negative controls. These are constructed, scripted tasks, not measured
-autonomous-agent behavior. They establish neither real-agent net time/token savings nor
-module-routing recall improvements. No parallelism benefit is claimed: the producer
-change is interleaved by a fixed schedule, not measured in concurrent sessions.
-
-```bash
-node examples/impact-effectiveness/run.mjs --out /tmp/impact-new-run
-node examples/impact-effectiveness/analyze.mjs /tmp/impact-new-run
-node --test examples/impact-effectiveness/analysis.test.mjs
-```
-
-## 11. Redactions
+## 10. Redactions
 
 This document is published publicly, and its numbers come from real sessions on a real
 machine. Those two facts are reconciled by **replacing the identifiers, keeping the numbers,

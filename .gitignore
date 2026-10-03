@@ -23,9 +23,6 @@ Thumbs.db
 playground/*
 !playground/.gitkeep
 
-# Experiment examples retain ledger evidence, but their delivery caches are disposable.
-examples/impact-effectiveness/results/examples/*/.agentgit/state/
-
 # Python bytecode from the parity test suite
 __pycache__/
 *.pyc

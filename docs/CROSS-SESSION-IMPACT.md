@@ -202,11 +202,3 @@ partial contracts, intervening breaking versions, inactive sessions, replay,
 acknowledgements, safe-point delivery, output limits and CLI/MCP round trips.
 
 Run a real-ledger example with `node examples/impact/run.mjs`.
-
-A separate [effectiveness experiment](../examples/impact-effectiveness/README.md)
-compares final-only testing, recording without delivery, early/late/ignored notices,
-and testing after each work item. It executes real consumer files and the production
-notification hook, including missing and incorrect declarations. Its
-[report](../examples/impact-effectiveness/results/REPORT.md) measures rewrites
-and coordination costs in controlled scripted replay; it does not establish
-autonomous-agent productivity or token savings.
