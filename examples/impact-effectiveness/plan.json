@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "experiment": "impact-effectiveness-controlled-replay-v1",
+  "design": "paired deterministic task replay, not autonomous-agent productivity",
+  "seed": 20261003,
+  "workItems": 6,
+  "changeAfterItems": [0, 2, 5],
+  "arms": ["git-final", "record-only", "targeted", "targeted-half", "targeted-ignore", "delayed-targeted", "git-each"],
+  "scenarios": [
+    {"id": "field-rename", "family": "auth", "group": "declared-breaking", "consumerDeclared": true, "publisherDeclared": true, "breaking": true},
+    {"id": "amount-unit", "family": "amount", "group": "declared-breaking", "consumerDeclared": true, "publisherDeclared": true, "breaking": true, "registry": true},
+    {"id": "sync-to-async", "family": "async", "group": "declared-breaking", "consumerDeclared": true, "publisherDeclared": true, "breaking": true},
+    {"id": "shared-adapter", "family": "auth", "group": "declared-breaking", "consumerDeclared": true, "publisherDeclared": true, "breaking": true, "shared": true},
+    {"id": "compatible-addition", "family": "compatible", "group": "correct-control", "consumerDeclared": true, "publisherDeclared": true, "breaking": false},
+    {"id": "unused-field", "family": "expiry", "group": "correct-control", "consumerDeclared": true, "publisherDeclared": true, "breaking": true, "usedParts": ["expiresAt"], "changedParts": ["token"]},
+    {"id": "already-adapted", "family": "dual", "group": "correct-control", "consumerDeclared": true, "publisherDeclared": true, "breaking": true, "initialVersion": 2},
+    {"id": "no-public-change", "family": "compatible", "group": "correct-control", "consumerDeclared": true, "publisherDeclared": false, "breaking": false},
+    {"id": "missing-consumer", "family": "auth", "group": "missing-evidence", "consumerDeclared": false, "publisherDeclared": true, "breaking": true},
+    {"id": "missing-publisher", "family": "auth", "group": "missing-evidence", "consumerDeclared": true, "publisherDeclared": false, "breaking": true},
+    {"id": "incorrect-breaking-label", "family": "compatible", "group": "incorrect-evidence", "consumerDeclared": true, "publisherDeclared": true, "breaking": true}
+  ],
+  "primaryMetric": "observed consumer artifact rewrites after upstream change",
+  "secondaryMetrics": ["writes based on superseded assumptions after change", "failed validation invocations", "validation invocations", "final correctness", "urgent false alerts", "unrelated-window alerts", "notification reviews", "coordination elapsed milliseconds", "notification characters", "declaration writes"],
+  "mechanismGates": {
+    "allFinalChecksPass": true,
+    "declaredBreakingTargetedRewriteReductionAtLeast": 0.3,
+    "correctControlUrgentFalseAlerts": 0,
+    "unrelatedWindowAlerts": 0,
+    "ignoredAndRecordOnlyMatchGitFinalRewrites": true,
+    "missingEvidenceNotClaimedDetected": true,
+    "incorrectEvidenceReportedAsFalseAlert": true,
+    "deduplicatedAndClearedAfterAdaptation": true
+  },
+  "interpretation": "These thresholds are engineering acceptance gates, not statistical proof of real-agent benefit. No token, human-time, or autonomous compliance claims. All negative and missing-evidence cases remain in the report."
+}

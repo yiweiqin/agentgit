@@ -74,3 +74,8 @@ MCP 对应 `agentgit_impact_state`、`agentgit_impact_publish`、`agentgit_impac
 普通相关更新在工具完成或下一轮会话交付。这次更新不会自动开启跨聊天发送。
 
 运行 `node examples/impact/run.mjs` 可验证真实账本中的“返回类型改变 → 调用方收到通知 → 自行适配 → 提醒消失”流程。
+
+另有[有效性实验](../examples/impact-effectiveness/README.md)，比较最终测试、只记录不通知、
+提前/延后/忽略通知及每项工作后测试。它通过真实消费者文件与现有 Hook 测量改写次数、打扰和机器成本，
+包含声明缺失、声明错误及共享适配器对照。见[实测报告](../examples/impact-effectiveness/results/REPORT.md)。
+这是受控脚本回放，不能直接证明真实自主 agent 的净效率或 token 收益。
