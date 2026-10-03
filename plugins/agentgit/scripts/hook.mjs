@@ -20,7 +20,7 @@
  *   consider asking the user something. Recording must never be delayed by anything downstream.
  * - `PreToolUse`: record, and run the hub only for a call that can change a file. A ruling is
  *   only worth interrupting a write with when the write is about the ground it rules on.
- * - `PostToolUse` / `Stop`: record only. Nothing else has business on those paths.
+ * - `PostToolUse`: record, then deliver deferred impact updates. `Stop`: record only.
  *
  * It cannot fail loudly
  * ---------------------
@@ -30,48 +30,12 @@
  * @module agentgit/hook
  */
 
-import { readFileSync } from 'node:fs'
-
 import { isDirectRun, noteFailure } from './hook-errors.mjs'
+import { normalizePayload, readStdin } from './hook-runtime.mjs'
 import { run as runDesktop } from './desktop.mjs'
 import { run as runHub } from './hub.mjs'
 import { run as runSpine } from './spine.mjs'
 import { run as runTrack } from './track.mjs'
-
-function readStdin() {
-  // A TTY means nobody piped a payload. Reading would block until the user typed, which would
-  // hang the tool call, so this is the one case that returns early.
-  if (process.stdin.isTTY) return ''
-  try {
-    return readFileSync(0, 'utf8')
-  } catch {
-    return ''
-  }
-}
-
-function firstString(source, keys) {
-  if (!source || typeof source !== 'object') return null
-  for (const key of keys) {
-    const value = source[key]
-    if (typeof value === 'string' && value.length > 0) return value
-  }
-  return null
-}
-
-/** The two fields this file needs to route a payload. The payload itself is passed through. */
-function routeOf(payloadText) {
-  let parsed = null
-  try {
-    parsed = JSON.parse(payloadText)
-  } catch {
-    parsed = null
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-  return {
-    eventName: firstString(parsed, ['hook_event_name', 'hookEventName', 'event_name', 'eventName', 'event']) ?? '',
-    toolName: firstString(parsed, ['tool_name', 'toolName', 'name']),
-  }
-}
 
 /**
  * Tools whose pending write can touch ruled ground.
@@ -113,7 +77,7 @@ function contextOf(output) {
  * Returns the single hook-output object to print, or `null` when no step had anything to say.
  */
 export function run(payloadText) {
-  const route = routeOf(payloadText)
+  const route = normalizePayload(payloadText)
   if (!route) return null
   const { eventName, toolName } = route
 

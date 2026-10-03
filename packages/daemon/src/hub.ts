@@ -22,16 +22,12 @@
  */
 
 import {
+  buildIntegrationPlan,
   computeHubVerdict,
-  currentVersion,
-  integrationOrder,
   lastPublishedRuling,
-  loadAssumptions,
-  loadContracts,
   publishHubVerdict,
   publishImpactProjection,
   readAllEvents,
-  worktreeList,
   type HubIntegrationItem,
   type HubPublishedRuling,
   type HubVerdict,
@@ -91,29 +87,7 @@ export function createHubPublisher(options: HubPublisherOptions = {}): HubPublis
 
     let items: HubIntegrationItem[] = []
     try {
-      const registry = loadContracts(paths)
-      const publishedBy = new Map<string, string>()
-      for (const name of new Set(registry.contracts.map((contract) => contract.name))) {
-        const current = currentVersion(registry, name)
-        if (current) publishedBy.set(name, current.publishedBy)
-      }
-      const branches = worktreeList(paths.root)
-        .filter((entry): entry is typeof entry & { branch: string } =>
-          Boolean(entry.branch?.startsWith('agentgit/')),
-        )
-        .map((entry) => ({
-          taskId: entry.branch.replace(/^agentgit\//, ''),
-          branch: entry.branch,
-          openedAt: new Date(0).toISOString(),
-        }))
-      items = integrationOrder(
-        branches,
-        loadAssumptions(paths).assumptions.map((assumption) => ({
-          taskId: assumption.taskId,
-          contract: assumption.contract,
-        })),
-        publishedBy,
-      )
+      items = buildIntegrationPlan(paths).order
     } catch {
       items = []
     }

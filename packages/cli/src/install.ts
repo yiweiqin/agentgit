@@ -654,6 +654,15 @@ export function runDoctor(options: { home?: string; workspace?: string } = {}): 
     ),
   )
 
+  checks.push(
+    describeComponentCheck(
+      'shared hook runtime present',
+      'hook-runtime.mjs',
+      paths.target,
+      'the hooks cannot load their shared input and path handling',
+    ),
+  )
+
   checks.push(describeSpineTargetCheck(join(paths.target, 'spine.json')))
   checks.push(describeAssetsCheck(join(paths.target, '.codex-plugin', 'plugin.json'), paths.target))
   // The workspace can be named explicitly so this check is testable without writing into the

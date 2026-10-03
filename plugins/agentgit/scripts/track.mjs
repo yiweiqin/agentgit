@@ -6,7 +6,7 @@
  * on the critical path of the whole session. Three consequences, and they are the
  * only reason this file is not part of `@agentgit/core`:
  *
- * 1. **No imports outside `node:`.** It must run from the installed plugin
+ * 1. **Only Node builtins and sibling scripts.** It must run from the installed plugin
  *    directory without a `node_modules`, a build step, or a path back to this
  *    repository. Nothing here can be `import`ed from `packages/`.
  * 2. **No analysis, no git, no model.** Anything that decides something belongs in
@@ -25,9 +25,10 @@
 import { createHash } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { hostname } from 'node:os'
-import { isAbsolute, join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 import { isDirectRun, noteFailure } from './hook-errors.mjs'
+import { extractPaths, findWorkspace, normalizePayload, readStdin } from './hook-runtime.mjs'
 
 /** Must match `SCHEMA_VERSION` in `packages/core/src/ledger.ts` and `coord_ledger.py`. */
 const SCHEMA_VERSION = 'coord-ledger-0.1'
@@ -37,7 +38,7 @@ const SCHEMA_VERSION = 'coord-ledger-0.1'
  *
  * The hook runs per tool call with no dependencies and no build step, so it cannot import
  * `@agentgit/core` and has to carry its own copy of this rule — the same arrangement as
- * `canonicalEntityPath`, which is duplicated here for the same reason. Copies drift, so
+ * `canonicalEntityPath`, mirrored in `hook-runtime.mjs` for the same reason. Copies drift, so
  * `packages/cli/tests/hooks.test.ts` drives both against one table and fails the moment the
  * two disagree. What that prevents: a user selecting the baseline arm, believing the
  * workspace had stopped recording, while the hook kept appending.
@@ -53,84 +54,6 @@ function armOf(paths) {
     // No config, or malformed: fall through to the default arm, which records. A workspace
     // that cannot state its arm must keep working rather than silently stopping.
     return null
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* input                                                                       */
-/* -------------------------------------------------------------------------- */
-
-function readStdin() {
-  // A TTY means nobody piped a payload. Reading would block until the user typed,
-  // which would hang the tool call, so this is the one case that returns early.
-  if (process.stdin.isTTY) return ''
-  try {
-    return readFileSync(0, 'utf8')
-  } catch {
-    return ''
-  }
-}
-
-function firstString(source, keys) {
-  if (!source || typeof source !== 'object') return null
-  for (const key of keys) {
-    const value = source[key]
-    if (typeof value === 'string' && value.length > 0) return value
-  }
-  return null
-}
-
-function normalizePayload(raw) {
-  let parsed = null
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    parsed = null
-  }
-  if (!parsed || typeof parsed !== 'object') return null
-
-  const eventName =
-    firstString(parsed, ['hook_event_name', 'hookEventName', 'event_name', 'eventName', 'event']) ?? ''
-  const sessionId = firstString(parsed, ['session_id', 'sessionId', 'thread_id', 'threadId', 'conversation_id'])
-  const cwd = firstString(parsed, ['cwd', 'working_directory', 'workingDirectory']) ?? process.cwd()
-  const toolName = firstString(parsed, ['tool_name', 'toolName', 'name'])
-  const transcriptPath = firstString(parsed, ['transcript_path', 'transcriptPath'])
-  const toolInput = parsed.tool_input ?? parsed.toolInput ?? parsed.arguments ?? parsed.input ?? null
-  const toolResponse = parsed.tool_response ?? parsed.toolResponse ?? parsed.result ?? null
-  const prompt = firstString(parsed, ['prompt', 'user_prompt', 'userPrompt', 'message'])
-
-  return { eventName, sessionId, cwd, toolName, toolInput, toolResponse, transcriptPath, prompt }
-}
-
-/* -------------------------------------------------------------------------- */
-/* workspace                                                                   */
-/* -------------------------------------------------------------------------- */
-
-function hasDir(dir, name) {
-  try {
-    return existsSync(join(dir, name))
-  } catch {
-    return false
-  }
-}
-
-/**
- * Nearest ancestor that is a workspace, else a git repository.
- *
- * Auto-initialising inside an ordinary directory would scatter `.agentgit`
- * directories wherever an agent happened to run, so a directory that is neither
- * already claimed nor inside a repository is left alone and the hook is a no-op.
- */
-function findWorkspace(startDir) {
-  let current = resolve(startDir)
-  let repo = null
-  for (;;) {
-    if (hasDir(current, '.agentgit')) return { root: current, kind: 'claimed' }
-    if (repo === null && (hasDir(current, '.git') || hasDir(current, '.hg'))) repo = current
-    const parent = join(current, '..')
-    const next = resolve(parent)
-    if (next === current) return repo ? { root: repo, kind: 'repo' } : { root: null, kind: 'none' }
-    current = next
   }
 }
 
@@ -259,97 +182,6 @@ function classifyTool(name) {
   return 'other'
 }
 
-const PATH_ARGUMENT_KEYS = [
-  'file_path',
-  'filePath',
-  'path',
-  'file',
-  'filename',
-  'target',
-  'target_path',
-  'absolute_path',
-  'notebook_path',
-]
-
-/** `*** Update File: src/a.ts` and friends, from the apply_patch dialect. */
-const PATCH_PATH_RE = /^\*\*\*\s+(?:Add|Update|Delete|Move to)\s+File:\s*(.+?)\s*$/gm
-
-function normalizePath(value) {
-  return String(value).trim().replace(/\\/g, '/').replace(/^\.\//, '')
-}
-
-/**
- * The one spelling of a file's identity, mirroring `canonicalEntityPath` in
- * `packages/core/src/workspace.ts`.
- *
- * Copied rather than imported on purpose: this script runs as a Codex hook, from a
- * directory that may have no `node_modules` and no build output, so it cannot depend
- * on the workspace. A core test drives both copies through the same input table, which
- * is what keeps the duplication from turning into two ledgers that never match.
- */
-function canonicalPath(root, value) {
-  const normalized = normalizePath(value)
-  if (!normalized || !root) return normalized
-
-  const rootAbs = resolve(root).replace(/\\/g, '/').replace(/\/+$/, '')
-  const targetAbs = isAbsolute(normalized)
-    ? resolve(normalized).replace(/\\/g, '/')
-    : resolve(root, normalized).replace(/\\/g, '/')
-
-  // Case-insensitively, because Windows paths differ in case and the same file must
-  // not become two entities depending on which producer spelled it.
-  const rootKey = rootAbs.toLowerCase()
-  const targetKey = targetAbs.toLowerCase()
-  if (targetKey === rootKey) return normalized
-  if (!targetKey.startsWith(`${rootKey}/`)) return normalized
-  return targetAbs.slice(rootAbs.length + 1)
-}
-
-/** Every path a tool call names, or an empty list when they are not statically visible. */
-function extractPaths(toolName, input, root) {
-  const found = []
-  const push = (value) => {
-    if (typeof value !== 'string' || !value.trim()) return
-    const normalized = canonicalPath(root, value)
-    if (normalized && !found.includes(normalized)) found.push(normalized)
-  }
-
-  if (typeof input === 'string') {
-    let match
-    const re = new RegExp(PATCH_PATH_RE.source, 'gm')
-    while ((match = re.exec(input)) !== null) push(match[1])
-    // A bare string carries a path only in the patch dialect, where the marker above
-    // already found it. Guessing otherwise would attribute writes to prose.
-    return found
-  }
-
-  const record = input && typeof input === 'object' && !Array.isArray(input) ? input : null
-  if (!record) return found
-
-  for (const key of PATH_ARGUMENT_KEYS) {
-    if (key in record) push(record[key])
-  }
-  for (const container of ['edits', 'files', 'changes', 'paths']) {
-    const value = record[container]
-    if (!Array.isArray(value)) continue
-    for (const item of value) {
-      if (item && typeof item === 'object' && !Array.isArray(item)) {
-        for (const key of PATH_ARGUMENT_KEYS) {
-          if (key in item) push(item[key])
-        }
-      } else {
-        push(item)
-      }
-    }
-  }
-  if (typeof record.command === 'string') {
-    let match
-    const re = new RegExp(PATCH_PATH_RE.source, 'gm')
-    while ((match = re.exec(record.command)) !== null) push(match[1])
-  }
-  return found
-}
-
 /** The agent's own account of what it is doing, when the tool call carries one. */
 function extractIntent(input, maxChars = 400) {
   if (typeof input === 'string') return input.slice(0, maxChars) || null
@@ -417,7 +249,7 @@ function appendLine(file, line) {
  * startups per tool call. Standalone use is unchanged — see {@link isDirectRun} below.
  */
 export function run(payloadText) {
-  const payload = normalizePayload(payloadText)
+  const payload = normalizePayload(payloadText, { cwdFallback: process.cwd() })
   if (!payload) return
   if (!payload.sessionId) return
 
@@ -487,7 +319,7 @@ export function run(payloadText) {
     // not statically visible, and guessing them from the command text would put a path
     // in the ledger that nothing actually wrote. The patch dialect is the one exception,
     // because there the path is a structured marker rather than prose.
-    const pathsHit = className === 'write' ? extractPaths(payload.toolName, payload.toolInput, found.root) : []
+    const pathsHit = className === 'write' ? extractPaths(payload.toolInput, found.root) : []
     if (pathsHit.length > 0) {
       entry = {
         ...base,

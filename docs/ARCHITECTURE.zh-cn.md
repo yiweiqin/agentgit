@@ -519,6 +519,7 @@ sequenceDiagram
 | 模块 | 文件 | 干什么 | 谁调它 |
 |---|---|---|---|
 | hook 入口 | [`hook.mjs`](../plugins/agentgit/scripts/hook.mjs) | 读一次 stdin，在一个进程里按事件跑下面各步并合并 `additionalContext`；某一步抛错只记一笔，不拖垮其余，也永远是 `exit 0` | 宿主 |
+| hook 公共逻辑 | [`hook-runtime.mjs`](../plugins/agentgit/scripts/hook-runtime.mjs) | 统一解析宿主字段、查找工作区、规范化路径和提取工具涉及的文件；仅依赖 Node 内置模块 | 全部 hook 入口 |
 | 记录 hook | [`track.mjs`](../plugins/agentgit/scripts/track.mjs) | 每次工具调用追加一行，无分析 | hook 入口 / 宿主 |
 | 点火 hook | [`spine.mjs`](../plugins/agentgit/scripts/spine.mjs) | 确保这个工作区有一个 daemon 在跑，不说话 | hook 入口 / 宿主 |
 | 推送 hook | [`hub.mjs`](../plugins/agentgit/scripts/hub.mjs) | 读投影，注入 `additionalContext` | hook 入口 / 宿主 |
@@ -534,6 +535,8 @@ sequenceDiagram
 | 六词判定 | [`preflight.ts`](../packages/core/src/preflight.ts) | allow / reuse / refresh / replan / wait / review | MCP / CLI |
 | 软租约 | [`leases.ts`](../packages/core/src/leases.ts) | 带过期的占用声明 | 全部 |
 | 契约版本 | [`contracts.ts`](../packages/core/src/contracts.ts) | 接口版本与过期假设 | 全部 |
+| 任务生命周期 | [`tasks.ts`](../packages/core/src/tasks.ts) | 注册任务、释放租约并记录完成状态、计算检查点文件范围；保留入口各自的输出格式 | CLI / MCP |
+| 合并计划 | [`integration.ts`](../packages/core/src/integration.ts) | 从 Git 发现任务分支，按契约依赖排序，生成只读合并预览 | CLI / MCP / 脊 daemon |
 | 脊 daemon | [`serve.ts`](../packages/daemon/src/serve.ts) + [`hub.ts`](../packages/daemon/src/hub.ts) | 轮询、发布、HTTP、SSE | 点火 hook 自动拉起 / `agentgit up` |
 | MCP 工具面 | [`server.ts`](../packages/mcp/src/server.ts) [`tools.ts`](../packages/mcp/src/tools.ts) | 19 个 `agentgit_*` 工具 | 窗口 |
 | 身份解析 | [`context.ts`](../packages/mcp/src/context.ts) | 参数 → 环境 → 认领 | MCP |

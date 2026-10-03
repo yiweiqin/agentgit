@@ -38,7 +38,7 @@ let shimRoot: string
 before(() => {
   shimRoot = mkdtempSync(join(tmpdir(), 'agentgit-dispatch-plugin-'))
   mkdirSync(join(shimRoot, 'scripts'), { recursive: true })
-  for (const script of ['hook.mjs', 'track.mjs', 'spine.mjs', 'hub.mjs', 'desktop.mjs', 'hook-errors.mjs']) {
+  for (const script of ['hook.mjs', 'track.mjs', 'spine.mjs', 'hub.mjs', 'desktop.mjs', 'hook-errors.mjs', 'hook-runtime.mjs']) {
     writeFileSync(join(shimRoot, 'scripts', script), readFileSync(join(SCRIPTS, script), 'utf8'), 'utf8')
   }
   writeFileSync(

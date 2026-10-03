@@ -33,7 +33,7 @@
  *
  * The same three constraints as `track.mjs`, for the same reason
  * --------------------------------------------------------------
- * 1. **No imports outside `node:`.** It runs from the installed plugin directory, which has no
+ * 1. **Only Node builtins and sibling scripts.** It runs from the installed plugin directory, which has no
  *    `node_modules` and no build step.
  * 2. **It reads no ledger.** Two small bounded files decide everything: the workspace's
  *    `state/desktop.json` and the machine-level offers record. Anything that grew with the size of
@@ -55,6 +55,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
 import { isDirectRun, noteFailure } from './hook-errors.mjs'
+import { firstString, findWorkspace, normalizePayload, readStdin } from './hook-runtime.mjs'
 
 /** Must match `DESKTOP_VERSION` in `packages/core/src/desktop.ts`. */
 const DESKTOP_VERSION = 2
@@ -102,101 +103,9 @@ const MAX_INIT_CHARS = 1500
  */
 const EVENTS = new Set(['SessionStart', 'UserPromptSubmit'])
 
-/* -------------------------------------------------------------------------- */
-/* input                                                                       */
-/* -------------------------------------------------------------------------- */
-
-function readStdin() {
-  // A TTY means nobody piped a payload. Reading would block until the user typed, which would hang
-  // the session, so this is the one case that returns early.
-  if (process.stdin.isTTY) return ''
-  try {
-    return readFileSync(0, 'utf8')
-  } catch {
-    return ''
-  }
-}
-
-function firstString(source, keys) {
-  if (!source || typeof source !== 'object') return null
-  for (const key of keys) {
-    const value = source[key]
-    if (typeof value === 'string' && value.length > 0) return value
-  }
-  return null
-}
-
-function normalizePayload(raw) {
-  let parsed = null
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    parsed = null
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-
-  return {
-    eventName:
-      firstString(parsed, ['hook_event_name', 'hookEventName', 'event_name', 'eventName', 'event']) ?? '',
-    /*
-     * Deliberately no `process.cwd()` fallback, unlike `track.mjs` and `hub.mjs`.
-     *
-     * This script writes a "do not ask again" record into the workspace it resolves, so acting on a
-     * guessed directory would permanently silence the offer for whatever project the hook process
-     * happened to be standing in. The host always sends `cwd`; if it is missing, doing nothing is
-     * the only answer that cannot record a decision about the wrong workspace.
-     */
-    cwd: firstString(parsed, ['cwd', 'working_directory', 'workingDirectory']),
-    /*
-     * The prompt, for the one thing this hook has to read the text of: whether the user's first
-     * word was `/agentgit`. A message that merely mentions the command must not enable anything,
-     * which is why the rule that reads this is anchored to the start of the string.
-     */
-    prompt: firstString(parsed, ['prompt', 'user_prompt', 'userPrompt', 'message']),
-    /*
-     * The conversation this payload belongs to, so the enable block can name the thread to pin.
-     * `session_id` is the last fallback because it is the id the ledger also uses, which is the
-     * same conversation from every other part of this plugin even when the host spells it that way.
-     */
-    threadId: firstString(parsed, ['thread_id', 'threadId', 'conversation_id', 'session_id', 'sessionId']),
-  }
-}
-
-/** The conversation this process is running in, from the environment the host provides. */
+/** The conversation this process is running in, from the host environment. */
 function hostThreadId() {
   return firstString(process.env, ['CODEX_THREAD_ID', 'CODEX_CONVERSATION_ID'])
-}
-
-/* -------------------------------------------------------------------------- */
-/* workspace                                                                   */
-/* -------------------------------------------------------------------------- */
-
-function hasDir(dir, name) {
-  try {
-    return existsSync(join(dir, name))
-  } catch {
-    return false
-  }
-}
-
-/**
- * Nearest ancestor that is a workspace, else a git repository.
- *
- * Identical to `track.mjs`'s rule, and it has to stay identical: this hook decides whether a
- * workspace has opted in the same way the recorder decides whether to record, so the two cannot
- * disagree about which directory a workspace is.
- */
-function findWorkspace(startDir) {
-  let current = resolve(startDir)
-  let repo = null
-  for (;;) {
-    if (hasDir(current, '.agentgit')) return { root: current, kind: 'claimed' }
-    if (repo === null && (hasDir(current, '.git') || hasDir(current, '.hg'))) repo = current
-    const parent = join(current, '..')
-    const next = resolve(parent)
-    if (next === current) return repo ? { root: repo, kind: 'repo' } : { root: resolve(startDir), kind: 'folder' }
-    current = next
-  }
 }
 
 /** The one spelling of the state file's path, mirroring `desktopStatePath` in the library. */
@@ -599,7 +508,7 @@ export function run(payloadText) {
   if (!EVENTS.has(payload.eventName)) return null
   if (!payload.cwd) return null
 
-  const found = findWorkspace(payload.cwd)
+  const found = findWorkspace(payload.cwd, { allowFolder: true })
   if (!found.root) return null
 
   const now = new Date()

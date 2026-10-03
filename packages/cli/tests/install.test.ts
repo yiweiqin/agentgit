@@ -113,7 +113,7 @@ describe('generated hooks.json', () => {
     // The narrowing is not gone, only moved inside the dispatcher: the scripts it imports have to
     // ship beside it, because a missing one fails inside the merged process and looks exactly like
     // a step that had nothing to say.
-    for (const component of ['track.mjs', 'spine.mjs', 'hub.mjs', 'desktop.mjs', 'hook-errors.mjs']) {
+    for (const component of ['track.mjs', 'spine.mjs', 'hub.mjs', 'desktop.mjs', 'hook-errors.mjs', 'hook-runtime.mjs']) {
       assert.ok(
         existsSync(join(report.paths.target, 'scripts', component)),
         `${component} must ship with the dispatcher`,
@@ -527,6 +527,15 @@ describe('doctor', () => {
 
     const check = runDoctor({ home }).checks.find((entry) => entry.name === 'hook error recorder present')
     assert.equal(check?.ok, false, 'without it a crash is indistinguishable from a quiet session')
+  })
+
+  test('catches a missing shared runtime before a hook tries to import it', () => {
+    const report = installHere()
+    rmSync(join(report.paths.target, 'scripts', 'hook-runtime.mjs'), { force: true })
+
+    const check = runDoctor({ home }).checks.find((entry) => entry.name === 'shared hook runtime present')
+    assert.equal(check?.ok, false)
+    assert.match(check?.detail ?? '', /hook-runtime\.mjs/)
   })
 
   test('catches a spine.json pointing at a daemon that is gone, which a session cannot warn about', () => {

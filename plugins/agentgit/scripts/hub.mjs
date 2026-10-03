@@ -12,7 +12,7 @@
  * `track.mjs` runs before **every** tool call and is deliberately constant work. This script
  * runs on the same path, so it inherits the same constraints, and one more:
  *
- * 1. **No imports outside `node:`.** It runs from the installed plugin directory, which has
+ * 1. **Only Node builtins and sibling scripts.** It runs from the installed plugin directory, which has
  *    no `node_modules` and no build step.
  * 2. **No reading the ledger.** The advisory comes from `state/hub.json`, a bounded file the
  *    daemon writes. Reading `events/*.jsonl` here would make the cost of a tool call grow with
@@ -44,90 +44,16 @@
 
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { isAbsolute, join, resolve } from 'node:path'
+import { join } from 'node:path'
 
 import { isDirectRun, noteFailure } from './hook-errors.mjs'
+import { extractPaths, findWorkspace, normalizePayload, readStdin } from './hook-runtime.mjs'
 
 /** Hook events this script answers. Anything else is not its business. */
 const EVENTS = new Set(['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse'])
 
 /** Belt-and-braces cap. The daemon already caps its advisory; a tampered file must not flood a context. */
 const MAX_ADVISORY_CHARS = 1500
-
-/* -------------------------------------------------------------------------- */
-/* input                                                                       */
-/* -------------------------------------------------------------------------- */
-
-function readStdin() {
-  // A TTY means nobody piped a payload. Reading would block until the user typed, which would
-  // hang the tool call, so this is the one case that returns early.
-  if (process.stdin.isTTY) return ''
-  try {
-    return readFileSync(0, 'utf8')
-  } catch {
-    return ''
-  }
-}
-
-function firstString(source, keys) {
-  if (!source || typeof source !== 'object') return null
-  for (const key of keys) {
-    const value = source[key]
-    if (typeof value === 'string' && value.length > 0) return value
-  }
-  return null
-}
-
-function normalizePayload(raw) {
-  let parsed = null
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    parsed = null
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-
-  return {
-    eventName:
-      firstString(parsed, ['hook_event_name', 'hookEventName', 'event_name', 'eventName', 'event']) ?? '',
-    sessionId: firstString(parsed, ['session_id', 'sessionId', 'thread_id', 'threadId', 'conversation_id']),
-    cwd: firstString(parsed, ['cwd', 'working_directory', 'workingDirectory']) ?? process.cwd(),
-    toolName: firstString(parsed, ['tool_name', 'toolName', 'name']),
-    toolInput: parsed.tool_input ?? parsed.toolInput ?? parsed.arguments ?? parsed.input ?? null,
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* workspace                                                                   */
-/* -------------------------------------------------------------------------- */
-
-function hasDir(dir, name) {
-  try {
-    return existsSync(join(dir, name))
-  } catch {
-    return false
-  }
-}
-
-/**
- * Nearest ancestor that is a workspace, else a git repository.
- *
- * Identical to `track.mjs`'s rule, and for the same reason: a directory that is neither
- * already claimed nor inside a repository must be left completely alone, so an agent running
- * in a scratch folder does not get coordination advice about it.
- */
-function findWorkspace(startDir) {
-  let current = resolve(startDir)
-  let repo = null
-  for (;;) {
-    if (hasDir(current, '.agentgit')) return { root: current, kind: 'claimed' }
-    if (repo === null && (hasDir(current, '.git') || hasDir(current, '.hg'))) repo = current
-    const parent = join(current, '..')
-    const next = resolve(parent)
-    if (next === current) return repo ? { root: repo, kind: 'repo' } : { root: null, kind: 'none' }
-    current = next
-  }
-}
 
 function stateDir(root) {
   return join(root, '.agentgit', 'state')
@@ -137,95 +63,6 @@ function stateDir(root) {
 /* which pending write touches ruled ground                                    */
 /* -------------------------------------------------------------------------- */
 
-const PATH_ARGUMENT_KEYS = [
-  'file_path',
-  'filePath',
-  'path',
-  'file',
-  'filename',
-  'target',
-  'target_path',
-  'absolute_path',
-  'notebook_path',
-]
-
-/** `*** Update File: src/a.ts` and friends, from the apply_patch dialect. */
-const PATCH_PATH_RE = /^\*\*\*\s+(?:Add|Update|Delete|Move to)\s+File:\s*(.+?)\s*$/gm
-
-function normalizePath(value) {
-  return String(value).trim().replace(/\\/g, '/').replace(/^\.\//, '')
-}
-
-/**
- * The one spelling of a file's identity, mirroring `canonicalEntityPath` in
- * `packages/core/src/workspace.ts`.
- *
- * Copied rather than imported on purpose, exactly as `track.mjs` copies it: this script runs
- * as a Codex hook from a directory with no `node_modules` and no build output. A core test
- * drives both copies through one input table, which is what keeps the two from drifting into
- * two spellings that never match.
- */
-function canonicalPath(root, value) {
-  const normalized = normalizePath(value)
-  if (!normalized || !root) return normalized
-
-  const rootAbs = resolve(root).replace(/\\/g, '/').replace(/\/+$/, '')
-  const targetAbs = isAbsolute(normalized)
-    ? resolve(normalized).replace(/\\/g, '/')
-    : resolve(root, normalized).replace(/\\/g, '/')
-
-  const rootKey = rootAbs.toLowerCase()
-  const targetKey = targetAbs.toLowerCase()
-  if (targetKey === rootKey) return normalized
-  if (!targetKey.startsWith(`${rootKey}/`)) return normalized
-  return targetAbs.slice(rootAbs.length + 1)
-}
-
-/** Every path a tool call names, or an empty list when they are not statically visible. */
-function extractPaths(input, root) {
-  const found = []
-  const push = (value) => {
-    if (typeof value !== 'string' || !value.trim()) return
-    const normalized = canonicalPath(root, value)
-    if (normalized && !found.includes(normalized)) found.push(normalized)
-  }
-
-  if (typeof input === 'string') {
-    let match
-    const re = new RegExp(PATCH_PATH_RE.source, 'gm')
-    while ((match = re.exec(input)) !== null) push(match[1])
-    return found
-  }
-
-  const record = input && typeof input === 'object' && !Array.isArray(input) ? input : null
-  if (!record) return found
-
-  for (const key of PATH_ARGUMENT_KEYS) {
-    if (key in record) push(record[key])
-  }
-  for (const container of ['edits', 'files', 'changes', 'paths']) {
-    const value = record[container]
-    if (!Array.isArray(value)) continue
-    for (const item of value) {
-      if (item && typeof item === 'object' && !Array.isArray(item)) {
-        for (const key of PATH_ARGUMENT_KEYS) {
-          if (key in item) push(item[key])
-        }
-      } else {
-        push(item)
-      }
-    }
-  }
-  // `tool_input.command` is where apply_patch and Bash put their payload, per the host's own
-  // event schema.
-  if (typeof record.command === 'string') {
-    let match
-    const re = new RegExp(PATCH_PATH_RE.source, 'gm')
-    while ((match = re.exec(record.command)) !== null) push(match[1])
-  }
-  return found
-}
-
 /* -------------------------------------------------------------------------- */
 /* what this session has already been shown                                    */
 /* -------------------------------------------------------------------------- */
@@ -234,7 +71,7 @@ function extractPaths(input, root) {
  * The marker file name for one session, mirroring `seenMarkerName` in
  * `packages/core/src/hub.ts`.
  *
- * Copied for the same reason `canonicalPath` is: no imports are available here. The copies
+ * Copied for the same reason `canonicalPath` is: workspace packages are unavailable here. The copies
  * must agree, because core uses the same file to tell a tool caller whether the ruling this
  * window holds is still current. A drift test drives both from one table.
  */
@@ -334,7 +171,7 @@ function deliverImpacts(paths, payload) {
  * did. Standalone use is unchanged — see {@link isDirectRun} below.
  */
 export function run(payloadText) {
-  const payload = normalizePayload(payloadText)
+  const payload = normalizePayload(payloadText, { cwdFallback: process.cwd() })
   if (!payload || !payload.sessionId) return null
   if (!EVENTS.has(payload.eventName)) return null
 

@@ -27,6 +27,7 @@ import {
   buildBrief,
   buildEvent,
   buildGraphView,
+  buildIntegrationPlan,
   canonicalEntityPath,
   checkpointCommit,
   contentionSignature,
@@ -36,19 +37,17 @@ import {
   describeProtected,
   desktopStatePath,
   desktopTaskTitle,
-  ensureWorktree,
   explainCommit,
-  heldBy,
+  finishTask,
   HUB_RESOLVE_HOST_EVENT,
   integrationOrder,
   isDirty,
   keyOf,
   kindOfVerdict,
-  loadAssumptions,
   loadContracts,
-  mergeTreePreview,
   preflight,
   preflightAndClaim,
+  previewTaskMerges,
   publishContract,
   readAllEvents,
   readDesktopState,
@@ -57,12 +56,12 @@ import {
   recordAssumption,
   registryView,
   releaseLease,
-  staleAssumptions,
+  startTask,
   symbolKeyOf,
-  toWorkspaceRelative,
+  taskBranchesFor,
   VERDICT_SEVERITY,
-  worktreeList,
   writeDesktopState,
+  writtenPathsOf,
   type DesktopStatePatch,
   type HubRuling,
   type HubHolder,
@@ -917,50 +916,9 @@ const reconcile: ToolDefinition = {
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   handler: (_args, context) => {
     const { paths } = context.identity
-    const registry = loadContracts(paths)
-    const stale = staleAssumptions(loadAssumptions(paths), registry)
     const view = buildBoardView(paths, undefined, context.now)
-
-    const openedAt = new Map(view.tasks.map((task) => [task.taskId, task.openedAt]))
-    const branches = worktreeList(paths.root)
-      .filter((entry): entry is typeof entry & { branch: string } => Boolean(entry.branch?.startsWith('agentgit/')))
-      .map((entry) => ({
-        taskId: entry.branch.replace(/^agentgit\//, ''),
-        branch: entry.branch,
-        openedAt: openedAt.get(entry.branch.replace(/^agentgit\//, '')) ?? new Date(0).toISOString(),
-      }))
-
-    const publishedBy = new Map<string, string>()
-    for (const name of new Set(registry.contracts.map((contract) => contract.name))) {
-      const current = currentVersion(registry, name)
-      if (current) publishedBy.set(name, current.publishedBy)
-    }
-
-    const order = integrationOrder(
-      branches,
-      loadAssumptions(paths).assumptions.map((assumption) => ({
-        taskId: assumption.taskId,
-        contract: assumption.contract,
-      })),
-      publishedBy,
-    )
-
-    const merge: { a: string; b: string; clean: boolean; note: string }[] = []
-    for (let i = 0; i < branches.length; i += 1) {
-      for (let j = i + 1; j < branches.length; j += 1) {
-        const preview = mergeTreePreview(paths.root, branches[i].branch, branches[j].branch)
-        merge.push({
-          a: branches[i].taskId,
-          b: branches[j].taskId,
-          clean: preview.clean,
-          note: preview.supported
-            ? preview.clean
-              ? 'no textual conflict'
-              : `${preview.conflicts.length} conflicting path(s)`
-            : preview.message,
-        })
-      }
-    }
+    const { stale, order, branches } = buildIntegrationPlan(paths, view.tasks)
+    const merge = previewTaskMerges(paths.root, branches).map(({ message, ...pair }) => ({ ...pair, note: message }))
 
     const commands = order.map((item, index) => ({
       step: index + 1,
@@ -1391,32 +1349,14 @@ const task: ToolDefinition = {
     const root = paths.root
 
     if (action === 'start') {
-      const declared = strArray(args, 'paths').map((path) => toWorkspaceRelative(root, path) ?? path)
-      let worktree: string | null = null
-      let branch: string | null = null
-      let note = 'no worktree requested'
-      if (bool(args, 'worktree', true)) {
-        try {
-          const ensured = ensureWorktree(root, identity.taskId)
-          worktree = ensured.path
-          branch = ensured.branch
-          note = ensured.message
-        } catch (error) {
-          note = `no worktree: ${(error as Error).message}`
-        }
-      }
-
-      appendEvent(paths, buildEvent({
-        kind: 'task_registered',
-        timestampUtc: context.now.toISOString(),
-        sessionId: identity.sessionId,
+      const { branch, worktree, note, declared } = startTask(paths, {
         taskId: identity.taskId,
-        entities: declared.map((path) => ({ kind: 'file', identifier: path, path })),
-        intentText: intentOf(args),
+        sessionId: identity.sessionId,
         hostEvent: 'mcp',
-        reason: note,
-        detail: { worktree, branch },
-      }))
+        intent: intentOf(args),
+        files: strArray(args, 'paths'),
+        worktree: bool(args, 'worktree', true),
+      }, context.now)
 
       return {
         text: [
@@ -1451,28 +1391,10 @@ const task: ToolDefinition = {
     }
 
     if (action === 'finish') {
-      const held = heldBy(paths, identity.taskId)
-      const { released } = releaseLease(paths, identity.taskId)
-      appendEvent(paths, buildEvent({
-        kind: 'lifecycle_validated',
-        timestampUtc: context.now.toISOString(),
-        sessionId: identity.sessionId,
-        taskId: identity.taskId,
-        hostEvent: 'mcp',
-        reason: `released ${released.length} lease(s)`,
-      }))
-
-      const ordered = integrationOrder(
-        worktreeList(root)
-          .filter((entry): entry is typeof entry & { branch: string } => Boolean(entry.branch?.startsWith('agentgit/')))
-          .map((entry) => ({
-            taskId: entry.branch.replace(/^agentgit\//, ''),
-            branch: entry.branch,
-            openedAt: new Date(0).toISOString(),
-          })),
-        [],
-        new Map(),
-      )
+      const { held, released } = finishTask(paths, {
+        taskId: identity.taskId, sessionId: identity.sessionId, hostEvent: 'mcp',
+      }, context.now)
+      const ordered = integrationOrder(taskBranchesFor(root), [], new Map())
 
       const lines = [
         `${identity.taskId} finished. Released ${released.length} lease(s)${held.length > 0 ? ` (${held.map((lease) => lease.entityKey).join(', ')})` : ''}.`,
@@ -1537,20 +1459,6 @@ const task: ToolDefinition = {
       'Use one of: start, checkpoint, finish, integrate.',
     )
   },
-}
-
-/** Every workspace-relative path this task has written, per the ledger. */
-function writtenPathsOf(paths: Identity['paths'], taskId: string): string[] {
-  const { events } = readAllEvents(paths)
-  const seen = new Set<string>()
-  for (const event of events) {
-    if (event.taskId !== taskId || event.kind !== 'file_write') continue
-    for (const entity of event.entities ?? []) {
-      const path = entity.path ?? entity.identifier
-      if (path) seen.add(path)
-    }
-  }
-  return [...seen].sort()
 }
 
 /* -------------------------------------------------------------------------- */

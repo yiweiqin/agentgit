@@ -42,6 +42,7 @@ import { removeScratch } from './housekeeping.ts'
 const REPO = join(import.meta.dirname, '..', '..', '..')
 const SPINE = join(REPO, 'plugins', 'agentgit', 'scripts', 'spine.mjs')
 const HOOK_ERRORS = join(REPO, 'plugins', 'agentgit', 'scripts', 'hook-errors.mjs')
+const HOOK_RUNTIME = join(REPO, 'plugins', 'agentgit', 'scripts', 'hook-runtime.mjs')
 
 /** A pid that cannot be running: used to stand in for a daemon that crashed. */
 const DEAD_PID = 2_147_483_647
@@ -115,9 +116,9 @@ function installSpine(overrides: { daemon?: string; node?: string; flags?: strin
   const shim = join(home, 'scripts', 'spine.mjs')
   mkdirSync(join(home, 'scripts'), { recursive: true })
   writeFileSync(shim, readFileSync(SPINE, 'utf8'), 'utf8')
-  // The error recorder is a sibling import the installed plugin ships alongside this script, so
-  // the shim has to carry it too — otherwise the copy is not the install it stands in for.
+  // Include the sibling modules shipped by an installed plugin.
   writeFileSync(join(home, 'scripts', 'hook-errors.mjs'), readFileSync(HOOK_ERRORS, 'utf8'), 'utf8')
+  writeFileSync(join(home, 'scripts', 'hook-runtime.mjs'), readFileSync(HOOK_RUNTIME, 'utf8'), 'utf8')
   writeFileSync(
     join(home, 'spine.json'),
     `${JSON.stringify(
@@ -250,6 +251,7 @@ describe('the spine cannot fail a session', () => {
     mkdirSync(join(home, 'scripts'), { recursive: true })
     writeFileSync(shim, readFileSync(SPINE, 'utf8'), 'utf8')
     writeFileSync(join(home, 'scripts', 'hook-errors.mjs'), readFileSync(HOOK_ERRORS, 'utf8'), 'utf8')
+    writeFileSync(join(home, 'scripts', 'hook-runtime.mjs'), readFileSync(HOOK_RUNTIME, 'utf8'), 'utf8')
     claim()
 
     const result = runSpine(sessionStart(), shim)

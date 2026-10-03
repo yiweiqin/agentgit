@@ -468,13 +468,13 @@ demo.
 
 ```
 packages/core       the ledger, contracts, leases, preflight verdicts, rollout ingestion, git,
-                    the commit graph and the session-name resolver
+                    shared task lifecycle and integration plans, the commit graph and session names
 packages/board      the inline panel fragment and the standalone page, from one view
 packages/app        the MCP App panel: one self-contained document, its CSS and its runtime
 packages/cli        agentgit status | board | graph | panel | app | preflight | why | reconcile | task | config | up | install
 packages/mcp        the stdio MCP server: agentgit_preflight, agentgit_task, agentgit_graph, the panel resource
 packages/daemon     the live board on localhost:7777, one page per workspace, SSE
-plugins/agentgit    the Codex plugin: manifest, hook wiring, the track.mjs fast path, the skill
+plugins/agentgit    the Codex plugin: manifest, hook wiring, shared hook runtime, the track.mjs fast path, the skill
 examples/collision  the two-agent walkthrough above
 examples/ab         the A/B run: the same scenario under two arms, with an obedience dial
 examples/real       the experiments below, run over this machine's own session transcripts

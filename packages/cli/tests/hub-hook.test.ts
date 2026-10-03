@@ -358,15 +358,14 @@ describe('the hot path stays constant', () => {
 /**
  * Compile one or more functions out of the shipped source, with free variables injected.
  *
- * The helpers are copied into `hub.mjs` rather than imported, so a drift test has to run the
- * *shipped* text. `new Function` is used instead of importing the module because the module
- * executes its hook on load and calls `process.exit`, which would take the test runner with it.
+ * The installed hooks mirror core rules in `hub.mjs` and `hook-runtime.mjs` without importing
+ * workspace packages. Execute their shipped function bodies to compare both implementations.
  */
 function extract<T>(source: string, names: readonly string[], scope: Record<string, unknown>): T {
   const bodies = names.map((name) => {
-    const body = source.match(new RegExp(`^function ${name}\\([\\s\\S]*?\\n\\}`, 'm'))?.[0]
-    assert.ok(body, `hub.mjs must still declare ${name}, which this test drives`)
-    return body
+    const body = source.match(new RegExp(`^(?:export )?function ${name}\\([\\s\\S]*?\\n\\}`, 'm'))?.[0]
+    assert.ok(body, `the hook source must declare ${name}, which this test drives`)
+    return body.replace(/^export /, '')
   })
   const keys = Object.keys(scope)
   const last = names[names.length - 1]
@@ -394,7 +393,7 @@ describe('the hook\'s copies of two library rules cannot drift', () => {
   })
 
   test('its path spelling is the library\'s, so a target and a tool call can meet', () => {
-    const source = readFileSync(HUB, 'utf8')
+    const source = readFileSync(join(REPO, 'plugins', 'agentgit', 'scripts', 'hook-runtime.mjs'), 'utf8')
     const fromHook = extract<(root: string, value: string) => string>(
       source,
       ['normalizePath', 'canonicalPath'],

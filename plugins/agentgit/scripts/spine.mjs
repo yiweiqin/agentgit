@@ -18,7 +18,7 @@
  * It runs on the session-start path, alongside a script that runs before every tool call, so
  * it inherits the same rules:
  *
- * 1. **No imports outside `node:`.** It runs from the installed plugin directory, which has no
+ * 1. **Only Node builtins and sibling scripts.** It runs from the installed plugin directory, which has no
  *    `node_modules` and no build step.
  * 2. **It reads no ledger.** Liveness is one small file (`state/daemon.json`) and the answer is
  *    a pid. Reading `events/*.jsonl` here would make starting a session cost more as the
@@ -45,9 +45,10 @@
 
 import { spawn } from 'node:child_process'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { isDirectRun, noteFailure } from './hook-errors.mjs'
+import { findWorkspace, normalizePayload, readStdin } from './hook-runtime.mjs'
 
 /** Must match `ENDPOINT_VERSION` in `packages/daemon/src/endpoint.ts`. */
 const ENDPOINT_VERSION = 1
@@ -79,88 +80,6 @@ const SPAWN_LOCK_STALE_MS = 15_000
 
 /** Rotate the log once past this size, so an unattended daemon cannot fill a disk. */
 const MAX_LOG_BYTES = 1_000_000
-
-/* -------------------------------------------------------------------------- */
-/* input                                                                       */
-/* -------------------------------------------------------------------------- */
-
-function readStdin() {
-  // A TTY means nobody piped a payload. Reading would block until the user typed, which would
-  // hang the session, so this is the one case that returns early.
-  if (process.stdin.isTTY) return ''
-  try {
-    return readFileSync(0, 'utf8')
-  } catch {
-    return ''
-  }
-}
-
-function firstString(source, keys) {
-  if (!source || typeof source !== 'object') return null
-  for (const key of keys) {
-    const value = source[key]
-    if (typeof value === 'string' && value.length > 0) return value
-  }
-  return null
-}
-
-function normalizePayload(raw) {
-  let parsed = null
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    parsed = null
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
-
-  return {
-    eventName:
-      firstString(parsed, ['hook_event_name', 'hookEventName', 'event_name', 'eventName', 'event']) ?? '',
-    /*
-     * Deliberately no `process.cwd()` fallback, unlike `track.mjs` and `hub.mjs`.
-     *
-     * Those two decide something about the payload and, at worst, attribute a record to the wrong
-     * ledger. This one *starts a process* that will watch a directory for as long as it lives, so
-     * guessing the directory is a larger claim than the other scripts make. The host's hook schema
-     * always sends `cwd`; if it is ever missing, doing nothing is the only answer that cannot
-     * leave a stray watcher behind, and it is also why a test that omits `cwd` cannot reach into
-     * the repository the test suite is running from.
-     */
-    cwd: firstString(parsed, ['cwd', 'working_directory', 'workingDirectory']),
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* workspace                                                                   */
-/* -------------------------------------------------------------------------- */
-
-function hasDir(dir, name) {
-  try {
-    return existsSync(join(dir, name))
-  } catch {
-    return false
-  }
-}
-
-/**
- * Nearest ancestor that is a workspace, else a git repository.
- *
- * Identical to `track.mjs`'s rule, and it has to stay identical: the two scripts have to agree
- * about which directory a workspace is, or the spine would watch one root while the recorder
- * wrote to another. A directory that is neither is left alone entirely.
- */
-function findWorkspace(startDir) {
-  let current = resolve(startDir)
-  let repo = null
-  for (;;) {
-    if (hasDir(current, '.agentgit')) return { root: current, kind: 'claimed' }
-    if (repo === null && (hasDir(current, '.git') || hasDir(current, '.hg'))) repo = current
-    const parent = join(current, '..')
-    const next = resolve(parent)
-    if (next === current) return repo ? { root: repo, kind: 'repo' } : { root: null, kind: 'none' }
-    current = next
-  }
-}
 
 function stateDir(root) {
   return join(root, '.agentgit', 'state')

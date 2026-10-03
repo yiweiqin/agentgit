@@ -27,6 +27,7 @@ import {
   buildBrief,
   buildEvent,
   buildGraphView,
+  buildIntegrationPlan,
   checkpointCommit,
   clearInitOffer,
   computeHubVerdict,
@@ -43,49 +44,43 @@ import {
   desktopStatePath,
   desktopTaskTitle,
   ensureWorkspace,
-  ensureWorktree,
   explainCommit,
   findWorkspaceRoot,
-  heldBy,
+  finishTask,
   hubSeenCount,
   initOfferFor,
   initOffersPath,
-  integrationOrder,
   markEnabled,
   isDirty,
   keyOf,
   kindOfVerdict,
-  loadAssumptions,
   loadConfig,
   loadContracts,
   loadLeases,
   machineId,
-  mergeTreePreview,
   moduleDetail,
   moduleGraphFor,
   moduleGraphView,
   parseTunable,
   preflight,
   preflightAndClaim,
+  previewTaskMerges,
   publishContract,
   publishHubVerdict,
   readAllEvents,
   readDesktopState,
   readHubVerdict,
-  readInitOffers,
   recordAssumption,
   recordPinnedThread,
   registryView,
   releaseLease,
   resetDesktopState,
-  staleAssumptions,
+  startTask,
   symbolKeyOf,
-  toWorkspaceRelative,
   updateConfig,
-  worktreeList,
   writeInitOffer,
+  writtenPathsOf,
   type Entity,
-  type IntegrationItem,
   type WorkspaceConfig,
   type WorkspacePaths,
 } from '@agentgit/core'
@@ -202,10 +197,7 @@ async function main(argv: readonly string[]): Promise<number> {
  * missing path.
  */
 function workspaceOf(args: ParsedArgs): WorkspacePaths {
-  const explicit = args.value('workspace') ?? process.env.AGENTGIT_WORKSPACE ?? null
-  const root = explicit ? resolve(explicit) : findWorkspaceRoot(process.cwd())
-  if (!existsSync(root)) throw new UsageError(`workspace does not exist: ${root}`)
-  return ensureWorkspace(root)
+  return ensureWorkspace(rootWithoutClaiming(args))
 }
 
 /**
@@ -491,41 +483,6 @@ function keyOfEntity(entity: Entity): string {
 }
 
 /**
- * The task branches, in the order they should land, with the reason for each position.
- *
- * Shared by `reconcile` and `hub` so the two can never disagree about the order — a hub whose
- * ruling and whose reconcile output gave different orders would be the exact failure the hub
- * exists to prevent. Branches come from Git rather than from the ledger: a branch that exists is
- * work that exists, whether or not anything recorded it.
- */
-function integrationOrderFor(paths: WorkspacePaths, view = buildBoardView(paths)): IntegrationItem[] {
-  const openedAt = new Map(view.tasks.map((task) => [task.taskId, task.openedAt]))
-  const branches = worktreeList(paths.root)
-    .filter((entry): entry is typeof entry & { branch: string } => Boolean(entry.branch?.startsWith('agentgit/')))
-    .map((entry) => ({
-      taskId: entry.branch.replace(/^agentgit\//, ''),
-      branch: entry.branch,
-      openedAt: openedAt.get(entry.branch.replace(/^agentgit\//, '')) ?? new Date(0).toISOString(),
-    }))
-
-  const registry = loadContracts(paths)
-  const publishedBy = new Map<string, string>()
-  for (const name of new Set(registry.contracts.map((contract) => contract.name))) {
-    const current = currentVersion(registry, name)
-    if (current) publishedBy.set(name, current.publishedBy)
-  }
-
-  return integrationOrder(
-    branches,
-    loadAssumptions(paths).assumptions.map((assumption) => ({
-      taskId: assumption.taskId,
-      contract: assumption.contract,
-    })),
-    publishedBy,
-  )
-}
-
-/**
  * `agentgit hub` — the one ruling per contention, and the switch that publishes it by hand.
  *
  * Reading is the default, and it reads the projection the daemon maintains, so asking the
@@ -560,14 +517,14 @@ function cmdHub(args: ParsedArgs): number {
   let verdict = read
   let published: { readonly published: boolean; readonly reason: string } | null = null
   if (args.boolean('refresh')) {
-    const computed = computeHubVerdict(paths, new Date(), { integration: integrationOrderFor(paths, view), parallelism })
+    const computed = computeHubVerdict(paths, new Date(), { integration: buildIntegrationPlan(paths, view.tasks).order, parallelism })
     const result = publishHubVerdict(paths, computed)
     published = { published: result.published, reason: result.reason }
     verdict = computed
   } else if (!verdict) {
     // No projection yet, so the only honest answer is to compute one. It is not published: a read
     // must not change the ledger, and the note below says so.
-    verdict = computeHubVerdict(paths, new Date(), { integration: integrationOrderFor(paths, view), parallelism })
+    verdict = computeHubVerdict(paths, new Date(), { integration: buildIntegrationPlan(paths, view.tasks).order, parallelism })
   } else {
     verdict = { ...verdict, parallelism }
   }
@@ -800,32 +757,8 @@ function cmdDesktop(args: ParsedArgs): number {
 
 function cmdReconcile(args: ParsedArgs): number {
   const paths = workspaceOf(args)
-  const registry = loadContracts(paths)
-  const stale = staleAssumptions(loadAssumptions(paths), registry)
-
-  // Task branches come from Git rather than from the ledger: a branch that exists is
-  // work that exists, whether or not anything recorded it.
-  const view = buildBoardView(paths)
-  const order = integrationOrderFor(paths, view)
-  // The branch list is derived from the order rather than gathered a second time, so the ghost
-  // merge can only ever be previewed over branches the order actually names.
-  const branches = order.map((item) => ({ taskId: item.taskId, branch: item.branch }))
-  const merge: { a: string; b: string; clean: boolean; message: string }[] = []
-  for (let i = 0; i < branches.length; i += 1) {
-    for (let j = i + 1; j < branches.length; j += 1) {
-      const preview = mergeTreePreview(paths.root, branches[i].branch, branches[j].branch)
-      merge.push({
-        a: branches[i].taskId,
-        b: branches[j].taskId,
-        clean: preview.clean,
-        message: preview.supported
-          ? preview.clean
-            ? 'no textual conflict'
-            : `${preview.conflicts.length} conflicting path(s)`
-          : preview.message,
-      })
-    }
-  }
+  const { stale, order } = buildIntegrationPlan(paths, buildBoardView(paths).tasks)
+  const merge = previewTaskMerges(paths.root, order)
 
   const rendered = {
     stale,
@@ -842,7 +775,7 @@ function cmdReconcile(args: ParsedArgs): number {
 
   process.stdout.write(renderReconcile(rendered))
 
-  if (branches.length > 0) {
+  if (order.length > 0) {
     process.stdout.write('\nAgenticGit will not run these. It describes them and stops:\n')
     for (const operation of ['merge', 'rebase', 'reset --hard', 'branch -D'] as const) {
       const described = describeProtected(operation, operation === 'merge' || operation === 'rebase' ? ['agentgit/<task>', '<task>'] : [])
@@ -995,38 +928,14 @@ function cmdTask(args: ParsedArgs): number {
 
   if (verb === 'start') {
     const taskId = args.positionals[0] ?? identity.taskId
-    const intent = args.value('intent')
-    const declared = args.values('path')
-      .filter((path) => path !== 'true')
-      .map((path) => toWorkspaceRelative(paths.root, path) ?? path)
-
-    let worktree: string | null = null
-    let branch: string | null = null
-    let note = 'no worktree requested'
-    if (args.boolean('worktree', true)) {
-      try {
-        const ensured = ensureWorktree(paths.root, taskId)
-        worktree = ensured.path
-        branch = ensured.branch
-        note = ensured.message
-      } catch (error) {
-        // A repository with no commits yet cannot host a worktree. That is a normal
-        // first-run state, not an error: the task is still worth registering.
-        note = `no worktree: ${(error as Error).message}`
-      }
-    }
-
-    appendEvent(paths, buildEvent({
-      kind: 'task_registered',
-      timestampUtc: new Date().toISOString(),
-      sessionId: identity.sessionId,
+    const { branch, worktree, note } = startTask(paths, {
       taskId,
-      entities: declared.map((path) => ({ kind: 'file', identifier: path, path })),
-      intentText: intent,
+      sessionId: identity.sessionId,
       hostEvent: 'cli',
-      reason: note,
-      detail: { worktree, branch },
-    }))
+      intent: args.value('intent'),
+      files: args.values('path').filter((path) => path !== 'true'),
+      worktree: args.boolean('worktree', true),
+    })
 
     process.stdout.write(`task ${taskId}\n`)
     process.stdout.write(`  branch   : ${branch ?? '(none)'}\n`)
@@ -1067,17 +976,7 @@ function cmdTask(args: ParsedArgs): number {
 
   if (verb === 'finish') {
     const taskId = args.positionals[0] ?? identity.taskId
-    const held = heldBy(paths, taskId)
-    const { released } = releaseLease(paths, taskId)
-
-    appendEvent(paths, buildEvent({
-      kind: 'lifecycle_validated',
-      timestampUtc: new Date().toISOString(),
-      sessionId: identity.sessionId,
-      taskId,
-      hostEvent: 'cli',
-      reason: `released ${released.length} lease(s)`,
-    }))
+    const { held, released } = finishTask(paths, { taskId, sessionId: identity.sessionId, hostEvent: 'cli' })
 
     const base = defaultBranch(paths.root)
     process.stdout.write(`${taskId} finished. Released ${released.length} lease(s)${held.length > 0 ? ` (${held.join(', ')})` : ''}.\n`)
@@ -1090,21 +989,6 @@ function cmdTask(args: ParsedArgs): number {
   }
 
   throw new UsageError(`unknown task verb '${verb}'`)
-}
-
-/** Every workspace-relative path this task has written, newest last. */
-function writtenPathsOf(paths: WorkspacePaths, taskId: string): string[] {
-  const { events } = readAllEvents(paths)
-  const seen = new Set<string>()
-  for (const event of events) {
-    if (event.taskId !== taskId) continue
-    if (event.kind !== 'file_write') continue
-    for (const entity of event.entities ?? []) {
-      const path = entity.path ?? entity.identifier
-      if (path) seen.add(path)
-    }
-  }
-  return [...seen].sort()
 }
 
 /* -------------------------------------------------------------------------- */
