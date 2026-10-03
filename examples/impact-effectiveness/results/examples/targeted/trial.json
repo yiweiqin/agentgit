@@ -1,0 +1,585 @@
+{
+  "trialId": "field-rename--after-2--targeted",
+  "pairId": "field-rename--after-2",
+  "runIndex": 68,
+  "scenario": "field-rename",
+  "group": "declared-breaking",
+  "changeAfter": 2,
+  "arm": "targeted",
+  "followsNotifications": true,
+  "firstNoticeAt": 2,
+  "lateDelivered": false,
+  "metrics": {
+    "artifactWrites": 8,
+    "rewrites": 2,
+    "staleWritesAfterChange": 0,
+    "tests": 1,
+    "failedTests": 0,
+    "reviews": 1,
+    "adaptations": 1,
+    "urgentAlerts": 1,
+    "deferredAlerts": 0,
+    "unrelatedAlerts": 0,
+    "notificationChars": 390,
+    "declarationWrites": 5,
+    "hookCalls": 13,
+    "coordinationMs": 429.09267199998794,
+    "hookMs": 410.2180109999972,
+    "validationMs": 27.728986000001896,
+    "artifactMs": 0.3797020000019984,
+    "diagnosticMs": 32.93206400000054
+  },
+  "finalPass": true,
+  "finalFiles": {
+    "consumers/web.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/mobile.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/cli.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/worker.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/admin.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/export.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "producer.mjs": "9b22bb51e7345abb086cb5880ff8afb336841cff249c4e0b0986117f8d99a988",
+    "theme.css": "1d28205c96d21e2e71576fdc81cb2d5b9929b486b369d4cdcd5710277c66a15d"
+  },
+  "initialCandidates": [
+    {
+      "id": "impact-143ec074f831cd73c9f5680a",
+      "sourceEventId": "change-d5b78176f068def861b5b585",
+      "sourceSessionId": "window-a",
+      "targetSessionId": "window-b",
+      "targetTaskId": "consumer",
+      "category": "breaking_dependency",
+      "score": 0.98,
+      "scoreKind": "heuristic",
+      "confidence": "confirmed",
+      "severity": "high",
+      "urgency": "high",
+      "policy": "interrupt",
+      "summary": "service.login updated (login().token → login().accessToken)",
+      "action": "At the next safe point, inspect the changed contract or output, adapt the consumer, and record its new assumption.",
+      "evidence": [
+        {
+          "relation": "shared_contract",
+          "source": "service.login@2",
+          "target": "service.login@1",
+          "detail": "Receiver uses v1; producer published v2 across an incompatible change.",
+          "confirmed": true
+        }
+      ],
+      "references": [
+        "producer.mjs",
+        "public-spec.json"
+      ],
+      "status": "pending"
+    }
+  ],
+  "suppressedDuplicates": 1,
+  "clearedChecks": 1,
+  "ledger": [
+    {
+      "event_id": "evt-a541754d9b18f354717d94e0",
+      "schema_version": "coord-ledger-0.1",
+      "kind": "decision",
+      "timestamp_utc": "2026-10-03T08:37:24.741Z",
+      "session_id": "window-a",
+      "developer": null,
+      "task_id": "producer",
+      "entities": [],
+      "intent_text": null,
+      "host_event": "impact/session",
+      "reason": null,
+      "detail": {
+        "state": {
+          "goal": "Update service implementation",
+          "workspace": "/var/tmp/agentgit-effectiveness-2yTEtj/field-rename--after-2--targeted",
+          "worktree": null,
+          "branch": null,
+          "entities": [],
+          "dependencies": [],
+          "artifacts": [],
+          "sessionId": "window-a",
+          "taskId": "producer",
+          "updatedAt": "2026-10-03T08:37:24.741Z",
+          "active": true,
+          "phase": "working",
+          "contracts": []
+        }
+      }
+    },
+    {
+      "event_id": "evt-c504bd090ecc637de16b50d3",
+      "schema_version": "coord-ledger-0.1",
+      "kind": "decision",
+      "timestamp_utc": "2026-10-03T08:37:24.742Z",
+      "session_id": "window-c",
+      "developer": null,
+      "task_id": "styles",
+      "entities": [],
+      "intent_text": null,
+      "host_event": "impact/session",
+      "reason": null,
+      "detail": {
+        "state": {
+          "goal": "Style navigation",
+          "workspace": "/var/tmp/agentgit-effectiveness-2yTEtj/field-rename--after-2--targeted",
+          "worktree": null,
+          "branch": null,
+          "entities": [],
+          "dependencies": [],
+          "artifacts": [],
+          "sessionId": "window-c",
+          "taskId": "styles",
+          "updatedAt": "2026-10-03T08:37:24.742Z",
+          "active": true,
+          "phase": "working",
+          "contracts": []
+        }
+      }
+    },
+    {
+      "event_id": "evt-66b334ccbd80b2c9fa472fab",
+      "schema_version": "coord-ledger-0.1",
+      "kind": "decision",
+      "timestamp_utc": "2026-10-03T08:37:24.742Z",
+      "session_id": "window-b",
+      "developer": null,
+      "task_id": "consumer",
+      "entities": [],
+      "intent_text": null,
+      "host_event": "impact/session",
+      "reason": null,
+      "detail": {
+        "state": {
+          "goal": "Build six service clients",
+          "workspace": "/var/tmp/agentgit-effectiveness-2yTEtj/field-rename--after-2--targeted",
+          "worktree": null,
+          "branch": null,
+          "entities": [],
+          "dependencies": [],
+          "artifacts": [],
+          "sessionId": "window-b",
+          "taskId": "consumer",
+          "updatedAt": "2026-10-03T08:37:24.742Z",
+          "active": true,
+          "phase": "working",
+          "contracts": [
+            {
+              "name": "service.login",
+              "version": 1,
+              "inferred": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event_id": "evt-ad18999028c0daa446770762",
+      "schema_version": "coord-ledger-0.1",
+      "kind": "decision",
+      "timestamp_utc": "2026-10-03T08:37:24.875Z",
+      "session_id": "window-a",
+      "developer": null,
+      "task_id": "producer",
+      "entities": [],
+      "intent_text": null,
+      "host_event": "impact/change",
+      "reason": null,
+      "detail": {
+        "change": {
+          "goal": "",
+          "workspace": "/var/tmp/agentgit-effectiveness-2yTEtj/field-rename--after-2--targeted",
+          "worktree": null,
+          "branch": null,
+          "entities": [],
+          "dependencies": [],
+          "artifacts": [],
+          "sessionId": "window-a",
+          "taskId": "producer",
+          "stream": "service.login",
+          "revision": 1,
+          "eventId": "change-d5b78176f068def861b5b585",
+          "timestamp": "2026-10-03T08:37:24.875Z",
+          "summary": "service.login updated",
+          "before": "login().token",
+          "after": "login().accessToken",
+          "status": "completed",
+          "compatibility": "unknown",
+          "contracts": [
+            {
+              "name": "service.login",
+              "version": 2,
+              "breaking": true
+            }
+          ],
+          "evidence": [
+            "producer.mjs",
+            "public-spec.json"
+          ]
+        }
+      }
+    },
+    {
+      "event_id": "evt-068274b4ee7285901d19d6bd",
+      "schema_version": "coord-ledger-0.1",
+      "kind": "decision",
+      "timestamp_utc": "2026-10-03T08:37:24.979Z",
+      "session_id": "window-b",
+      "developer": null,
+      "task_id": "consumer",
+      "entities": [],
+      "intent_text": null,
+      "host_event": "impact/session",
+      "reason": null,
+      "detail": {
+        "state": {
+          "goal": "Build six service clients",
+          "workspace": "/var/tmp/agentgit-effectiveness-2yTEtj/field-rename--after-2--targeted",
+          "worktree": null,
+          "branch": null,
+          "entities": [],
+          "dependencies": [],
+          "artifacts": [],
+          "sessionId": "window-b",
+          "taskId": "consumer",
+          "updatedAt": "2026-10-03T08:37:24.979Z",
+          "active": true,
+          "phase": "working",
+          "contracts": [
+            {
+              "name": "service.login",
+              "version": 2,
+              "inferred": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event_id": "evt-209e68510665928f527d24b6",
+      "schema_version": "coord-ledger-0.1",
+      "kind": "decision",
+      "timestamp_utc": "2026-10-03T08:37:24.981Z",
+      "session_id": "window-b",
+      "developer": null,
+      "task_id": "consumer",
+      "entities": [],
+      "intent_text": null,
+      "host_event": "impact/ack",
+      "reason": null,
+      "detail": {
+        "id": "impact-143ec074f831cd73c9f5680a"
+      }
+    }
+  ],
+  "remainingNotifications": [
+    {
+      "id": "impact-143ec074f831cd73c9f5680a",
+      "sourceEventId": "change-d5b78176f068def861b5b585",
+      "sourceSessionId": "window-a",
+      "targetSessionId": "window-b",
+      "targetTaskId": "consumer",
+      "category": "background_only",
+      "score": 0.15,
+      "scoreKind": "heuristic",
+      "confidence": "insufficient",
+      "severity": "none",
+      "urgency": "none",
+      "policy": "store-only",
+      "summary": "service.login updated (login().token → login().accessToken)",
+      "action": "Keep as background; no action is currently required.",
+      "evidence": [],
+      "references": [
+        "producer.mjs",
+        "public-spec.json"
+      ],
+      "status": "acknowledged"
+    }
+  ],
+  "trace": [
+    {
+      "sequence": 0,
+      "kind": "hook",
+      "who": "b",
+      "event": "PreToolUse",
+      "completed": 0,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 1,
+      "kind": "write",
+      "file": "consumers/web.mjs",
+      "reason": "planned-work",
+      "completed": 0,
+      "changed": false,
+      "rewrite": false,
+      "stale": false,
+      "beforeHash": null,
+      "afterHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b"
+    },
+    {
+      "sequence": 2,
+      "kind": "hook",
+      "who": "b",
+      "event": "PostToolUse",
+      "completed": 1,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 3,
+      "kind": "hook",
+      "who": "b",
+      "event": "PreToolUse",
+      "completed": 1,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 4,
+      "kind": "write",
+      "file": "consumers/mobile.mjs",
+      "reason": "planned-work",
+      "completed": 1,
+      "changed": false,
+      "rewrite": false,
+      "stale": false,
+      "beforeHash": null,
+      "afterHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b"
+    },
+    {
+      "sequence": 5,
+      "kind": "hook",
+      "who": "b",
+      "event": "PostToolUse",
+      "completed": 2,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 6,
+      "kind": "producer-change",
+      "completed": 2,
+      "beforeHash": "c85ec2668bac7e612e0f1270176f0ab5999946e8df1265247ed33694c6b6df70",
+      "afterHash": "9b22bb51e7345abb086cb5880ff8afb336841cff249c4e0b0986117f8d99a988"
+    },
+    {
+      "sequence": 7,
+      "kind": "projection-at-change",
+      "notifications": [
+        {
+          "id": "impact-143ec074f831cd73c9f5680a",
+          "sourceEventId": "change-d5b78176f068def861b5b585",
+          "sourceSessionId": "window-a",
+          "targetSessionId": "window-b",
+          "targetTaskId": "consumer",
+          "category": "breaking_dependency",
+          "score": 0.98,
+          "scoreKind": "heuristic",
+          "confidence": "confirmed",
+          "severity": "high",
+          "urgency": "high",
+          "policy": "interrupt",
+          "summary": "service.login updated (login().token → login().accessToken)",
+          "action": "At the next safe point, inspect the changed contract or output, adapt the consumer, and record its new assumption.",
+          "evidence": [
+            {
+              "relation": "shared_contract",
+              "source": "service.login@2",
+              "target": "service.login@1",
+              "detail": "Receiver uses v1; producer published v2 across an incompatible change.",
+              "confirmed": true
+            }
+          ],
+          "references": [
+            "producer.mjs",
+            "public-spec.json"
+          ],
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "sequence": 8,
+      "kind": "hook",
+      "who": "c",
+      "event": "PostToolUse",
+      "completed": 2,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 9,
+      "kind": "independent-task-completed",
+      "completed": 2
+    },
+    {
+      "sequence": 10,
+      "kind": "hook",
+      "who": "b",
+      "event": "PreToolUse",
+      "completed": 2,
+      "text": "[breaking_dependency; interrupt] service.login updated (login().token → login().accessToken)\nFrom window-a, event change-d5b78176f068def861b5b585.\nservice.login@2 → service.login@1: Receiver uses v1; producer published v2 across an incompatible change.\nEvidence: producer.mjs\nAt the next safe point, inspect the changed contract or output, adapt the consumer, and record its new assumption.",
+      "diagnostic": false
+    },
+    {
+      "sequence": 11,
+      "kind": "hook",
+      "who": "b",
+      "event": "PreToolUse",
+      "completed": 2,
+      "text": "",
+      "diagnostic": true
+    },
+    {
+      "sequence": 12,
+      "kind": "read-current-spec",
+      "reason": "notification",
+      "version": 2,
+      "completed": 2
+    },
+    {
+      "sequence": 13,
+      "kind": "write",
+      "file": "consumers/web.mjs",
+      "reason": "notification",
+      "completed": 2,
+      "changed": true,
+      "rewrite": true,
+      "stale": false,
+      "beforeHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b",
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 14,
+      "kind": "write",
+      "file": "consumers/mobile.mjs",
+      "reason": "notification",
+      "completed": 2,
+      "changed": true,
+      "rewrite": true,
+      "stale": false,
+      "beforeHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b",
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 15,
+      "kind": "write",
+      "file": "consumers/cli.mjs",
+      "reason": "planned-work",
+      "completed": 2,
+      "changed": true,
+      "rewrite": false,
+      "stale": false,
+      "beforeHash": null,
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 16,
+      "kind": "hook",
+      "who": "b",
+      "event": "PostToolUse",
+      "completed": 3,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 17,
+      "kind": "hook",
+      "who": "b",
+      "event": "PreToolUse",
+      "completed": 3,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 18,
+      "kind": "write",
+      "file": "consumers/worker.mjs",
+      "reason": "planned-work",
+      "completed": 3,
+      "changed": true,
+      "rewrite": false,
+      "stale": false,
+      "beforeHash": null,
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 19,
+      "kind": "hook",
+      "who": "b",
+      "event": "PostToolUse",
+      "completed": 4,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 20,
+      "kind": "hook",
+      "who": "b",
+      "event": "PreToolUse",
+      "completed": 4,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 21,
+      "kind": "write",
+      "file": "consumers/admin.mjs",
+      "reason": "planned-work",
+      "completed": 4,
+      "changed": true,
+      "rewrite": false,
+      "stale": false,
+      "beforeHash": null,
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 22,
+      "kind": "hook",
+      "who": "b",
+      "event": "PostToolUse",
+      "completed": 5,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 23,
+      "kind": "hook",
+      "who": "b",
+      "event": "PreToolUse",
+      "completed": 5,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 24,
+      "kind": "write",
+      "file": "consumers/export.mjs",
+      "reason": "planned-work",
+      "completed": 5,
+      "changed": true,
+      "rewrite": false,
+      "stale": false,
+      "beforeHash": null,
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 25,
+      "kind": "hook",
+      "who": "b",
+      "event": "PostToolUse",
+      "completed": 6,
+      "text": "",
+      "diagnostic": false
+    },
+    {
+      "sequence": 26,
+      "kind": "validation",
+      "reason": "final",
+      "completed": 6,
+      "checks": 7,
+      "failures": [],
+      "pass": true
+    }
+  ]
+}

@@ -1,0 +1,208 @@
+{
+  "experiment": "impact-effectiveness-controlled-replay-v1",
+  "startedAt": "2026-10-03T08:37:02.642Z",
+  "smoke": false,
+  "node": "v24.18.0",
+  "platform": "linux",
+  "arch": "x64",
+  "gitHead": "1cf3ee0fc9c2650ec06f4babeb4de0da07ffdfa1",
+  "worktreeStatus": "",
+  "hashes": {
+    "examples/impact-effectiveness/PROTOCOL.md": "753e9db75d90190ffce3276acf9271bfb7bf8fb44353d8673d773f8f4318877f",
+    "examples/impact-effectiveness/plan.json": "ff6d353904cb389cce06d614d0c5206460129e601a1d7de53fb0be7b151f2c0c",
+    "examples/impact-effectiveness/fixtures.mjs": "b20bdf9ff8d398cb451a40e79725d74aa0e207aef27aabd87f882f582c05cea5",
+    "examples/impact-effectiveness/run.mjs": "1dd59dbe1a27074bdf248880c961dad13285ae7d630eb757234b8fd731066c72",
+    "examples/impact-effectiveness/analyze.mjs": "35e5f60b3d789e7306edf762a3f5724364f2dc7f5bf7a5d799cd68e58f4a7f0e",
+    "examples/impact-effectiveness/analysis.test.mjs": "49c6e4d1810375eb86164c18291d4d338b789c936b4ace70b58931c3076ad7a8",
+    "packages/core/src/adapter.ts": "eaf98d6fb1981c73edb3e69dd3bf751ac3acee1bd3b0ff191121d5f1f32c6e92",
+    "packages/core/src/board.ts": "1bfbb0709afa39b14716a2472f9a27a1803028344b49b8245cbf518d773d1b70",
+    "packages/core/src/checks.ts": "7d09687f7b914c1752f955cbdddd9fe7b145a5bfa2f94ebe10e68af6161b4170",
+    "packages/core/src/codex-rollout.ts": "fc3367db121e70c6677fdabdb6c91d2cb228a936fa8652c697e436299bc0aa96",
+    "packages/core/src/config.ts": "78c688606b60c6a026cf3775ef87957dad5accf47e07f487e4b3c648fa0a47cd",
+    "packages/core/src/contracts.ts": "45d03dcfb28b390d3f0d0fab9a29416a5e42de7346c11d353bb577ae597174e5",
+    "packages/core/src/desktop.ts": "4d24e0ce2db4001207f1162fe5079a6062a16a6b0e7e69b7df89955a3564ad6e",
+    "packages/core/src/e2.ts": "a9847464ceb22963afd6e3372b53f1adc8e5293bedf3f1e4909013e4a2c59485",
+    "packages/core/src/entity.ts": "72e9b33d562c14c8229163baee5fdf3595d99cf65cef311487817d5f447f5bcf",
+    "packages/core/src/git.ts": "ee8c3fff4ec3206ea72124933ccdf19f394304fafc600048e0929cb983cf8db7",
+    "packages/core/src/governor.ts": "20b5ca403869bb13eb401f842079016577c29b34ecf11faece8867e64847f3ed",
+    "packages/core/src/graph.ts": "3542af7663138e520a2f7c2b1473f192820234eb4f4da34a80b229a21d8cde05",
+    "packages/core/src/hub.ts": "e96542fa32954da44369d5a774e1cd19fe7b75ed25c2a2e3c3a95a3a05a7fc13",
+    "packages/core/src/impact-input.ts": "67e77986d3e15c3322668760f8004810f3b2b8ddb1b55b03dfdaf95f0003677e",
+    "packages/core/src/impact-state.ts": "51b1263efd6c7c95a6db31185891c5c886c46c5c9c861d4d51b4463e69ce811c",
+    "packages/core/src/impact.ts": "f28cdf22c9fa65cfce6c88b763923c63eb91842836607a18a7b4af95abcee9eb",
+    "packages/core/src/index.ts": "3f6b6cb027e9aaf92832f2b11c6b5bbad9cb52d793c2fa22673d5041ef8a6ccf",
+    "packages/core/src/leases.ts": "b959603e0e95b2e697270f5c854631c2ea0a921119fb7937f9fdce384bfb0df3",
+    "packages/core/src/ledger.ts": "990af00a635a0cf4f4b6be43f48ac0b774a16bcbe561d39072b2c985674dd53e",
+    "packages/core/src/modules.ts": "6d9f023a2d72044f94017f73693604b1544f8c9400a1063689b4490d2316c2c2",
+    "packages/core/src/paths.ts": "519bb7231de954e505252d58db9b9e1178a0821154675955cbc5a9aa66b16c13",
+    "packages/core/src/policy.ts": "6bb3b521d3b024c52daec8cd14addb380df1f53964b4d8334f46ff6eddbc1255",
+    "packages/core/src/preflight.ts": "0c030d0671b22de96a10cd9c4f6509ad723316a7ae1b8ab0c5f7897d6f75c112",
+    "packages/core/src/reconcile.ts": "b718e65dc3c9de99690de8ca3bb6cbdd046b1decfb1cfe3d0159872d340d294b",
+    "packages/core/src/rollout-patches.ts": "004bd3d2a52382384f8fd4d4447c4c18e7458409ca67a9160cbba434bd6e39fc",
+    "packages/core/src/session-registry.ts": "b49e3d011977d5b3c9a85a09b9b91a894e756a11690e6b811cff0d6e4aba75f5",
+    "packages/core/src/sessions.ts": "ad36c84e6a2578b481bc0db2583471bbaf154a829fd1271b715706eb079c68d2",
+    "packages/core/src/store.ts": "b63fd3a07cfab0636e34731f0cd7041220bc3ab9cf91267eeb7d2ab90320bde5",
+    "packages/core/src/tunables.ts": "a9f78ee856ba5f856cce7c4818524ca4f2819f6aa7b81878ec7d1f548eb5530d",
+    "packages/core/src/types.ts": "c39397b2cd68b2a8deae042cfbd44c4f578075085e9847d20071630c31a72727",
+    "packages/core/src/workspace.ts": "c3ba1ed591df88df871af8a4550ae0db82bc08d4d0caa2c5d28dedc27c5b0da3",
+    "plugins/agentgit/scripts/desktop.mjs": "726608a0c26b6148788af7112e5337a03cec311da5342bb98a5424a798a47f18",
+    "plugins/agentgit/scripts/hook-errors.mjs": "71153a2ae2f2c899bce4dfcf873033cebad6c1e73f0ef1b81c7509384fbf7e39",
+    "plugins/agentgit/scripts/hook.mjs": "b6235876cdff246f4b7c32ec960ca380e969a626928eaf2c1723213f1c8060be",
+    "plugins/agentgit/scripts/hub.mjs": "043d0890c599d6a7ffc4a5fcb0454213e9afdfcd196bdf04dfe5cc84eb37f7ab",
+    "plugins/agentgit/scripts/spine.mjs": "97a93b3c86b7553e604efd1b775c2dfce03ada486cc5b7f99df69cad01401b02",
+    "plugins/agentgit/scripts/track.mjs": "b6d7448dcfbf6962717fb1bcd28218f9b851a8973ff21b7e5903a1b7479e9bb3"
+  },
+  "plan": {
+    "version": 1,
+    "experiment": "impact-effectiveness-controlled-replay-v1",
+    "design": "paired deterministic task replay, not autonomous-agent productivity",
+    "seed": 20261003,
+    "workItems": 6,
+    "changeAfterItems": [
+      0,
+      2,
+      5
+    ],
+    "arms": [
+      "git-final",
+      "record-only",
+      "targeted",
+      "targeted-half",
+      "targeted-ignore",
+      "delayed-targeted",
+      "git-each"
+    ],
+    "scenarios": [
+      {
+        "id": "field-rename",
+        "family": "auth",
+        "group": "declared-breaking",
+        "consumerDeclared": true,
+        "publisherDeclared": true,
+        "breaking": true
+      },
+      {
+        "id": "amount-unit",
+        "family": "amount",
+        "group": "declared-breaking",
+        "consumerDeclared": true,
+        "publisherDeclared": true,
+        "breaking": true,
+        "registry": true
+      },
+      {
+        "id": "sync-to-async",
+        "family": "async",
+        "group": "declared-breaking",
+        "consumerDeclared": true,
+        "publisherDeclared": true,
+        "breaking": true
+      },
+      {
+        "id": "shared-adapter",
+        "family": "auth",
+        "group": "declared-breaking",
+        "consumerDeclared": true,
+        "publisherDeclared": true,
+        "breaking": true,
+        "shared": true
+      },
+      {
+        "id": "compatible-addition",
+        "family": "compatible",
+        "group": "correct-control",
+        "consumerDeclared": true,
+        "publisherDeclared": true,
+        "breaking": false
+      },
+      {
+        "id": "unused-field",
+        "family": "expiry",
+        "group": "correct-control",
+        "consumerDeclared": true,
+        "publisherDeclared": true,
+        "breaking": true,
+        "usedParts": [
+          "expiresAt"
+        ],
+        "changedParts": [
+          "token"
+        ]
+      },
+      {
+        "id": "already-adapted",
+        "family": "dual",
+        "group": "correct-control",
+        "consumerDeclared": true,
+        "publisherDeclared": true,
+        "breaking": true,
+        "initialVersion": 2
+      },
+      {
+        "id": "no-public-change",
+        "family": "compatible",
+        "group": "correct-control",
+        "consumerDeclared": true,
+        "publisherDeclared": false,
+        "breaking": false
+      },
+      {
+        "id": "missing-consumer",
+        "family": "auth",
+        "group": "missing-evidence",
+        "consumerDeclared": false,
+        "publisherDeclared": true,
+        "breaking": true
+      },
+      {
+        "id": "missing-publisher",
+        "family": "auth",
+        "group": "missing-evidence",
+        "consumerDeclared": true,
+        "publisherDeclared": false,
+        "breaking": true
+      },
+      {
+        "id": "incorrect-breaking-label",
+        "family": "compatible",
+        "group": "incorrect-evidence",
+        "consumerDeclared": true,
+        "publisherDeclared": true,
+        "breaking": true
+      }
+    ],
+    "primaryMetric": "observed consumer artifact rewrites after upstream change",
+    "secondaryMetrics": [
+      "writes based on superseded assumptions after change",
+      "failed validation invocations",
+      "validation invocations",
+      "final correctness",
+      "urgent false alerts",
+      "unrelated-window alerts",
+      "notification reviews",
+      "coordination elapsed milliseconds",
+      "notification characters",
+      "declaration writes"
+    ],
+    "mechanismGates": {
+      "allFinalChecksPass": true,
+      "declaredBreakingTargetedRewriteReductionAtLeast": 0.3,
+      "correctControlUrgentFalseAlerts": 0,
+      "unrelatedWindowAlerts": 0,
+      "ignoredAndRecordOnlyMatchGitFinalRewrites": true,
+      "missingEvidenceNotClaimedDetected": true,
+      "incorrectEvidenceReportedAsFalseAlert": true,
+      "deduplicatedAndClearedAfterAdaptation": true
+    },
+    "interpretation": "These thresholds are engineering acceptance gates, not statistical proof of real-agent benefit. No token, human-time, or autonomous compliance claims. All negative and missing-evidence cases remain in the report."
+  },
+  "semantics": "scripted task replay, synchronous projection, actual subprocess hooks and validators",
+  "completedAt": "2026-10-03T08:38:11.049Z",
+  "trials": 231,
+  "resultHashes": {
+    "trials.jsonl": "41808f39b956a3a1773832aba674e39b934b3c2d35fe91fd36d5544262a6be35",
+    "oracle.json": "e16fa2b06274257ef46e9dfdbe50bc6d98bedaa7ae5f8e3db3f3f7709f4dc6bf",
+    "summary.json": "0fcc313e41a3efc82bcf8774fc731f652806d5ff6e1bb853415d9073d4a238d8",
+    "REPORT.md": "242c1a115798067e42fc461919c650cb0b8d32cf100791b1870cb06ea75ca010"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "version": 2,
+  "symbol": "login",
+  "expression": "login().accessToken"
+}

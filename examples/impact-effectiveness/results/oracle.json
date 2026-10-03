@@ -1,0 +1,258 @@
+[
+  {
+    "id": "field-rename",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [
+        {
+          "file": "consumers/web.mjs",
+          "expected": "abc",
+          "actual": null
+        }
+      ],
+      "pass": false
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": true
+  },
+  {
+    "id": "amount-unit",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [
+        {
+          "file": "consumers/web.mjs",
+          "expected": 12.5,
+          "actual": 0.125
+        }
+      ],
+      "pass": false
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": true
+  },
+  {
+    "id": "sync-to-async",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [
+        {
+          "file": "consumers/web.mjs",
+          "expected": "abc",
+          "actual": null
+        }
+      ],
+      "pass": false
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": true
+  },
+  {
+    "id": "shared-adapter",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [
+        {
+          "file": "consumers/web.mjs",
+          "expected": "abc",
+          "actual": null
+        }
+      ],
+      "pass": false
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": true
+  },
+  {
+    "id": "compatible-addition",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": false
+  },
+  {
+    "id": "unused-field",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": false
+  },
+  {
+    "id": "already-adapted",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": false
+  },
+  {
+    "id": "no-public-change",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": false
+  },
+  {
+    "id": "missing-consumer",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [
+        {
+          "file": "consumers/web.mjs",
+          "expected": "abc",
+          "actual": null
+        }
+      ],
+      "pass": false
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": true
+  },
+  {
+    "id": "missing-publisher",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [
+        {
+          "file": "consumers/web.mjs",
+          "expected": "abc",
+          "actual": null
+        }
+      ],
+      "pass": false
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": true
+  },
+  {
+    "id": "incorrect-breaking-label",
+    "cleanGitMerge": true,
+    "oldClientBefore": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "oldClientAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "adaptedAfter": {
+      "checks": 2,
+      "failures": [],
+      "pass": true
+    },
+    "actuallyBreaking": false
+  }
+]

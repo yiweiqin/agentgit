@@ -1,0 +1,262 @@
+{
+  "trialId": "field-rename--after-2--git-final",
+  "pairId": "field-rename--after-2",
+  "runIndex": 204,
+  "scenario": "field-rename",
+  "group": "declared-breaking",
+  "changeAfter": 2,
+  "arm": "git-final",
+  "followsNotifications": false,
+  "firstNoticeAt": null,
+  "lateDelivered": false,
+  "metrics": {
+    "artifactWrites": 12,
+    "rewrites": 6,
+    "staleWritesAfterChange": 4,
+    "tests": 2,
+    "failedTests": 1,
+    "reviews": 0,
+    "adaptations": 1,
+    "urgentAlerts": 0,
+    "deferredAlerts": 0,
+    "unrelatedAlerts": 0,
+    "notificationChars": 0,
+    "declarationWrites": 0,
+    "hookCalls": 0,
+    "coordinationMs": 0,
+    "hookMs": 0,
+    "validationMs": 62.632761000000755,
+    "artifactMs": 0.2667449999789824,
+    "diagnosticMs": 0
+  },
+  "finalPass": true,
+  "finalFiles": {
+    "consumers/web.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/mobile.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/cli.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/worker.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/admin.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "consumers/export.mjs": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567",
+    "producer.mjs": "9b22bb51e7345abb086cb5880ff8afb336841cff249c4e0b0986117f8d99a988",
+    "theme.css": "1d28205c96d21e2e71576fdc81cb2d5b9929b486b369d4cdcd5710277c66a15d"
+  },
+  "initialCandidates": [],
+  "suppressedDuplicates": 0,
+  "clearedChecks": 0,
+  "ledger": [],
+  "remainingNotifications": [],
+  "trace": [
+    {
+      "sequence": 0,
+      "kind": "write",
+      "file": "consumers/web.mjs",
+      "reason": "planned-work",
+      "completed": 0,
+      "changed": false,
+      "rewrite": false,
+      "stale": false,
+      "beforeHash": null,
+      "afterHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b"
+    },
+    {
+      "sequence": 1,
+      "kind": "write",
+      "file": "consumers/mobile.mjs",
+      "reason": "planned-work",
+      "completed": 1,
+      "changed": false,
+      "rewrite": false,
+      "stale": false,
+      "beforeHash": null,
+      "afterHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b"
+    },
+    {
+      "sequence": 2,
+      "kind": "producer-change",
+      "completed": 2,
+      "beforeHash": "c85ec2668bac7e612e0f1270176f0ab5999946e8df1265247ed33694c6b6df70",
+      "afterHash": "9b22bb51e7345abb086cb5880ff8afb336841cff249c4e0b0986117f8d99a988"
+    },
+    {
+      "sequence": 3,
+      "kind": "independent-task-completed",
+      "completed": 2
+    },
+    {
+      "sequence": 4,
+      "kind": "write",
+      "file": "consumers/cli.mjs",
+      "reason": "planned-work",
+      "completed": 2,
+      "changed": true,
+      "rewrite": false,
+      "stale": true,
+      "beforeHash": null,
+      "afterHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b"
+    },
+    {
+      "sequence": 5,
+      "kind": "write",
+      "file": "consumers/worker.mjs",
+      "reason": "planned-work",
+      "completed": 3,
+      "changed": true,
+      "rewrite": false,
+      "stale": true,
+      "beforeHash": null,
+      "afterHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b"
+    },
+    {
+      "sequence": 6,
+      "kind": "write",
+      "file": "consumers/admin.mjs",
+      "reason": "planned-work",
+      "completed": 4,
+      "changed": true,
+      "rewrite": false,
+      "stale": true,
+      "beforeHash": null,
+      "afterHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b"
+    },
+    {
+      "sequence": 7,
+      "kind": "write",
+      "file": "consumers/export.mjs",
+      "reason": "planned-work",
+      "completed": 5,
+      "changed": true,
+      "rewrite": false,
+      "stale": true,
+      "beforeHash": null,
+      "afterHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b"
+    },
+    {
+      "sequence": 8,
+      "kind": "validation",
+      "reason": "final",
+      "completed": 6,
+      "checks": 7,
+      "failures": [
+        {
+          "file": "consumers/web.mjs",
+          "expected": "abc",
+          "actual": null
+        },
+        {
+          "file": "consumers/mobile.mjs",
+          "expected": "abc",
+          "actual": null
+        },
+        {
+          "file": "consumers/cli.mjs",
+          "expected": "abc",
+          "actual": null
+        },
+        {
+          "file": "consumers/worker.mjs",
+          "expected": "abc",
+          "actual": null
+        },
+        {
+          "file": "consumers/admin.mjs",
+          "expected": "abc",
+          "actual": null
+        },
+        {
+          "file": "consumers/export.mjs",
+          "expected": "abc",
+          "actual": null
+        }
+      ],
+      "pass": false
+    },
+    {
+      "sequence": 9,
+      "kind": "read-current-spec",
+      "reason": "validation-failed",
+      "version": 2,
+      "completed": 6
+    },
+    {
+      "sequence": 10,
+      "kind": "write",
+      "file": "consumers/web.mjs",
+      "reason": "validation-failed",
+      "completed": 6,
+      "changed": true,
+      "rewrite": true,
+      "stale": false,
+      "beforeHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b",
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 11,
+      "kind": "write",
+      "file": "consumers/mobile.mjs",
+      "reason": "validation-failed",
+      "completed": 6,
+      "changed": true,
+      "rewrite": true,
+      "stale": false,
+      "beforeHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b",
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 12,
+      "kind": "write",
+      "file": "consumers/cli.mjs",
+      "reason": "validation-failed",
+      "completed": 6,
+      "changed": true,
+      "rewrite": true,
+      "stale": false,
+      "beforeHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b",
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 13,
+      "kind": "write",
+      "file": "consumers/worker.mjs",
+      "reason": "validation-failed",
+      "completed": 6,
+      "changed": true,
+      "rewrite": true,
+      "stale": false,
+      "beforeHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b",
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 14,
+      "kind": "write",
+      "file": "consumers/admin.mjs",
+      "reason": "validation-failed",
+      "completed": 6,
+      "changed": true,
+      "rewrite": true,
+      "stale": false,
+      "beforeHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b",
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 15,
+      "kind": "write",
+      "file": "consumers/export.mjs",
+      "reason": "validation-failed",
+      "completed": 6,
+      "changed": true,
+      "rewrite": true,
+      "stale": false,
+      "beforeHash": "a6bbf343b85ce4bef55915ff4e16ead76b3dedeb5641b3496cef1357e7e71c6b",
+      "afterHash": "1d28477990d55328b9134a391616c66a039eee2fde97408fc0a8b2e6eebde567"
+    },
+    {
+      "sequence": 16,
+      "kind": "validation",
+      "reason": "after-repair",
+      "completed": 6,
+      "checks": 7,
+      "failures": [],
+      "pass": true
+    }
+  ]
+}
