@@ -46,7 +46,7 @@ import { loadAssumptions, loadContracts, staleAssumptions } from './contracts.ts
 import { buildCapsules, buildEvent, compareCodepoint, entityTouches, toWire } from './ledger.ts'
 import { liveLeases, loadLeases } from './leases.ts'
 import { intentSimilarity } from './policy.ts'
-import type { ContentionRecord, CoordEvent, Entity } from './types.ts'
+import type { Capsule, ContentionRecord, CoordEvent, Entity } from './types.ts'
 import { appendEvent, machineId, readAllEvents, type WorkspacePaths } from './workspace.ts'
 
 /** The projection's own format version. Bumped only when the shape breaks. */
@@ -218,6 +218,15 @@ export interface HubDuplicateWork {
   readonly similarity: number
   /** The two intent sentences that matched, in `tasks` order. */
   readonly intents: readonly [string, string]
+  /**
+   * The sessions behind each task, sorted, in `tasks` order.
+   *
+   * Rulings are addressed to a session; a cross-file duplicate has to be too, or the pair
+   * can only be read inside the session that computed it and never delivered to the two
+   * windows actually doing the work. This is what lets the check queue hand each of them
+   * the same question.
+   */
+  readonly sessions: readonly [readonly string[], readonly string[]]
 }
 
 export interface HubParallelism {
@@ -764,7 +773,7 @@ export function computeHubVerdict(
     (record) => record.tasks.length > 1 || record.sessions.length > 1,
   )
   // Cross-file duplication, which the entity-keyed contention above cannot see by construction.
-  const duplicateWork = crossFileDuplicateWork(entityTouches(capsules))
+  const duplicateWork = crossFileDuplicateWork(entityTouches(capsules), capsules)
   const leases = liveLeases(loadLeases(paths), now)
   const answers = hubAnswers(events)
   const since = ownershipSince(ownershipHistory(events))
@@ -1059,7 +1068,20 @@ function actionFor(ruling: HubRuling): string {
  * the first 60 tasks by id are compared, so the cost cannot grow without limit in a workspace
  * with hundreds of capsules.
  */
-function crossFileDuplicateWork(records: readonly ContentionRecord[]): HubDuplicateWork[] {
+function crossFileDuplicateWork(
+  records: readonly ContentionRecord[],
+  capsules: Map<string, Capsule>,
+): HubDuplicateWork[] {
+  // Sessions are read from the capsule, not from a contention record: a record is keyed by
+  // entity and can be shared by tasks, so its `sessions` would attribute a third task's window
+  // to a pair it has nothing to do with. A capsule's sessions belong to exactly one task.
+  const sessionsByTask = new Map<string, string[]>()
+  for (const capsule of capsules.values()) {
+    const list = sessionsByTask.get(capsule.taskId) ?? []
+    for (const session of capsule.sessions) if (!list.includes(session)) list.push(session)
+    sessionsByTask.set(capsule.taskId, list)
+  }
+
   const byTask = new Map<string, { intents: Set<string>; entities: Set<string> }>()
   for (const record of records) {
     for (const task of record.tasks) {
@@ -1097,7 +1119,15 @@ function crossFileDuplicateWork(records: readonly ContentionRecord[]): HubDuplic
         }
       }
       if (pair === null || best < HUB_DUPLICATE_WORK_THRESHOLD) continue
-      found.push({ tasks: [tasks[i], tasks[j]], similarity: Math.round(best * 100) / 100, intents: pair })
+      found.push({
+        tasks: [tasks[i], tasks[j]],
+        similarity: Math.round(best * 100) / 100,
+        intents: pair,
+        sessions: [
+          [...(sessionsByTask.get(tasks[i]) ?? [])].sort(compareCodepoint),
+          [...(sessionsByTask.get(tasks[j]) ?? [])].sort(compareCodepoint),
+        ],
+      })
     }
   }
   return found

@@ -206,12 +206,16 @@ describe('the hook dispatcher', () => {
     })
 
     assert.equal(result.status, 0)
+    const context = contextOf(result) ?? ''
     // The hub is reached here, but a global ruling is not delivered: it exists to interrupt a
     // write about the ground it is about to touch, and by now there is no write left. The reason
     // PostToolUse reaches the hub at all is the impact protocol, whose deferred notifications are
     // explicitly held back until a tool has completed - and that path is only live when
     // `impact-protocol.json` exists, which it does not in this workspace.
-    assert.equal(result.stdout, '')
+    assert.doesNotMatch(context, /HUB-ADVISORY/, 'a global ruling has no write left to interrupt')
+    // The desktop step also runs on this path, and a completed write is the one moment a session
+    // that began before the plugin was enabled can still be offered coordination.
+    assert.match(context, /AgenticGit/, 'a completed write can still reach a session that missed SessionStart')
     assert.ok(existsSync(join(workspace, '.agentgit', 'events')), 'the write was still recorded')
   })
 })

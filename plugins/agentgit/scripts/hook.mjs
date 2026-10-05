@@ -91,8 +91,11 @@ export function run(payloadText) {
   } else if (eventName === 'PostToolUse') {
     // Record first, then let the hub speak. A global ruling has nothing to say here - by now
     // there is no write left to interrupt - but the impact protocol's deferred class is
-    // explicitly held back until a tool has completed, and this is that moment.
-    steps.push(['track', runTrack], ['hub', runHub])
+    // explicitly held back until a tool has completed, and this is that moment. The desktop
+    // hook goes last and only ever *offers*: a completed write is the one moment a session that
+    // began before the plugin was enabled can still be asked, and asking changes no state but
+    // the record of the question.
+    steps.push(['track', runTrack], ['hub', runHub], ['desktop', runDesktop])
   } else if (eventName === 'Stop') {
     steps.push(['track', runTrack])
   } else {

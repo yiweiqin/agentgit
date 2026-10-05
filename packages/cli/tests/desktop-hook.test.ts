@@ -251,11 +251,14 @@ describe('the offer hook cannot fail a session', () => {
 
   test('answers only the events where a human is about to read something', () => {
     claim()
-    for (const event of ['PreToolUse', 'PostToolUse', 'Stop', 'SessionEnd', 'PreCompact']) {
+    for (const event of ['PreToolUse', 'Stop', 'SessionEnd', 'PreCompact']) {
       const result = runHook({ hook_event_name: event, session_id: 'session-a', cwd: workspace })
       assert.equal(result.status, 0)
       assert.equal(result.stdout, '', `${event} is not a moment to ask a question`)
     }
+    // A `PostToolUse` payload is only worth answering when it reports a write; one that names no
+    // tool, or a read, is not. Both are covered directly in the describe block below.
+    assert.equal(runHook({ hook_event_name: 'PostToolUse', session_id: 'session-a', cwd: workspace }).stdout, '')
     assert.deepEqual(stateFiles(), [])
   })
 
@@ -331,8 +334,9 @@ describe('what reaches the user, and what it asks for', () => {
     // workspace's, and the consent requirement is asserted to survive into what reaches a session.
     claim()
     const text = injected(runHook(sessionStart())) ?? ''
+    const cap = Number(constFromSource(readFileSync(DESKTOP, 'utf8'), 'MAX_OFFER_CHARS'))
 
-    assert.ok(text.length <= 1200, `the offer is ${text.length} chars, over the cap`)
+    assert.ok(text.length <= cap, `the offer is ${text.length} chars, over the cap of ${cap}`)
     assert.ok(text.length > 900, 'a cap that never binds is not being tested; the text really is this long')
     assert.match(text, /explicit yes/, 'the consent requirement must survive to the end')
     assert.match(text, /never create one unasked/, 'and it must be in the header, where nothing can cut it')
@@ -372,6 +376,44 @@ describe('what reaches the user, and what it asks for', () => {
     claim()
     assert.ok(injected(runHook(sessionStart())))
     assert.equal(runHook(prompt()).stdout, '', 'the second event must not ask again')
+  })
+
+  test('says what AgenticGit is, not only that it wants to be enabled', () => {
+    // The offer used to read as a request with no explanation, so the user had to enable
+    // something to find out what it was. The description has to survive into what reaches the
+    // session, or the question is being asked without an answer available.
+    claim()
+    const text = injected(runHook(sessionStart())) ?? ''
+    assert.match(text, /coordination layer/)
+    assert.match(text, /notifies only the affected chats/)
+  })
+})
+
+describe('a completed write can still reach a session that missed SessionStart', () => {
+  function postTool(toolName: string, cwd = workspace): Record<string, unknown> {
+    return { hook_event_name: 'PostToolUse', session_id: 'session-a', cwd, tool_name: toolName }
+  }
+
+  test('a completed write is offered, because the session may have started before it was enabled', () => {
+    claim()
+    const text = injected(runHook(postTool('apply_patch')))
+    assert.ok(text, 'a completed write should be able to trigger the offer')
+    assert.match(text, /offer a coordination task/)
+    assert.ok(readState()?.offeredAt, 'offering must still be recorded')
+  })
+
+  test('a completed read is not a moment to ask', () => {
+    claim()
+    for (const tool of ['read', 'grep', 'list_dir']) {
+      assert.equal(runHook(postTool(tool)).stdout, '', `${tool} is not a write`)
+    }
+    assert.deepEqual(stateFiles(), [])
+  })
+
+  test('a second completed write does not ask again', () => {
+    claim()
+    assert.ok(injected(runHook(postTool('apply_patch'))))
+    assert.equal(runHook(postTool('apply_patch')).stdout, '')
   })
 })
 
@@ -454,7 +496,8 @@ describe('the offer to enable a repository that has not opted in', () => {
   test('the shipped text fits its own cap with room to spare', () => {
     asRepo()
     const text = injected(runHook(sessionStart())) ?? ''
-    assert.ok(text.length <= 1500, `the init offer is ${text.length} chars, over the cap`)
+    const cap = Number(constFromSource(readFileSync(DESKTOP, 'utf8'), 'MAX_INIT_CHARS'))
+    assert.ok(text.length <= cap, `the init offer is ${text.length} chars, over the cap of ${cap}`)
     assert.ok(text.length > 900, 'a cap that never binds is not being tested; the text really is this long')
   })
 

@@ -145,6 +145,19 @@ export function syncChecks(paths: WorkspacePaths, hub: HubVerdict | null = readH
         add(rule.entityKey, rule.word, rule.sessions, { path: rule.path, intents: [...rule.intents].sort(), owner: rule.owner.taskId })
       }
       for (const stale of hub.stale) add(`contract::${stale.contract}`, stale.breaking ? 'review' : 'refresh', [stale.taskId], stale)
+      // Cross-file duplication, which no ruling can see: two tasks doing one job on ground they
+      // do not share. A ruling is keyed by an entity, so this pair never enters one and stays
+      // invisible to the other window. It is a question rather than a decision, so it is
+      // addressed to the sessions doing the work and each of them can answer for itself.
+      for (const pair of hub.duplicateWork ?? []) {
+        const sessions = [...(pair.sessions?.[0] ?? []), ...(pair.sessions?.[1] ?? [])]
+        if (sessions.length === 0) continue
+        add(`duplicate::${pair.tasks[0]}|${pair.tasks[1]}`, 'duplicate-work', sessions, {
+          tasks: pair.tasks,
+          intents: pair.intents,
+          similarity: pair.similarity,
+        })
+      }
     }
     for (const job of state.jobs) {
       if (!active.has(job.issue) && !job.clearedAt) job.clearedAt = now.toISOString()

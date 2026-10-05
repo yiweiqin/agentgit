@@ -668,6 +668,13 @@ export function runDoctor(options: { home?: string; workspace?: string } = {}): 
   // The workspace can be named explicitly so this check is testable without writing into the
   // checkout the suite runs from; the default is the same repository the rest of doctor inspects.
   checks.push(describeHookErrorsCheck(options.workspace ?? paths.repo))
+  // Trust decides whether a hook runs at all, and Codex records that decision in `config.toml`.
+  // An installed, enabled and completely silent plugin is almost always one whose handlers were
+  // never trusted, and no other check in this list can see it.
+  checks.push(describeHookTrustCheck(paths.home))
+  // A recorded wake target that has moved makes every cross-chat check fail to leave the machine,
+  // which looks exactly like a workspace with nothing to coordinate.
+  checks.push(describeCoordinatorCodexCheck(options.workspace ?? paths.repo))
 
   checks.push({
     name: 'workspace ledger',
@@ -809,6 +816,100 @@ function describeHookErrorsCheck(repo: string): DoctorCheck {
     ok: false,
     detail: `${recent} hook failure(s) in the last 24h, ${total} recorded in ${file}`,
     fix,
+  }
+}
+
+/**
+ * `doctor` check for whether Codex has trusted this plugin's hook handlers.
+ *
+ * A hook that was never trusted does not run, and a hook that does not run produces no output,
+ * no error and no ledger line - so the symptom is a plugin that looks installed and enabled and
+ * does nothing at all. Codex records the decision as `[hooks.state."agentgit@<market>:..."]`
+ * tables in `config.toml`, each with an `enabled` key, and this reads them back. It is a text
+ * scan and not a TOML parse on purpose: the file is one a person edits by hand, and a check that
+ * refused to run on a comment or an unmodelled table would fail exactly when it is needed.
+ */
+function describeHookTrustCheck(home: string): DoctorCheck {
+  const name = 'hook trust'
+  const fix =
+    'Approve the plugin hooks when Codex asks, or re-enable them in the plugin settings; ' +
+    'an untrusted handler never runs.'
+  const file = codexConfigFile(home)
+  if (!existsSync(file)) {
+    return { name, ok: true, detail: 'no config.toml yet; Codex asks to trust the hooks at the next session', fix }
+  }
+  let text = ''
+  try {
+    text = readFileSync(file, 'utf8')
+  } catch {
+    return { name, ok: true, detail: `could not read ${file}; the decision is unknown`, fix }
+  }
+
+  const prefix = 'hooks.state."agentgit@'
+  const entries: { header: string; enabled: boolean | null }[] = []
+  let current: { header: string; enabled: boolean | null } | null = null
+  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+    const header = /^\s*\[\s*(.+?)\s*\]\s*$/.exec(line)
+    if (header) {
+      if (current) entries.push(current)
+      current = header[1].startsWith(prefix) ? { header: header[1], enabled: null } : null
+      continue
+    }
+    if (!current) continue
+    const enabled = /^\s*enabled\s*=\s*(true|false)\s*$/.exec(line)
+    if (enabled) current.enabled = enabled[1] === 'true'
+  }
+  if (current) entries.push(current)
+
+  if (entries.length === 0) {
+    return { name, ok: true, detail: 'Codex has not recorded a decision yet; it asks at the next session', fix }
+  }
+  const enabledCount = entries.filter((entry) => entry.enabled === true).length
+  if (enabledCount === 0) {
+    return {
+      name,
+      ok: false,
+      detail: `${entries.length} handler(s) recorded in ${file}, all disabled; an untrusted hook never runs`,
+      fix,
+    }
+  }
+  return { name, ok: true, detail: `${enabledCount}/${entries.length} handler(s) enabled in ${file}`, fix }
+}
+
+/**
+ * `doctor` check for the Codex executable the coordinator is woken through.
+ *
+ * `checks enable` records one absolute path, and a Codex update installs into a new hashed
+ * directory, so the recorded value goes stale. The daemon now refreshes it, but a user whose
+ * coordination is quiet should be able to see this without waiting for a tick - and a path that
+ * has genuinely gone missing is worth naming rather than discovering from a wake failure.
+ */
+function describeCoordinatorCodexCheck(workspace: string): DoctorCheck {
+  const name = 'coordinator wake target'
+  const fix =
+    'The daemon refreshes a stale path on its next tick; or run ' +
+    '`agentgit checks enable --coordinator <chat> --codex <path>`.'
+  const file = join(workspace, '.agentgit', 'state', 'checks.json')
+  if (!existsSync(file)) {
+    return { name, ok: true, detail: 'no cross-chat queue in this workspace yet', fix }
+  }
+  try {
+    const raw = JSON.parse(readTemplate(file)) as { config?: { enabled?: boolean; codex?: string } | null }
+    const codex = raw.config?.codex
+    if (!codex) {
+      return { name, ok: true, detail: 'checks are recorded but not enabled', fix }
+    }
+    if (existsSync(codex)) {
+      return { name, ok: true, detail: codex, fix }
+    }
+    return {
+      name,
+      ok: false,
+      detail: `${codex} no longer exists; no wake could be delivered until it is refreshed`,
+      fix,
+    }
+  } catch (error) {
+    return { name, ok: false, detail: `${file} is not valid JSON: ${(error as Error).message}`, fix }
   }
 }
 

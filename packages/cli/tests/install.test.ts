@@ -471,6 +471,87 @@ describe('doctor', () => {
     )
   })
 
+  test('catches hooks Codex recorded as untrusted, which would make the plugin silent', () => {
+    // This is the failure no other check can see: installed, enabled, healthy files, and nothing
+    // ever runs because the trust decision in `config.toml` is `false`.
+    installHere()
+    mkdirSync(join(home, '.codex'), { recursive: true })
+    writeFileSync(
+      join(home, '.codex', 'config.toml'),
+      '[hooks.state."agentgit@personal:hooks/hooks.json:session_start:0:0"]\n' +
+        'trusted_hash = "sha256:x"\n' +
+        'enabled = false\n',
+      'utf8',
+    )
+    const check = runDoctor({ home }).checks.find((entry) => entry.name === 'hook trust')
+    assert.equal(check?.ok, false)
+    assert.match(check?.detail ?? '', /never runs/)
+  })
+
+  test('reports hook trust as ok once at least one handler is enabled', () => {
+    installHere()
+    mkdirSync(join(home, '.codex'), { recursive: true })
+    writeFileSync(
+      join(home, '.codex', 'config.toml'),
+      '[hooks.state."agentgit@personal:hooks/hooks.json:session_start:0:0"]\n' +
+        'enabled = true\n',
+      'utf8',
+    )
+    const check = runDoctor({ home }).checks.find((entry) => entry.name === 'hook trust')
+    assert.equal(check?.ok, true)
+    assert.match(check?.detail ?? '', /1\/1/)
+  })
+
+  test('catches a coordinator wake target that a Codex update moved', () => {
+    installHere()
+    const workspace = mkdtempSync(join(tmpdir(), 'agentgit-doctor-ws-'))
+    try {
+      mkdirSync(join(workspace, '.agentgit', 'state'), { recursive: true })
+      writeFileSync(
+        join(workspace, '.agentgit', 'state', 'checks.json'),
+        JSON.stringify({
+          version: 1,
+          workspace,
+          config: { enabled: true, coordinator: '11111111-1111-4111-8111-111111111111', codex: join(workspace, 'gone', 'codex.exe') },
+          jobs: [],
+          unresolved: [],
+          wake: null,
+        }),
+        'utf8',
+      )
+      const check = runDoctor({ home, workspace }).checks.find((entry) => entry.name === 'coordinator wake target')
+      assert.equal(check?.ok, false)
+      assert.match(check?.detail ?? '', /no longer exists/)
+    } finally {
+      rmSync(workspace, { recursive: true, force: true })
+    }
+  })
+
+  test('reports the coordinator wake target as ok while it still exists', () => {
+    installHere()
+    const workspace = mkdtempSync(join(tmpdir(), 'agentgit-doctor-ws-'))
+    try {
+      mkdirSync(join(workspace, '.agentgit', 'state'), { recursive: true })
+      writeFileSync(
+        join(workspace, '.agentgit', 'state', 'checks.json'),
+        JSON.stringify({
+          version: 1,
+          workspace,
+          config: { enabled: true, coordinator: '11111111-1111-4111-8111-111111111111', codex: process.execPath },
+          jobs: [],
+          unresolved: [],
+          wake: null,
+        }),
+        'utf8',
+      )
+      const check = runDoctor({ home, workspace }).checks.find((entry) => entry.name === 'coordinator wake target')
+      assert.equal(check?.ok, true)
+      assert.equal(check?.detail, process.execPath)
+    } finally {
+      rmSync(workspace, { recursive: true, force: true })
+    }
+  })
+
   test('catches a damaged hooks.json and names the file', () => {
     const report = installHere()
     writeFileSync(report.files.hooks, '{ this is not json', 'utf8')

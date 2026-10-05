@@ -212,7 +212,8 @@ export const USAGE = `agentgit - coordination for agents sharing one repository
                                                --enable also sets [plugins."agentgit@personal"] in
                                                ~/.codex/config.toml, which is otherwise left alone
   agentgit uninstall [--disable] [--json]      remove hooks, MCP config and the marketplace entry
-  agentgit doctor [--json]                     check that the install can actually work
+  agentgit doctor [--json] [--workspace <folder>]
+                                               check that the install can actually work
   agentgit demo                                run the two-agent collision walkthrough
 
 Every command accepts --json for machine consumption, and --help.

@@ -1159,7 +1159,7 @@ function cmdUninstall(args: ParsedArgs): number {
 }
 
 function cmdDoctor(args: ParsedArgs): number {
-  const report = runDoctor({ home: args.value('home') ?? undefined })
+  const report = runDoctor({ home: args.value('home') ?? undefined, workspace: args.value('workspace') ?? undefined })
   if (args.boolean('json')) {
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
   } else {

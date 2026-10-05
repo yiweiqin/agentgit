@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /**
- * Hook: the three moments this plugin speaks to a workspace before anything is in flight.
+ * Hook: the moments this plugin speaks to a workspace before anything is in flight.
  *
  *   1. `/agentgit` in a prompt - the user asks to be enabled, so this is carried out rather than
  *      asked about: initialise, pin this conversation, and show the commit chain.
  *   2. An opted-in workspace is offered a pinned coordination task, at most once, and only ever as
  *      a question.
  *   3. An unclaimed folder or repository is offered the chance to be enabled, at most once per machine.
+ *   4. The same offers again on a *completed write*, so a session that was already running when the
+ *      plugin was enabled or trusted can still be reached without waiting for a restart. This is
+ *      `PostToolUse` and not `PreToolUse`: the question must never sit between an agent and its
+ *      next edit, and a session that never saw `SessionStart` is exactly the case this covers.
  *
  * Why this is a hook and not something the plugin does itself
  * ----------------------------------------------------------
@@ -82,7 +86,7 @@ const OFFERS_FILE_NAME = 'offers.json'
  * this is a backstop against a future edit rather than the thing that shapes the text. It used to
  * be the thing that shaped it, and the paragraph it cut was the one about getting consent.
  */
-const MAX_OFFER_CHARS = 1200
+const MAX_OFFER_CHARS = 1500
 
 /**
  * Caps for the two newer injections, kept separate from the offer's.
@@ -92,16 +96,30 @@ const MAX_OFFER_CHARS = 1200
  * history, and the init offer ends by saying a refusal is a decision. Each is measured on its own.
  */
 const MAX_ENABLE_CHARS = 1500
-const MAX_INIT_CHARS = 1500
+const MAX_INIT_CHARS = 1900
 
 /**
  * Hook events this script answers.
  *
- * Both are moments where a human is about to read something anyway. `SessionStart` is where the
- * offer belongs; `UserPromptSubmit` is here so a session that started before the workspace was
- * claimed still gets asked on the next turn rather than at the next session.
+ * The first two are moments where a human is about to read something anyway. `SessionStart` is
+ * where the offer belongs; `UserPromptSubmit` is here so a session that started before the
+ * workspace was claimed still gets asked on the next turn rather than at the next session.
+ *
+ * `PostToolUse` is the third, and only for a completed write. A session that was already running
+ * when this plugin was enabled or trusted never had a `SessionStart` it could hear, so without
+ * this the offer would wait for a restart that may not come. It is the *finished* write, never
+ * `PreToolUse`: a question has no business between an agent and its next edit.
  */
-const EVENTS = new Set(['SessionStart', 'UserPromptSubmit'])
+const EVENTS = new Set(['SessionStart', 'UserPromptSubmit', 'PostToolUse'])
+
+/**
+ * Tools whose completed call counts as a write.
+ *
+ * The same expression `hook.mjs` uses to narrow `PreToolUse` to a write. A name Codex adds later
+ * is a missed offer rather than a wrong one, and no path is read to make this decision: asking is
+ * cheap, and asking about something that turned out to be a read costs one recorded offer.
+ */
+const WRITE_LIKE = /apply_patch|edit|write|patch/i
 
 /** The conversation this process is running in, from the host environment. */
 function hostThreadId() {
@@ -398,6 +416,9 @@ function shouldPinOnEnable(state, threadId) {
 function offerText(title) {
   return [
     '## AgenticGit — offer a coordination task (ask the user first; never create one unasked)',
+    'What it is: a coordination layer for this workspace. It notices when two chats are doing the',
+    'same work or changing the same interface, notifies only the affected chats, waits for their',
+    'inspection replies and summarizes them. It never edits, merges, blocks or rewrites anything.',
     `Ask in the user's language: enable AgenticGit here and create one pinned chat "${title}"`,
     'to detect conflicts, notify affected chats, wait for their checks and summarize replies?',
     'An explicit yes authorizes that same-workspace inspection workflow; silence does not.',
@@ -414,6 +435,9 @@ function offerText(title) {
 function initOfferText(title) {
   return [
     '## AgenticGit — this workspace is not coordinating yet (ask the user first; never create one unasked)',
+    'What it is: a coordination layer for this folder. It notices when two chats are doing the same',
+    'work or changing the same interface, notifies only the affected chats, waits for their replies',
+    'and summarizes them. It never edits, merges, blocks or rewrites anything.',
     `Ask in the user's language: enable AgenticGit for this folder and create a pinned chat "${title}"`,
     'to detect conflicts, notify affected chats, wait for their checks and summarize replies?',
     'Create nothing without an explicit yes. Consent covers only this workspace, not other projects.',
@@ -507,6 +531,9 @@ export function run(payloadText) {
   if (!payload) return null
   if (!EVENTS.has(payload.eventName)) return null
   if (!payload.cwd) return null
+  // A completed write is the one moment a session that never heard a `SessionStart` can still be
+  // asked. A completed *read* is not: there is nothing in flight yet, and asking there is noise.
+  if (payload.eventName === 'PostToolUse' && !WRITE_LIKE.test(payload.toolName ?? '')) return null
 
   const found = findWorkspace(payload.cwd, { allowFolder: true })
   if (!found.root) return null

@@ -307,6 +307,10 @@ describe('what the hub concludes about one contention', () => {
     assert.equal(verdict.duplicateWork.length, 1)
     assert.deepEqual(verdict.duplicateWork[0].tasks, ['task-a', 'task-b'])
     assert.equal(verdict.duplicateWork[0].similarity, 1)
+    // Each side carries the sessions it must be delivered to, in `tasks` order. Without them the
+    // pair can only be read inside the window that computed it, which is exactly the blindness
+    // this pass exists to remove.
+    assert.deepEqual(verdict.duplicateWork[0].sessions, [['task-a'], ['task-b']])
     assert.match(verdict.advisory, /Possibly one job on different files/)
   })
 

@@ -50,6 +50,38 @@ test('only opt-in workspaces enqueue checks, and the coordinator is not messaged
   assert.equal(needsWake(syncChecks(paths, hub, now)), null)
 })
 
+test('a cross-file duplicate is queued to the other window, not only shown in-session', () => {
+  // The pair shares no entity, so no ruling can carry it. It is still a real duplication, and the
+  // two windows doing the work are the ones that have to hear about it.
+  const other = '33333333-3333-4333-8333-333333333333'
+  const withDuplicate = {
+    ...hub,
+    id: 'hub-dup',
+    rulings: [],
+    duplicateWork: [{
+      tasks: [coordinator, other],
+      similarity: 0.71,
+      intents: ['add rate limiting to login', 'throttle repeated login failures'],
+      sessions: [[coordinator], [other]],
+    }],
+  } as unknown as HubVerdict
+  const state = syncChecks(paths, withDuplicate, now)
+  const jobs = state.jobs.filter(job => job.verdict === 'duplicate-work')
+  assert.equal(jobs.length, 1, 'the coordinator is not messaged as a participant')
+  assert.equal(jobs[0].target, other)
+  assert.equal(jobs[0].entity, `duplicate::${coordinator}|${other}`)
+  assert.ok(needsWake(state, now))
+})
+
+test('a duplicate from a projection written before sessions existed is ignored, not guessed', () => {
+  const legacy = {
+    ...hub,
+    rulings: [],
+    duplicateWork: [{ tasks: ['t1', 't2'], similarity: 0.5, intents: ['a', 'b'] }],
+  } as unknown as HubVerdict
+  assert.equal(syncChecks(paths, legacy, now).jobs.filter(job => job.verdict === 'duplicate-work').length, 0)
+})
+
 test('directional checks select only the affected recipient and cancel after acknowledgement', () => {
   recordImpactSession(paths, { contracts: [{ name: 'api', version: 1 }] }, { sessionId: target, taskId: 'consumer-task' }, now)
   recordImpactChange(paths, { stream: 'api', revision: 1, summary: 'new return type', contracts: [{ name: 'api', version: 2, breaking: true }] },
