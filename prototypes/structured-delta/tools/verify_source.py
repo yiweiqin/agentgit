@@ -1,4 +1,9 @@
-"""Check published source hashes and AST provenance without experimental data."""
+"""Check exact source bytes and syntax without experimental data.
+
+Historical AST digests document the original same-interpreter comparison.
+They are not portable across Python AST schema and ast.dump format changes.
+Exact byte hashes enforce source integrity on every supported interpreter.
+"""
 
 import ast
 import hashlib
@@ -26,11 +31,9 @@ def verify(root: Path = ROOT) -> None:
         raise ValueError("Published module inventory differs from provenance")
     for path, expected in manifest["modules"].items():
         content = (root / path).read_bytes()
-        tree = ast.dump(ast.parse(content), include_attributes=False).encode()
         if digest(content) != expected["published_sha256"]:
             raise ValueError(f"Published source changed: {path}")
-        if digest(tree) != expected["program_ast_sha256"]:
-            raise ValueError(f"Program AST changed: {path}")
+        ast.parse(content, filename=path)
     if digest((root / "PROTOCOL.md").read_bytes()) != manifest["protocol_sha256"]:
         raise ValueError("Historical protocol changed")
     print(f"Verified {len(paths)} published modules and historical protocol")

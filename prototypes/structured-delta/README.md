@@ -61,6 +61,9 @@ results, not evidence of real-repository generalization or superiority to an LLM
 digests. Formatting and removal of seven unused imports are the only changes to
 the published implementation. Historical source, frozen inputs and results are
 preserved locally. [PROTOCOL.md](PROTOCOL.md) is the unmodified original protocol.
+Verification checks exact source bytes and parses syntax on each supported Python
+version. The historical AST digests were generated with Python 3.14 and document
+the same-interpreter comparison; `ast.dump()` is not a cross-version format.
 
 ## Optional model baselines
 
