@@ -524,3 +524,10 @@ spellings of either would mean a hook that never finds its own daemon, and a dae
 finds a reason not to start a second one.
 
 MIT licensed.
+
+## Structured Delta research prototype
+
+A standalone Python implementation and reproduction guide are available in
+[prototypes/structured-delta](prototypes/structured-delta/README.md).
+See [scope and evidence](docs/STRUCTURED-DELTA.md); this prototype is separate
+from the product runtime, and generated experimental artifacts stay local.

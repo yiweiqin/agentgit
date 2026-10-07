@@ -467,3 +467,10 @@ npm run typecheck
 而 daemon 永远找不到一个"不必再起一个"的理由。
 
 MIT 许可。
+
+## 结构化 Delta 研究原型
+
+独立 Python 实现、测试和复现入口见
+[prototypes/structured-delta](prototypes/structured-delta/README.md)。
+[方案范围与证据](docs/STRUCTURED-DELTA.md)说明现有结果及限制；
+原型尚未接入产品运行流程，生成的实验数据与结果保留在本地。
