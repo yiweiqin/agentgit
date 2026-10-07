@@ -1,0 +1,164 @@
+{
+  "source_date": "2026-10-07",
+  "original_freeze_sha256": "05c32a8d8dbbefbe5408b7a70c25ff4abdf40ac023a2c2335d0a4569a16d0970",
+  "protocol_sha256": "54cad569cf2242073884738a5ce229db24cfd48abaed73a1adfb6e5bd363a528",
+  "changes": "Ruff formatting and seven unused imports removed; all remaining ASTs identical to frozen originals.",
+  "modules": {
+    "experiments/__init__.py": {
+      "original_sha256": "303e4a013112bc04899edb2d66680d4856e30b79258f3cc28333e99e973e3b78",
+      "published_sha256": "303e4a013112bc04899edb2d66680d4856e30b79258f3cc28333e99e973e3b78",
+      "program_ast_sha256": "08febec1203888913739133cf412415dde251f771db1982c0b03cb1d76da1a48",
+      "removed_unused_imports": []
+    },
+    "experiments/baselines/__init__.py": {
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "program_ast_sha256": "ad2e13b69c4fc1fda46413f740f426fc1793cfc6d6da8d226ba619f1aef48be7",
+      "removed_unused_imports": []
+    },
+    "experiments/baselines/ast_overlap.py": {
+      "original_sha256": "3eb04806389f0f4443fc09bda741d60ae924afd87d659dc7eb7cd9ff6c20bc93",
+      "published_sha256": "6a156b104c5e05c8122fa8c786cad789d9634abac1bf2d746caece1b4026a4d4",
+      "program_ast_sha256": "0b7e2c55a217974d596aa9ff232db6c1b057c717a4b05a10a53550680869e64b",
+      "removed_unused_imports": []
+    },
+    "experiments/baselines/embedding.py": {
+      "original_sha256": "b55e9cfb9bb17e22fcd6029f55fb8ba314f46754abd8aa87e899a944ea5f6d90",
+      "published_sha256": "b21a809416fa0a6e43f63200c68d25884140c45912ef0794999b3fc9ffb49444",
+      "program_ast_sha256": "4a94ba0546613ca159fc970635bb9c4a7fff4f34b1ed851d5dcbdb6f396f7ebe",
+      "removed_unused_imports": []
+    },
+    "experiments/baselines/file_overlap.py": {
+      "original_sha256": "943457daba77dd5780eaf6a3b3221fafed16f205859c24669827df1815b9a8ef",
+      "published_sha256": "5cf29d56660981a00207e4884f7a3e8e7f5ed3c787615f2099b7a950ad94e790",
+      "program_ast_sha256": "dc4f1e8ecdb2e7122b2ff748efbaee50dd46da64dc49762f1d47f1b8dc320dd5",
+      "removed_unused_imports": []
+    },
+    "experiments/baselines/git_merge.py": {
+      "original_sha256": "9890f74b9c015ea12653b86c6deb2389f47371dbd72c83ed304ddc4f3cebeac5",
+      "published_sha256": "e2233dce3b295fad4fd135fb35021fde1d660d11471e643eb3dd6f3ed0dce3ce",
+      "program_ast_sha256": "c2cb7f664b29339c2b701dd91aed1a248e4726b4f3e4c08f505af8d97c10a6a9",
+      "removed_unused_imports": []
+    },
+    "experiments/baselines/llm_intent.py": {
+      "original_sha256": "77cb7a058683aa5e381fef8214dc1c14253a90e916ccaa9eff93c896214e4a5b",
+      "published_sha256": "e43dc098d8da1c29d0b2fe8b6c76b48601a917605a17e531f4d64d8934d08054",
+      "program_ast_sha256": "e4a4f3d4acbb4f6f6ac6fe80031f8e3695844e40d695b32b25a39391af0de19e",
+      "removed_unused_imports": []
+    },
+    "experiments/benchmark/build.py": {
+      "original_sha256": "472a22aab9a9aa33011fd62791ab94e3242f110657ad178f93f7a57471501410",
+      "published_sha256": "ad197e5ef0f3e5b8a6d557dcb1e00dec707f6a449dc7763fd192cef1813c3718",
+      "program_ast_sha256": "8ba61efbe04df540bfbe802c32ad6ad3f4ce2395ee49be2f9caabb2848e24cfc",
+      "removed_unused_imports": []
+    },
+    "experiments/delta/__init__.py": {
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "program_ast_sha256": "ad2e13b69c4fc1fda46413f740f426fc1793cfc6d6da8d226ba619f1aef48be7",
+      "removed_unused_imports": []
+    },
+    "experiments/delta/extractor.py": {
+      "original_sha256": "5d5f06bdda32007ba6f34257ffb368bef6b5125a2fa52916aeb2f70d4308b2fb",
+      "published_sha256": "ed271ab1b05dbfbb7a26b2c80f2dd8603abf67b6079553de74fa237dfe00898a",
+      "program_ast_sha256": "02a62047c8d0719b4fc90f68b697e5beb7b24363ba8d438ee4de8b71a60bd609",
+      "removed_unused_imports": []
+    },
+    "experiments/delta/interaction.py": {
+      "original_sha256": "34ffdd983956a7e00ed0e52a684094c0bac8499ede08cf111ab36a86bdd8ce4f",
+      "published_sha256": "010b90920b702c7fbf03936290d060abe2ff08cdce24d53e3f5a803c11db1754",
+      "program_ast_sha256": "3def3e6dc452130156c5f2f60d79b0419c1c9cec7d35ac654d618013a56943fe",
+      "removed_unused_imports": []
+    },
+    "experiments/delta/model.py": {
+      "original_sha256": "7463425ea8bbf61e9a39968802a511991b91e43a7cb8eaf1492f625ae80da7a0",
+      "published_sha256": "5462a45f1951fac2820e2bf410a61a946da464c4a73d63a80b6c89a7a05a2f3b",
+      "program_ast_sha256": "1e70d37045f7587f0ce64713a04f1594c72a2b3fb8838264248f4461fefa5ccc",
+      "removed_unused_imports": []
+    },
+    "experiments/evaluation/__init__.py": {
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "program_ast_sha256": "ad2e13b69c4fc1fda46413f740f426fc1793cfc6d6da8d226ba619f1aef48be7",
+      "removed_unused_imports": []
+    },
+    "experiments/evaluation/evaluate.py": {
+      "original_sha256": "a396889a515954261702718335d642621ae0b2165b84ad36263eaef2f2cbf666",
+      "published_sha256": "2a0fa4d4f2840f158ed99907b0e23e6a8ba2c67e9097637c7c1a2005562a6ad8",
+      "program_ast_sha256": "a630c9fc72907145eaadc7a105a7b597c50313c4c957eb6587f266a81da1b349",
+      "removed_unused_imports": []
+    },
+    "experiments/evaluation/freeze.py": {
+      "original_sha256": "969f7987af75373662d6b42fa4f12e4e05c523ad3f115aa2dcc13753f2e37807",
+      "published_sha256": "4df8b069f78ad80c4f8dcc9b24208dbf87bbeced6cf08dee456e6b3190df4bf9",
+      "program_ast_sha256": "afd3ac3fc1dd44c70ed5ec26e77d809b807cd993e5614767eb17e3892a5f2915",
+      "removed_unused_imports": []
+    },
+    "experiments/evaluation/metrics.py": {
+      "original_sha256": "acdf0062997ee8a1584e8402b741d8598ec9812a1dc8581888f144c79d024401",
+      "published_sha256": "5c452bc86751a0ba493cf98d52c7187fbfcc7ca028f9b420ca165ce3fc02a4a6",
+      "program_ast_sha256": "759a410c56eb9f18f1dd7a1ee6dd7bafe6253ff7787c52af52543162720e08b2",
+      "removed_unused_imports": []
+    },
+    "experiments/evaluation/report.py": {
+      "original_sha256": "35c54e5999c957ad63d9f39632718b13621889a6410bf09ebece269732c880b8",
+      "published_sha256": "707b52d43190a4f4dbc9dc14d34f5f0251204cb473fc8eff9ffa4d0f5222130c",
+      "program_ast_sha256": "2f0dc50f9c0d28b19d5f439043f21f083cd43fc23d1c754b6aa74a8d453b1ca9",
+      "removed_unused_imports": [
+        "Counter"
+      ]
+    },
+    "experiments/evaluation/runtime.py": {
+      "original_sha256": "11afc99694ac12b49696731dcb3218e898599a405218c83f53a3646befe9ac41",
+      "published_sha256": "e0fe979c533c120d0008ed6a250a78dca3839eab050fcfdb7fded4a4a4a66d77",
+      "program_ast_sha256": "1be4c2dfeca897ee8f272a4bb287fdbb56ff4f491589c7680131ac8d9ce3784f",
+      "removed_unused_imports": [
+        "io",
+        "tarfile"
+      ]
+    },
+    "experiments/evaluation/validate.py": {
+      "original_sha256": "88d08dd2316c2473bff4e3549c9dec2f33e04b3f743077eccc3ab1759ac58174",
+      "published_sha256": "cca64706b27c61ef770c5f999e7adab0450594da40987cf9794d5a78efe0e30f",
+      "program_ast_sha256": "63c626297e04963dc88ed91c3752fc8313456e0e83fd9cd129a382fc16160a48",
+      "removed_unused_imports": []
+    },
+    "experiments/online/__init__.py": {
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "program_ast_sha256": "ad2e13b69c4fc1fda46413f740f426fc1793cfc6d6da8d226ba619f1aef48be7",
+      "removed_unused_imports": []
+    },
+    "experiments/online/sequences.py": {
+      "original_sha256": "fad006138e17606d9022f6c28d26c0c5aa5a0d71176b9bac8863d4a63b3083c5",
+      "published_sha256": "50742fb4b5f04991dca4ca14c634d2e10ef59bdf5a8a2c3c11394245aa0064a8",
+      "program_ast_sha256": "6a3f42759362bd013048093a9ba82918006f58c3e91f22bbb0af54b726b2a41b",
+      "removed_unused_imports": []
+    },
+    "experiments/online/simulator.py": {
+      "original_sha256": "1b2efa1d5738dda82ccfbdeee8574fc8477f53d5a9d8c2e7124e5084b71adbbc",
+      "published_sha256": "c654804584b4f8f152d08278c39127c7365970b9b6ab4b93125af2c655319a8e",
+      "program_ast_sha256": "2b450ec1cd9eb46906c44d8198e8c9d5ca66a90a104ea5c07926949c83a8a86e",
+      "removed_unused_imports": [
+        "patch"
+      ]
+    },
+    "experiments/tests/__init__.py": {
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "program_ast_sha256": "ad2e13b69c4fc1fda46413f740f426fc1793cfc6d6da8d226ba619f1aef48be7",
+      "removed_unused_imports": []
+    },
+    "experiments/tests/test_prototype.py": {
+      "original_sha256": "e3ccded56a270097564000319388727e5e063bfe25841b0b7beb09d0172e07c6",
+      "published_sha256": "16b2fad62f0362c5b38f82cc38794c8ee13acd36f9ddaa116b2d94a4f299245b",
+      "program_ast_sha256": "55e891e729a60f09681ebc7abf87a2466754df43d41617d8faa44f6bedc24124",
+      "removed_unused_imports": [
+        "Path",
+        "json",
+        "tempfile"
+      ]
+    }
+  },
+  "ast_digest_python": "3.14"
+}
