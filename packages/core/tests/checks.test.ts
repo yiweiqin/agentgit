@@ -8,6 +8,19 @@ import { writeDesktopState } from '../src/desktop.ts'
 import { ensureWorkspace, type WorkspacePaths } from '../src/workspace.ts'
 import type { HubVerdict } from '../src/hub.ts'
 import { acknowledgeImpact, publishImpactProjection, recordImpactChange, recordImpactSession } from '../src/impact-state.ts'
+import { replaceChecksFile } from '../src/checks.ts'
+
+test('transient Windows destination locks retry without deleting evidence; permanent errors surface', () => {
+  let attempts = 0
+  replaceChecksFile('source', 'target', () => {
+    if (++attempts < 3) throw Object.assign(new Error('scanner lock'), { code: 'EPERM' })
+  }, () => {})
+  assert.equal(attempts, 3)
+  assert.throws(() => replaceChecksFile('source', 'target', () => { throw Object.assign(new Error('missing'), { code: 'ENOENT' }) }, () => {}), /missing/)
+  attempts = 0
+  assert.throws(() => replaceChecksFile('source', 'target', () => { attempts++; throw Object.assign(new Error('locked'), { code: 'EBUSY' }) }, () => {}), /locked/)
+  assert.equal(attempts, 6)
+})
 
 const coordinator = '11111111-1111-4111-8111-111111111111'
 const target = '22222222-2222-4222-8222-222222222222'

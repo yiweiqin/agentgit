@@ -1,529 +1,133 @@
-# AgenticGit
+﻿# AgenticGit
 
 **English** | [简体中文](README.zh-cn.md)
 
-**Coordination for coding agents that share one repository.**
+**Help multiple Codex chats understand each other's work while coding together.**
 
-Cross-session impact analysis now routes changes using the receiver's dependencies,
-contract assumptions and artifact versions, with separate severity and safe-point
-delivery policies. See the [guide and CLI/MCP examples](docs/CROSS-SESSION-IMPACT.md),
-or run `node examples/impact/run.mjs`.
+Several chats working on one project may edit the same file, build the same feature twice, or change an interface another chat is using. AgenticGit records their work, flags situations worth checking, and, with your permission, asks the relevant chats to inspect them and collects their replies.
 
-Git tells you two branches touched the same line — after both are finished. It cannot tell
-you that two agents are working on the same thing *right now*, that the interface one of
-them is changing is the one the other has already coded against, or that the second agent's
-half-written file is about to be swept into the first one's commit.
+Git saves code versions, compares changes and combines the results. AgenticGit helps with assignments and communication during development. Together, they connect parallel work with a reviewed delivery.
 
-Those three failures merge cleanly. They break at run time, or at review, or never — which
-is worse, because you keep doing it.
+## Think of a company or research team
 
-AgenticGit is a Codex plugin that watches what is in flight in a workspace and answers one
-question before a write happens: **is this work already being done, and is the ground under
-it still moving?** It keeps a ledger of tasks, code, contracts and validation, exposes it as
-MCP tools, renders an inline panel in the conversation, and serves a live board at
-`localhost:7777`.
+Each Codex chat is a colleague or lab member working on an assigned task. AgenticGit acts as a coordinator who watches for overlapping work and changes that need discussion. Git is the team's code archive, keeping versions and helping combine everyone's changes.
 
-It also draws one workspace's commit graph, with every commit labelled by the Codex
-conversation that produced it — the name you see in the desktop app's thread list, not a
-session id. That is the panel described under [The commit graph](#the-commit-graph) below.
-
----
-
-## The case Git cannot see
-
-Two agents are asked to add rate limiting to login. They describe it in their own words, so
-nothing matches textually and Git has nothing to report. Both edits merge cleanly.
-
-```
-1. Agent A opens a task and writes src/login.py
-   A intent: "add rate limiting to the login endpoint so repeated failures back off"
-
-2. Agent B is about to write the same file, for what it thinks is its own reason
-   B intent: "add rate limiting to login so repeated failures are throttled"
-   verdict : REUSE
-   reason  : an in-flight change on file::src/login.py is doing the same thing:
-             "add rate limiting to the login endpoint so repeated failures back off"
-             (task demo-a, similarity 0.56).
-
-3. Agent A publishes auth.limit v1; agent B records that it is coded against v1
-4. Agent A publishes v2 with a breaking signature change
-5. Agent B asks again, before writing
-   verdict : WAIT
-   reason  : task demo-a is still landing auth.limit v2 in src/login.py. Code against
-             the published signature and stub the rest, or wait for it to land.
-6. Agent A integrates. Agent B asks a third time.
-   verdict : REVIEW
-   reason  : auth.limit moved to v2 (breaking) and this change touches src/login.py.
-             You are coded against v1. Published by task demo-a.
+```mermaid
+flowchart LR
+  Team["Team members<br/>Multiple Codex chats"]
+  AG["AgenticGit · Coordinator<br/>Understand assignments, alert members"]
+  G["Git · Code archive<br/>Save versions, combine changes"]
+  Result["Team reviews and delivers"]
+  Team -->|"Work in progress"| AG
+  AG -->|"Alerts and feedback"| Team
+  Team -->|"Completed code changes"| G
+  G --> Result
 ```
 
-Nobody was blocked on a merge conflict, because there never was one. The second agent was
-told, three times, at the only three moments when the answer had changed.
+### How do AgenticGit and Git differ, and work together?
 
-Run it yourself, in a scratch repository that is deleted afterwards:
+| Team situation | What Git does | What AgenticGit does | How they work together |
+| --- | --- | --- | --- |
+| Find out what everyone is working on | Shows recorded code changes and commits | Summarizes registered tasks and work areas | Check assignments during development and code results at delivery |
+| Two members edit the same file | Compares changes; merging versions may reveal text conflicts | Asks affected chats to check their scope and agree on an order | Coordinate early, then inspect and merge actual changes |
+| Two members build the same feature with different names | Saves both implementations; does not judge duplicate effort | Flags possible duplication using task descriptions and supported code structure checks | Members decide what to reuse, then save the result with Git |
+| One member changes an interface another still uses | Records the interface code change | Uses registered dependencies to alert affected chats | Adapt the related code, test it and commit |
+| Explain why something changed and who checked it | Shows code differences and commit messages | Keeps work records, inspection requests and replies | Connect code changes with the collaboration behind them |
+| Undo changes or combine the results | Supports version recovery, branches and merges | Provides coordination information and advice | The team decides, then uses Git for version operations |
 
-```bash
-node examples/collision/run.mjs          # add --keep to inspect the repo it builds
+For example, two members implement order totals in different files using different function names. Git can save both implementations. When AgenticGit detects similar work, it asks the members whether both are needed. The team decides what to keep or share, tests it and commits the result.
+
+AgenticGit supplies evidence to check; members still decide. Git's version history and merge tools remain the foundation for delivery.
+
+## System architecture
+
+Four parts form the system: coding chats supply work information, AgenticGit records and checks it, a coordinator handles alerts and replies, and Git saves the code results.
+
+```mermaid
+flowchart TB
+  subgraph Work["1 · Coding chats"]
+    Chats["Multiple Codex chats<br/>Take tasks, edit code"]
+  end
+  subgraph Core["2 · AgenticGit background service"]
+    Record["Work records<br/>Who is doing what, and where"]
+    Check["Collaboration checks<br/>Shared files, duplicate work, affected tasks"]
+  end
+  subgraph Talk["3 · Coordination and feedback"]
+    Coord["Coordinator chat<br/>Send alerts, collect replies"]
+    View["Summary and board<br/>Show progress to the user"]
+  end
+  subgraph Version["4 · Code version management"]
+    Git["Git<br/>Save versions, compare and merge changes"]
+  end
+  Chats -->|"Work information"| Record
+  Record --> Check
+  Check -->|"Advice"| Chats
+  Check -->|"Needs a member's inspection"| Coord
+  Coord -->|"Alert"| Chats
+  Chats -->|"Reply after checking"| Coord
+  Coord --> View
+  Chats -->|"Commit code results"| Git
+  Git -->|"Versions and changes"| View
 ```
 
-The walkthrough is real: it writes to a real ledger in a real repository with real commits,
-and it reports a step as `FAIL` if the verdict it expected is not the verdict it got.
+The background service identifies situations worth checking. After you authorize it, the coordinator contacts other chats and collects their actual replies. See the [architecture reference](docs/ARCHITECTURE.md) for implementation details.
 
-## Checkpoints that stay inside a task
+## Plugin workflow
 
-The part that is actually dangerous to get wrong, and the reason the git layer has a test
-suite of its own:
-
-```
-$ agentgit task checkpoint demo-a --path src/login.py
-checkpoint 6f713480
-  src/login.py
-
-$ git status --short
- M src/config.py
-```
-
-Agent B was halfway through editing the config module in the same tree. It is still there,
-still uncommitted, still B's. `git add -A && git commit` — the obvious implementation, and
-the one most tools reach for — would have taken it. A checkpoint stages exactly the paths its
-own task wrote and names them on the commit, so no other path can be included.
-
-It also writes two trailers, which is how the commit graph knows who made it:
-
-```
-AgenticGit-Task: demo-a
-AgenticGit-Session: 11111111-1111-4111-8111-111111111111
-```
-
-Nothing is amended and no history is rewritten to add them; a commit that predates the
-plugin simply has no trailers and is attributed by the strongest evidence that remains.
-
-## The commit graph
-
-Three agents worked in this folder today. Git will tell you what changed. It will not tell
-you which conversation did it, which is the question actually being asked.
-
-```
-$ agentgit graph --limit 6
-AgenticGit for "agentgit" — main, 13 commit(s), 1 lane(s)
-windows: add rate limiting to login (4), 抽奖弹窗动画 (2), 重构结算逻辑 (1)
-
-  a1b2c3d4 add rate limiting to login        4f wire up the limiter
-  9f8e7d6c add rate limiting to login        2f publish auth.limit v1
-  5c4b3a29 抽奖弹窗动画                       3f 弹窗进场动画
-  2d1c0b9a 重构结算逻辑                       6f split the settlement calculator
-  8a7f6e5d 修复排序稳定性                     1f stable sort for equal scores
-  4b3a2c1d add rate limiting to login        1f initial limiter stub
-
-in flight:
-  add rate limiting to login — 3 uncommitted in .agentgit/worktrees/demo-a
+```mermaid
+flowchart TB
+  subgraph Start["1 · Get started"]
+    Install["Install and enable the plugin"]
+    Enable["Read the explanation<br/>Choose whether to enable coordination"]
+  end
+  subgraph Develop["2 · Develop together"]
+    Work["Chats describe their tasks and write code"]
+    Check["AgenticGit checks ongoing collaboration"]
+    Feedback["Alert relevant chats when needed<br/>Members inspect, reply and adjust"]
+  end
+  subgraph Finish["3 · Review and deliver"]
+    Review["Read the summary, test and review code"]
+    Git["Save or merge results with Git"]
+  end
+  Install --> Enable
+  Enable -->|"Agree and prepare a coordinator"| Work
+  Enable -->|"Leave coordination off"| Normal["Continue the usual workflow"]
+  Work --> Check
+  Check -->|"Something needs checking"| Feedback
+  Feedback --> Work
+  Check -->|"Development complete"| Review --> Git
 ```
 
-The name in the second column is the conversation name Codex shows in its thread list; the
-same name the panel uses. When no name was recorded the graph falls back in this order, and
-says which rung answered:
+The first offer is per workspace, usually at a new session or the start of work. Opening a file alone does not guarantee a popup. Automatic cross-chat alerts require your explicit consent and can be disabled at any time.
 
-| rung | what it means |
-|---|---|
-| commit trailers | the task and session recorded at checkpoint time |
-| `agentgit/<task>` branch | the commit sits on a task branch |
-| the ledger | the task-to-session mapping from `.agentgit/events` |
-| the thread name | `thread_name` from `~/.codex/session_index.jsonl` |
-| the first prompt | read from the session's rollout, for a session Codex never named |
-| the task id, then the session id | always available, so a node is never unlabelled |
-| the Git author | for a commit that carries no attribution at all, which usually means it predates the plugin |
+## Get started
 
-The last two rungs are shown in italics wherever they appear. That is not decoration: a
-guessed name and a recorded one look identical otherwise, and the difference is the whole
-value of the graph.
+Requires Node 22.19+ and Codex with local plugin support. Install from source:
 
-Any row can be asked about, and the answer needs no model:
-
-```
-$ agentgit graph --explain a1b2c3d4
-a1b2c3d4  wire up the limiter
-
-window : add rate limiting to login  (index)
-task   : demo-a
-session: 11111111-1111-4111-8111-111111111111
-when   : 2026-09-24T09:12:44.000Z
-
-what it was for, in the agent's own words:
-  add rate limiting to the login endpoint so repeated failures back off
-
-changed (4):
-  src/login.py
-  src/limiter.py
-  tests/test_limiter.py
-  docs/auth.md
-
-ledger:
-  2026-09-24T09:02:10.000Z  file_write         src/limiter.py
-  2026-09-24T09:11:58.000Z  lifecycle_validated  released 2 lease(s)
-
-notes:
-  - The window name is the conversation name Codex recorded for this session.
-  - One session is recorded for this task. A task can span several windows, and this
-    commit names only the first.
-```
-
-In a host that renders MCP Apps, the same graph is a live panel: ask `agentgit_ui` for it,
-and it polls while it is open, so a commit made in another window appears without anyone
-asking again. The rows are clickable, "Quick answer" runs the explanation above offline,
-and "Ask in conversation" hands the question to the agent with the selected commit already
-in its context.
-
-The panel needs no setup beyond the plugin itself. Two things are worth knowing when it does
-not appear:
-
-- The host decides where a UI goes. Codex's desktop app gives MCP Apps a side-panel tab and
-  supports picture-in-picture; a host that renders nothing still gets every tool's text.
-- The commit graph is read-only and `git log`-based, so it works on a repository where the
-  plugin has never recorded anything. It will simply attribute by branch, thread name or
-  author, and say so.
-
-`agentgit up` serves the panel as a page too, at `http://localhost:7777/panel`, alongside
-the JSON it reads at `/api/graph` and `/api/explain`.
-
-**You normally do not have to run it.** The hub needs one long-lived process to turn its ruling
-into a projection (`state/hub.json`); without one the push channel has nothing to say. The
-`spine.mjs` hook does that for you at session start - one daemon per enabled workspace, on a
-port the kernel picks, with its pid and port written to `.agentgit/state/daemon.json`. Running
-`agentgit up` by hand still works, and it recognises the daemon a session already started and
-reuses it rather than running a second publisher.
-
-```bash
-agentgit status              # what is in flight
-agentgit graph               # the commit graph, attributed to conversations
-agentgit up                  # live board on http://localhost:7777, panel at /panel
-```
-
-## A coordinator for each workspace
-
-After installation and hook approval, the first conversation in a new workspace asks
-whether to enable AgenticGit and create a pinned `AgenticGit — <workspace>` chat.
-Say yes once: setup creates that chat, enables automatic checks, and starts one local
-daemon. Ordinary folders are supported; commit graphs require Git history.
-
-The daemon detects a contention or changed interface, wakes the coordinator through
-`codex queue`, and the coordinator sends checks to affected chats, waits for actual
-replies and saves receipts. Reservations prevent duplicate sends. A reply may disagree
-with the detector; receiving a reply does not mean the conflict was fixed. Timeouts
-and delivery failures are reported, with no blind participant resend.
-
-The host currently exposes SessionStart and UserPromptSubmit hooks, **not a folder-selection
-event**. Clicking a folder alone cannot display a prompt; starting its first chat can.
-Two simultaneous acceptances reserve one setup, and interrupted setups reuse the recorded
-chat. Refusal is remembered on the machine without creating files in an unclaimed folder.
-
-- `agentgit checks status --workspace <folder>` shows configuration, jobs and receipts.
-- `agentgit checks disable --workspace <folder>` stops automatic wakeups.
-- `agentgit desktop --decline-init --workspace <folder>` remembers a refusal;
-  `--clear-init` allows another offer.
-- `/agentgit` is the separate panel shortcut: it enables tracking and pins the current
-  chat. It does not by itself authorize automatic cross-chat messages.
-
-Automatic checks use model calls when chats are woken. No hourly automation is installed.
-They inspect and report; they do not merge or rewrite business code. See the
-[setup protocol](plugins/agentgit/skills/agentgit/references/setup.md) and
-[inspection protocol](plugins/agentgit/skills/agentgit/references/coordinate.md).
-
-## Install
-
-Requires **Node 22.19 or newer** (the packages are TypeScript run directly by Node) and
-**git**. Codex must support local plugins and MCP servers. Automatic coordination additionally needs
-`codex queue` and the desktop cross-chat tools (`create_thread`, `send_message_to_thread`,
-`wait_threads`). Approve the plugin hooks in Codex and start a new chat after installation.
-The installer prints the actual marketplace name; substitute it if yours is not `personal`.
-
-```bash
+```sh
 git clone https://github.com/yiweiqin/agentgit.git
 cd agentgit
 npm ci
-npm link                                       # optional: puts `agentgit` on PATH
-node packages/cli/bin/agentgit.mjs install          # link the plugin, write hooks, MCP and spine config
-node packages/cli/bin/agentgit.mjs doctor           # every check must say "ok"
+node packages/cli/bin/agentgit.mjs install
+codex plugin add agentgit@personal
+node packages/cli/bin/agentgit.mjs install --enable
 ```
 
-The examples above say `agentgit ...`; without `npm link`, run them as
-`node packages/cli/bin/agentgit.mjs ...`. There is no `npx agentgit`: this package is private and not
-published, so `npx` would fetch whatever else owns that name.
+Replace `personal` with the marketplace name printed by the installer. Enable the plugin and trust its hooks in Codex, start a new chat, and follow the explanation to choose whether to enable automatic coordination. Keep the source checkout: the plugin uses it at runtime.
 
-`install` does the four things Codex cannot do for a local plugin, and nothing else:
+Collaboration checks work in ordinary folders too; version history and merges require Git. See the [usage guide](docs/USAGE.md) for installation checks and troubleshooting.
 
-1. links `~/plugins/agentgit` to this checkout, so edits to the checkout are live;
-2. generates `hooks/hooks.json`, `hooks.json`, `spine.json` and `.mcp.json` with absolute paths, because Codex does no command
-   substitution and does not resolve a relative path on Windows;
-3. adds the `agentgit` entry to `~/.agents/plugins/marketplace.json`, preserving every other
-   entry and the marketplace's own name;
-4. bumps the cachebuster, because Codex caches a plugin by version and an edit with an
-   unchanged version is invisible.
+## Learn more
 
-Then enable it, either way:
+Two-chat walkthroughs have verified alerts and replies for shared-file work and JS/TS implementations with different names but identical normalized structure. Similar-work detection has language and syntax limits. Alerts need inspection and do not replace testing or code review.
 
-```bash
-codex plugin add agentgit@personal                 # the marketplace route
-node packages/cli/bin/agentgit.mjs install --enable     # or write the config.toml block for you
-```
+- [Installation, automatic alerts, commands and limitations](docs/USAGE.md)
+- [System architecture and implementation](docs/ARCHITECTURE.md)
+- [How changes affect other chats](docs/CROSS-SESSION-IMPACT.md)
+- [Experiments and validation](docs/EXPERIMENTS.md)
+- [Documentation index / 文档目录](docs/INDEX.md)
 
-`--enable` edits exactly one table in `~/.codex/config.toml` and leaves every other byte,
-including comments, alone. It refuses rather than guesses if `plugins` is already an inline
-table, because appending a `[plugins."x"]` section to that file produces invalid TOML and
-Codex would refuse to start with the cause several lines from the symptom.
-
-To undo: `node packages/cli/bin/agentgit.mjs uninstall --disable`.
-
-## What it does by itself, and what it will not
-
-The split is the product's safety boundary, and it is enforced in `packages/core/src/git.ts`
-by two tests: one commits a file in a tree full of another agent's work, and the other scans
-every source file for a git invocation of a protected operation.
-
-| Automatic — additive and reversible | Never automatic — described, not run |
-|---|---|
-| Creating a task branch and worktree | `merge`, `rebase` |
-| Committing a checkpoint scoped to a task | `reset --hard`, `restore`, `clean` |
-| Recording a lease, an assumption, a contract version | `branch -D`, `push` |
-| One line in `.git/info/exclude` for `.agentgit/` | Anything that rewrites history |
-
-When a merge is due, `agentgit reconcile` prints the integration order, the ghost-merge
-preview, and the exact commands — and stops. It never resolves a conflict and never reorders
-anyone's history. An agent that merges because a heuristic said so is not something anyone
-should be asked to trust.
-
-The ghost merge (`git merge-tree --write-tree`) is safe to run on every board refresh
-because it writes the result to the object database and touches no branch and no working
-directory. But a clean tree is reported as clean and nothing more: **textual cleanliness is
-not behavioural correctness**, and `reconcile` says so in the output rather than implying
-otherwise.
-
-## What this does not claim
-
-- It does not prevent conflicts. It tells you the collision is coming while it is still
-  cheap to change course, which is a different and more modest thing.
-- The duplicate-work verdict is a similarity judgement over intent text, with a threshold
-  and a reason string in every answer. It will be wrong sometimes; it is designed to be
-  cheap to overrule, and every verdict is recorded so you can see why it was made.
-- The demo is a walkthrough, not a benchmark. It asserts the three verdicts it is built to
-  produce, and nothing about how often they occur in real repositories.
-- The A/B run below is a fixture with scripted agents. It shows the mechanism works and that
-  the arms differ. It is not an effect size.
-- The before/after report in `examples/real/run.mjs` is **one** case, so it is not a frequency.
-  The frequency over the same pool is what Experiment 4 · Git Complementarity counts, and the two are kept apart on
-  purpose.
-- When that report says git merges cleanly, read the route it names. On the `reversed`
-  reconstruction route a clean merge is only reachable when the two changes occupy
-  non-overlapping regions of the file — so a clean merge there is the expected result, not a
-  discovery about how blind git is. On the `anchored` route, where both patches apply to a
-  common base, the answer is the case's own.
-
-## What you can tune
-
-The verdicts are heuristics, so every one of them is a knob — and a product that will be
-wrong for somebody's repository owes them the knob, the default, and the reason the default
-was chosen. All three are in one command:
-
-```
-$ agentgit config
-settings  (0 changed from the default)
-
-  arm
-    value   : A3-advisory  (default)
-    means   : record cross-session, report what was seen, offer next actions (default)
-    effect  : Which experimental arm this workspace runs: what is recorded, and whether this
-              session can see other sessions at all.
-    caution : A non-default arm makes this workspace incomparable with one running another arm...
-
-  duplicateIntentThreshold
-    value   : 0.42  (default)
-    effect  : How similar two agents' own words for their intent must be before their work is
-              called the same. This is the number behind the REUSE verdict.
-    caution : Too low and unrelated work is flagged as duplicate, which is how a team learns to
-              ignore the tool. The matcher is lexical, so two agents describing one job in
-              different words score low no matter where this is set: raising it hides the miss
-              rather than fixing it.
-```
-
-Set one with `agentgit config <setting> <value>`; the value is validated before anything is
-written, and a rejected setting leaves the file exactly as it was. `--json` gives the same
-fields to a tool, and `agentgit status`, `agentgit board`, `doctor` and the inline panel all
-print which arm produced the numbers they are showing.
-
-The `arm` setting is the interesting one, and it is the experiment's unit of analysis:
-
-| arm | what it does |
-|---|---|
-| `A3-advisory` (default) | record cross-session, report what was seen, offer next actions |
-| `A1-instrument` | record cross-session and decide, but offer no next actions |
-| `A4-session-only` | record, but see only this session |
-| `A0-baseline` | record nothing, see nothing, always allow |
-
-Two of the research arms are deliberately **not** offered. `A4-gated` refuses writes, and this
-product never does — it reports what it sees and hands you the command — so naming it is
-refused with that reason rather than quietly downgraded. `A2-inert` and `A4-detect-only` are
-not offered either: in a product without a gate they are byte-for-byte identical to
-`A0-baseline` and `A1-instrument`, and two arm names for one behaviour would make the labels
-meaningless.
-
-## The A/B run, and how to read it
-
-```bash
-node examples/ab/run.mjs                      # about half a minute
-node examples/ab/run.mjs --compliance 0,0.25,0.5,0.75,1
-```
-
-It builds a scratch repository per arm, runs the same six-round two-agent scenario through
-the real CLI, and reports what happened to the code in a real ghost merge — not in the
-ledger's opinion of itself.
-
-```
-what each arm knew, and what it said
-------------------------------------
-  A0-baseline       b-agent verdicts: allow x6
-                    usable next actions: 0/6   ledger events written: 0
-  A4-session-only   b-agent verdicts: allow x6
-                    usable next actions: 0/6   ledger events written: 12
-  A1-instrument     b-agent verdicts: reuse x3, replan x2, allow x1
-                    usable next actions: 0/6   ledger events written: 12
-  A3-advisory       b-agent verdicts: reuse x3, replan x2, allow x1
-                    usable next actions: 5/6   ledger events written: 12
-
-outcome by arm and obedience rate
----------------------------------
-  arm                obey   dup closed   indep stopped   untouched   files left in conflict
-  A0-baseline       0      0/3          0/2             1/1         5
-  A0-baseline       1      0/3          0/2             1/1         5
-  A4-session-only   0.5    0/3          0/2             1/1         5
-  A1-instrument     1      0/3          0/2             1/1         5
-  A3-advisory       0.5    1/3          1/2             1/1         3
-  A3-advisory       1      3/3          2/2             1/1         0
-```
-
-Six of the twelve rows are shown; the rest repeat the same two shapes.
-
-Read it in this order, because the honest reading is not the flattering one:
-
-1. **The last row is arithmetic, not evidence.** An arm that closes all three duplicates when
-   every agent obeys is showing you what "obeyed" means. A harness cannot discover that.
-2. **The row that carries information is `obey 0.5`** — one duplicate closed, three files
-   still conflicted — and it is only informative if the obedience rate is real. Nobody has
-   measured a real agent's rate here, and that rate is the only thing that would turn this
-   into an effect size.
-3. **Two ablations collapse to the baseline, for different reasons.** `A4-session-only` writes
-   all 12 events and cannot see them, so it answers `allow` six times. `A1-instrument` sees
-   everything and says `reuse` and `replan`, but offers no next action, so nothing changes
-   either. What the product needs is the shared ledger *and* an actionable step; either one
-   alone leaves all five files conflicted.
-4. **`untouched` is a floor, not a detail.** One round has the second agent working on an
-   entity the first never touched, and no arm at any obedience rate may interfere. If that
-   number moved, a detector is firing on ground nobody is on, and the duplicate column would
-   be uninterpretable.
-5. **`indep stopped` is the cost side.** Those rounds share an entity for genuinely different
-   reasons. The product says `REPLAN` there, which means split the entity or agree an order —
-   a deferral, not a loss — and the number is printed beside the duplicate column because a
-   tool that closed duplicates by stopping everything would look identical on it alone.
-
-Obedience is applied only to a verdict that came with a usable next action. That is an
-assumption, and it is what separates the instrument arm from the default; if it is wrong, the
-`A1-instrument` row is the one to distrust, not the others.
-
-## Four experiments, on this machine's own history
-
-The demo above is a walkthrough: it proves the mechanism runs, and it says nothing about how
-often the three failures happen to you. For that there is a second set of scripts, run over the
-real session transcripts in `~/.codex/sessions`, with the criteria computed mechanically from
-the patch bodies rather than chosen by hand. Each experiment answers one question, and they are read
-in order — visibility, impact, restraint, non-redundancy:
-
-| | The experiment, and the question it answers | The one number it reports |
-|---|---|---|
-| 1 | **Detection Fidelity** — can it see? On real history, how often does it speak and how often is it right? | precision and recall, always beside `entityVisibleCeiling` |
-| 2 | **Intervention Impact** — does listening help? If the warned agent obeys, how much better is the outcome? | the drop in duplicates closed at the obedience 0.5 row |
-| 3 | **Alert Economy** — does it cry wolf? On a day with no collision, how many times a day does it speak? | one advisory per N session-hours, and zero refusals |
-| 4 | **Git Complementarity** — could git have seen it? For these cases, would git have spoken at the time? | cases with zero conflicts, and the gap between the two timestamps |
-
-Every one of them carries a control that must not move, and is written down with the value that
-counts as failure. The full write-up — the analogy it is all built on, the numbers as measured,
-the two reconstruction routes behind the before/after, the sandbox constraints, and what was
-redacted before publication — is in [`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md), also available
-in Chinese as [`playground/EXPERIMENTS.zh-cn.md`](playground/EXPERIMENTS.zh-cn.md).
-
-```bash
-node examples/real/cases.mjs    # scan the pool: candidates, and the three concurrency windows
-node examples/real/run.mjs      # one real case, as a before/after report
-```
-
-`cases.mjs` takes its scope from the transcripts — the workspaces it reports on are every
-directory the sessions recorded, so the source contains no path from any one machine. Narrow
-it with `--workspaces a,b` when the pool contains scratch directories.
-
-`run.mjs` clones the repository into a temporary directory, replays both real sessions up to the
-moment of the write, asks `preflight()` and `git merge-tree` the same question, and renders the
-two answers side by side. It prints a content token; paste the whole line into a Codex reply
-and the report renders inside the conversation. It exits non-zero rather than inventing a case
-if no candidate qualifies, or if the product's verdict is `allow` — silence is a finding, not a
-demo.
-
-## Layout
-
-```
-packages/core       the ledger, contracts, leases, preflight verdicts, rollout ingestion, git,
-                    shared task lifecycle and integration plans, the commit graph and session names
-packages/board      the inline panel fragment and the standalone page, from one view
-packages/app        the MCP App panel: one self-contained document, its CSS and its runtime
-packages/cli        agentgit status | board | graph | panel | app | preflight | why | reconcile | task | config | up | install
-packages/mcp        the stdio MCP server: agentgit_preflight, agentgit_task, agentgit_graph, the panel resource
-packages/daemon     the live board on localhost:7777, one page per workspace, SSE
-plugins/agentgit    the Codex plugin: manifest, hook wiring, shared hook runtime, the track.mjs fast path, the skill
-examples/collision  the two-agent walkthrough above
-examples/ab         the A/B run: the same scenario under two arms, with an obedience dial
-examples/real       the experiments below, run over this machine's own session transcripts
-docs                EXPERIMENTS.md, and the reasoning behind the numbers it reports
-```
-
-The hook script is the only thing on the hot path of every tool call, so it is a single
-process with no dependencies beyond Node's standard library, and it appends one line to the
-workspace's event shard. Everything else — the board, the panel, the verdicts — is derived
-from those events and can be thrown away and rebuilt.
-
-Session transcripts are adopted as well as tool calls, because a hook cannot see what a shell
-command touched. Adoption deduplicates against the hook stream: the same write recorded
-twice would inflate every collision count by the fraction both streams saw, and the numbers
-would stop meaning anything.
-
-## Tests
-
-```bash
-npm test          # 797 tests: runs lint:encoding first, then core, board, app, cli, mcp, daemon
-npm run test:py   #  45 tests: the Python ledger, checked against the same fixtures
-npm run typecheck
-```
-
-`npm test` begins with `npm run lint:encoding`, which fails if any text file has a UTF-8 BOM
-or CRLF endings. That is not tidiness: a BOM makes `json.loads` reject a plugin manifest that
-looks correct, and a CRLF checkout makes a committed ledger diff on every line. Fix with
-`node scripts/strip-bom.mjs`.
-
-On Windows you may also see a line like
-`[agentgit tests] could not remove C:\...\Temp\agentgit-git-xxxx: EPERM`. That is housekeeping,
-not a result: the suites build real repositories in the temp directory, and the OS file
-scanner can hold a handle on a freshly created `.git` tree for a few seconds after the last
-assertion has already passed. The cleanup retries, clears git's read-only object files, and
-then reports rather than throwing, because a disposable temp directory is not evidence about
-the product. It is printed so that a directory which can *never* be removed is still visible.
-
-The arm tests are the ones worth knowing about, because an arm is easy to get wrong in the
-one way that produces a plausible-looking result: `packages/core/tests/arm.test.ts` drives the
-same ledger under two arms and fails if the verdicts agree. `packages/cli/tests/ab.test.ts`
-runs the A/B harness and fails if the arms stop differing, if the ablation stops recording, or
-if untouched ground is ever disturbed. `packages/cli/tests/hooks.test.ts` pins the hook's own
-copy of the arm table against core's, because the hook cannot import the library and a drifted
-copy would silently keep recording in a workspace that had been switched off. `spine.test.ts`
-pins the same way against `@agentgit/daemon`, for the endpoint file's path and version: two
-spellings of either would mean a hook that never finds its own daemon, and a daemon that never
-finds a reason not to start a second one.
-
-MIT licensed.
+MIT license.
 
 ## Structured Delta research prototype
 

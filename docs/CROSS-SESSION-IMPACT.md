@@ -1,5 +1,7 @@
 # Cross-session impact analysis
 
+[简体中文](CROSS-SESSION-IMPACT.zh-cn.md) · [Documentation index](INDEX.md) · [Usage](USAGE.md)
+
 AgentGit now separates candidate recall, directional inference, impact severity and
 delivery timing. It answers **whether A's change invalidates B's current work**.
 Matching goals alone never establishes a conflict and never triggers a notification.
@@ -189,9 +191,10 @@ MCP query paths still recompute directly. Malformed observations are counted.
 
 Once a workspace has the new `impact-protocol.json` marker, automatic hook delivery
 uses its selective inbox instead of broadcasting the legacy global advisory. The
-global Hub remains queryable. Existing opt-in cross-chat checks only enqueue
-confirmed urgent impacts for the actual receiver; deferred updates use safe-point
-hooks. This feature does not enable cross-chat sending or create a coordinator.
+global Hub remains queryable. Opt-in cross-chat checks enqueue urgent directional impacts for the actual receiver,
+while retaining recent shared-file contention and renamed-code structure checks.
+Lexical similarity alone does not create additional cross-chat checks once this protocol
+is active; deferred updates use safe-point hooks. This feature does not enable cross-chat sending or create a coordinator.
 
 ## Validation
 

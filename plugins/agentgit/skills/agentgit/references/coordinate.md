@@ -1,7 +1,7 @@
 # Automatic cross-chat checks
 
 Use this protocol only in the coordinator chat configured by a user who requested automatic
-cross-chat coordination. It extends the read-only monitor in watch.md: this workflow is allowed
+cross-chat coordination. It is separate from the optional read-only monitor in watch.md. This workflow is allowed
 to send inspection requests to the affected chats in the configured workspace and read their
 responses. It does not authorize code changes, merges, cancellations or messages to unrelated chats.
 

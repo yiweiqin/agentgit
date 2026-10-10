@@ -6,6 +6,8 @@ import { readDesktopState } from './desktop.ts'
 import { readHubVerdict, type HubVerdict } from './hub.ts'
 import type { WorkspacePaths } from './workspace.ts'
 import { computeImpactReport } from './impact-state.ts'
+import { liveLeases, loadLeases } from './leases.ts'
+import { readAllEvents } from './workspace.ts'
 
 export const CHAT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 /** Protocol messages inspect a task; they must not replace the task's original intent. */
@@ -40,6 +42,18 @@ export interface ChecksState {
   setup?: { owner: string; expiresAt: string } | null
 }
 export function checksFile(paths: WorkspacePaths): string { return join(paths.state, 'checks.json') }
+/** Windows readers and scanners can briefly hold the destination. Never delete it as a fallback. */
+export function replaceChecksFile(source: string, target: string,
+  rename: (source: string, target: string) => void = renameSync,
+  pause: (ms: number) => void = ms => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms) },
+): void {
+  for (let attempt = 0; ; attempt++) {
+    try { rename(source, target); return } catch (error) {
+      if (attempt >= 5 || !['EPERM', 'EACCES', 'EBUSY'].includes((error as NodeJS.ErrnoException).code ?? '')) throw error
+      pause(10 * 2 ** attempt)
+    }
+  }
+}
 export function readChecks(paths: WorkspacePaths): ChecksState {
   const file = checksFile(paths)
   if (!existsSync(file)) return { version: 1, workspace: paths.root, config: null, jobs: [], unresolved: [], wake: null }
@@ -71,7 +85,7 @@ export function editChecks<T>(paths: WorkspacePaths, edit: (state: ChecksState) 
     const state = readChecks(paths)
     const result = edit(state)
     writeFileSync(temp, `${JSON.stringify(state, null, 2)}\n`, 'utf8')
-    renameSync(temp, checksFile(paths))
+    replaceChecksFile(temp, checksFile(paths))
     return result
   } finally {
     closeSync(fd)
@@ -131,7 +145,44 @@ export function syncChecks(paths: WorkspacePaths, hub: HubVerdict | null = readH
         state.jobs.push({ id, issue, rulingId: hub.id, target, entity, verdict, evidence, status: 'pending', createdAt: now.toISOString(), updatedAt: now.toISOString(), token: null, attempts: 0, deadline: null, result: null, clearedAt: null })
       }
     }
+    // A symbol and its containing file have different keys but the same write surface.
+    // Recent declarations are enough to ask both writers to inspect; they prove no semantic conflict.
+    const recent = readAllEvents(paths).events.filter(event => event.kind === 'file_write' &&
+      now.getTime() - Date.parse(event.timestampUtc) < 10 * 60_000)
+    const byPath = new Map<string, Map<string, Set<string>>>()
+    for (const event of recent) {
+      if (!event.taskId) continue
+      for (const entity of event.entities ?? []) {
+        if (!entity.path) continue
+        const writers = byPath.get(entity.path) ?? new Map<string, Set<string>>()
+        const sessions = writers.get(event.taskId) ?? new Set<string>()
+        sessions.add(event.sessionId); writers.set(event.taskId, sessions); byPath.set(entity.path, writers)
+      }
+    }
+    for (const [path, writers] of byPath) {
+      if (writers.size < 2 || hub.rulings.some(rule => rule.path === path && rule.sessions.length > 1)) continue
+      add(`same-file::${path}`, 'same-file', [...writers.values()].flatMap(sessions => [...sessions]).sort(),
+        { path, tasks: [...writers.keys()].sort(), basis: 'recent-write-declarations' })
+    }
     if (existsSync(join(paths.state, 'impact-protocol.json'))) {
+      // Preserve proven live contention even when selective impact routing is active.
+      const leases = liveLeases(loadLeases(paths), now)
+      const recentWrites = recent
+      for (const rule of hub.rulings) {
+        const writers = leases.filter(lease => lease.entityKey === rule.entityKey)
+        const tasks = new Set(writers.map(lease => lease.taskId))
+        for (const event of recentWrites) {
+          if (event.taskId && event.entities?.some(entity => entity.path === rule.path)) tasks.add(event.taskId)
+        }
+        if (tasks.size < 2) continue
+        add(rule.entityKey, rule.word, rule.sessions, { path: rule.path, intents: [...rule.intents].sort(), owner: rule.owner.taskId })
+      }
+      for (const pair of hub.duplicateWork ?? []) {
+        if (pair.basis !== 'code-structure') continue
+        add(`code-duplicate::${pair.tasks.join('|')}`, 'duplicate-code', pair.sessions.flat(), {
+          tasks: pair.tasks, paths: pair.paths, fingerprint: pair.fingerprint, basis: pair.basis,
+        })
+      }
       // Deferred updates use recipient safe-point hooks. Only confirmed urgent risks wake
       // the opted-in coordinator; semantic overlap cannot trigger cross-chat checks.
       for (const impact of computeImpactReport(paths, { now }).notifications) {

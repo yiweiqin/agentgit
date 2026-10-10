@@ -316,7 +316,7 @@ describe('what reaches the user, and what it asks for', () => {
     for (const needle of [
       'create_thread',
       'set_thread_title',
-      'set_thread_pinned',
+      'move_thread_to_sidebar_section',
       'send_message_to_thread',
       'references/setup.md',
       'agentgit_desktop',
@@ -475,7 +475,7 @@ describe('the offer to enable a repository that has not opted in', () => {
     for (const needle of [
       'agentgit_status',
       'create_thread',
-      'set_thread_pinned',
+      'move_thread_to_sidebar_section',
       'agentgit_ui',
       'agentgit_desktop',
       '--decline-init',
@@ -533,7 +533,7 @@ describe('the /agentgit command', () => {
   test('enables the workspace and pins this conversation, naming the tools and the thread', () => {
     claim()
     const text = injected(runHook(command())) ?? ''
-    for (const needle of ['set_thread_pinned', 'agentgit_ui', 'agentgit_desktop', 'pinnedThreadId', 'thread-a']) {
+    for (const needle of ['move_thread_to_sidebar_section', 'agentgit_ui', 'agentgit_desktop', 'pinnedThreadId', 'thread-a']) {
       assert.ok(text.includes(needle), `the enable block must mention ${needle}`)
     }
     assert.match(text, /never rewrite history/i, 'and it must say the history is not rewritten')
@@ -566,7 +566,7 @@ describe('the /agentgit command', () => {
     seed({ pinnedThreads: { 'thread-a': '2026-01-01T00:00:00.000Z' } })
     const text = injected(runHook(command())) ?? ''
     assert.match(text, /already recorded as pinned/)
-    assert.ok(text.includes('set_thread_pinned'), 'the tool is still named, so the block stays recognisable')
+    assert.ok(text.includes('move_thread_to_sidebar_section'), 'the tool is still named, so the block stays recognisable')
   })
 
   test('with no thread id it still asks for the pin, because it cannot check the record', () => {

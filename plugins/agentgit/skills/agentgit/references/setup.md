@@ -5,14 +5,14 @@ coordinator chat, and let it notify affected chats and read their inspection rep
 workspace. The offer is a question; it does not itself authorize creation or messaging. Reuse
 consent already given in this conversation. Never enable other workspaces on that consent.
 
-Hooks can offer at SessionStart or UserPromptSubmit. The current host has no folder-selection
+Hooks can offer at SessionStart, UserPromptSubmit or after a completed write (PostToolUse). The current host has no folder-selection
 hook: merely selecting a folder without starting a conversation cannot trigger this workflow.
 An ordinary folder is supported; Git history features require a Git repository.
 
 ## Prepare without creating a chat
 
 1. Resolve the exact workspace from the offer. Discover `list_projects`, `create_thread`,
-   `read_thread`, `set_thread_title`, `set_thread_pinned`, `send_message_to_thread`, `wait_threads`
+   `read_thread`, `set_thread_title`, `move_thread_to_sidebar_section`, `send_message_to_thread`, `wait_threads`
    and `agentgit_desktop`. If these host tools are unavailable, explain which capability is missing.
    Do not claim a coordinator has been created.
 2. Locate this plugin's generated `spine.json` (at the plugin root, three levels above this
@@ -49,7 +49,8 @@ An ordinary folder is supported; Git history features require a Git repository.
    `clientThreadId` as a thread ID; if creation is pending, wait for the real ID. If the create
    call has an ambiguous outcome, inspect recent chats for the exact setup prompt before any
    retry; an expired reservation alone is not proof that no chat was created.
-8. Set its title and pin it with the host tools. Run `checks enable --coordinator <id> --codex
+8. Set its title and pin it with `move_thread_to_sidebar_section`, using its `threadId` and
+   `sectionId: "pinned"`. Run `checks enable --coordinator <id> --codex
    <absolute-native-codex-executable>`. Then record `enabled: true` with `agentgit_desktop`.
    A previously recorded coordinator is configured using the same steps, without creating one.
 

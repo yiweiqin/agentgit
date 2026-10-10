@@ -13,7 +13,8 @@ coordination facts Git cannot see, and the tools below are how you read them.
 
 ## The six verdicts
 
-Everything the plugin tells you arrives as one of six words. Act on the word.
+Write preflight returns one of six advisory verdicts. Hub rulings, impact categories
+and inspection-job states are separate outputs; do not treat them as these verdicts.
 
 | verdict | what it means | what you do |
 |---|---|---|
@@ -57,7 +58,8 @@ on a port the kernel picks - so there is nothing for anyone to launch and keep o
 the same process that serves the live board, and `agentgit up` reuses it rather than
 starting a second one.
 
-It arrives by three routes, and they all say the same thing:
+Shared advice is available through three routes. A recipient's selective impact inbox
+may deliver only the subset relevant to that chat:
 
 - **Pushed into the conversation.** A hook reads the ruling and injects it as developer
   context when your session starts, when the user sends a prompt, and when you are about
@@ -95,6 +97,13 @@ The hub is advisory like everything else. It has no power to stop you and it nev
 refuses a write; it exists so that the same ground gets one answer instead of one answer
 per window.
 
+The hub also reports cross-file duplicate-work candidates. Intent matching is lexical;
+recent supported JS/TS files can additionally match after normalizing identifier names.
+This is bounded file-level structural evidence, not proof of functional equivalence.
+Templates, ambiguous slash syntax and insufficient samples are skipped. Under selective
+impact delivery, evidence-backed shared-file work and code-structure duplicates still
+enter the opt-in checks queue; lexical similarity alone does not add cross-chat checks.
+
 ## Tools
 
 When the user explicitly requests automatic conflict checks across chats, use
@@ -126,13 +135,13 @@ Read-only, safe to call at any time:
 - **`agentgit_board`** — every in-flight task, every contested entity, every live
   lease, and every published contract.
 - **`agentgit_desktop`** — the note tying this workspace to its pinned coordination task:
-  which task it is, whether a heartbeat is keeping it alive, which conversations
+  which task it is, any separately requested monitor, which conversations
   `/agentgit` pinned, whether the workspace was enabled, and the last ruling that task
   reported. Call it with no arguments to see where things stand; call it with `threadId`
   once a task has been created for this workspace, with `decision: "declined"` when the
   user has said no, with `pinnedThreadId` after `/agentgit` pinned a conversation, with
   `enabled: true` when the workspace was switched on, or with `lastRulingId` after a
-  heartbeat run. It only writes this note down - it never creates a task and never posts
+  read-only monitor run. It only writes this note down - it never creates a task and never posts
   anything.
 - **`agentgit_preflight`** — the verdict for a specific set of paths or symbols and
   a stated intent. Returns `verdict`, `reason`, `version` and `ttlSeconds`. Cache on
@@ -143,6 +152,8 @@ Read-only, safe to call at any time:
 - **`agentgit_why`** — the event history behind one entity or one task, when the
   user asks why the plugin said something.
 - **`agentgit_contracts`** — published interfaces with their current versions.
+- **`agentgit_modules`** — mechanical module dependencies and path-to-module mapping.
+- **`agentgit_impacts`** — recompute the current recipient's directional impacts.
 
 State-changing, all additive and reversible:
 
@@ -160,6 +171,9 @@ State-changing, all additive and reversible:
   interface. Recording it is how the plugin can tell you later that it moved.
 - **`agentgit_task`** — `start` creates a worktree and task branch, `checkpoint`
   commits only the paths this task touched, `finish` reports what to do next.
+- **`agentgit_impact_state`**, **`agentgit_impact_publish`** and **`agentgit_impact_ack`** —
+  declare recipient dependencies, publish a structured change and acknowledge an impact.
+  Acknowledgement does not update a contract assumption; record actual adaptation separately.
 
 ## The panel, and the windows on the graph
 
@@ -188,11 +202,14 @@ provenance in its `notes`, and repeating the relevant note is usually the useful
 
 ## One dedicated coordinator per workspace
 
-At the first SessionStart or UserPromptSubmit in an unclaimed folder, the hook asks
+At SessionStart or UserPromptSubmit in an unclaimed folder, the hook offers to ask
 whether to enable AgenticGit and create a pinned coordinator that detects conflicts,
 notifies affected chats, waits for checks and summarizes their replies. Ordinary folders
 are supported; Git history needs a repository. Merely selecting a folder is not a host
-hook event and cannot trigger an immediate offer.
+hook event and cannot trigger an immediate offer. A completed write (PostToolUse) can
+also offer coordination to a session that was already running when the plugin was enabled.
+The offer instructs the agent to show an explanation and choices using host input tools;
+it is not a native popup implemented by this plugin.
 
 After explicit consent, follow **`references/setup.md`**. Reserve setup before creating
 anything, reuse a recorded coordinator, record a new chat ID immediately, configure the
@@ -204,13 +221,14 @@ Use `references/watch.md` only for an explicitly requested read-only periodic mo
 
 ## `/agentgit`: enabling a workspace, and pinning this conversation
 
-When the user's message *starts* with `/agentgit`, a block headed
-`## An unclaimed folder
+When the user's message starts with `/agentgit`, the hook supplies instructions to
+record tracking as enabled, pin the current conversation and open the existing commit panel.
+This shortcut does not authorize creating a dedicated coordinator or sending cross-chat
+messages; automatic checks still require consent and `references/setup.md`.
 
-The offer is remembered outside the workspace in `~/.agentgit/offers.json`.
-A refusal uses `agentgit desktop --decline-init --workspace <folder>` and creates
-nothing in that folder. `--clear-init` allows another offer. After consent, use
-`references/setup.md`; do not create a second coordinator for the same workspace.
+An unclaimed folder's offer is remembered in `~/.agentgit/offers.json`.
+`agentgit desktop --decline-init --workspace <folder>` records refusal without creating
+workspace files; `--clear-init` allows another offer. Reuse a recorded coordinator.
 
 ## Rendering the fragment panel
 
@@ -241,15 +259,15 @@ to the CLI and hand the user the URL rather than inventing a panel:
 agentgit panel --print     # writes the fragment, prints its path
 agentgit graph             # the same graph as text, in any terminal
 agentgit graph --explain <oid|task>
-agentgit up                # live board on http://localhost:7777, panel at /panel
+agentgit up                # prints the actual local URL; panel at /panel
 ```
 
-## What you may do without asking
+## Additive operations within the user's task
 
 Creating a worktree, creating a task branch, committing a checkpoint, taking or
 renewing a lease, publishing a contract, and generating the panel or the board.
-Every one of these is additive: nothing that already exists is rewritten, and the
-user can undo it with a command they already know.
+Use these operations when needed for the authorized task, under the host's rules.
+The plugin records new state; it does not grant permission for unrelated commits or changes.
 
 A checkpoint is the one that writes something new into history, and it writes two
 trailers — `AgenticGit-Task` and `AgenticGit-Session`. They are how a commit carries its
@@ -275,7 +293,8 @@ When a tool is unavailable, the state is on disk and readable with ordinary tool
   line, sharded per machine so two machines pushing never conflict.
 - `.agentgit/contracts/index.json` — published interface versions. Committed to Git.
 - `.agentgit/state/leases.json`, `.agentgit/state/assumptions.json` — derived state,
-  not committed, safe to delete; it is rebuilt from the ledger and the contracts.
+  not committed, safe to delete; it is rebuilt from the ledger and the contracts. The durable checks queue and inspection receipts
+  are not disposable caches; do not delete them as part of cache cleanup.
 
 Never edit `events/` by hand: it is append-only by contract, and a rewritten line
 changes the `event_id` every other reader deduplicates on.

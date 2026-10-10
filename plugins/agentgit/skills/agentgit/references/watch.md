@@ -1,6 +1,8 @@
-# The coordination task: what to do each time it wakes
+# Optional read-only monitor
 
-This is the protocol for the pinned `AgenticGit — <workspace>` task the plugin offers. That task
+Use this only when the user explicitly requests a periodic read-only monitor.
+The default automatic coordinator uses [coordinate.md](coordinate.md) and `codex queue`;
+this protocol does not authorize cross-chat messages or install a schedule. This monitor
 has one job: say something when the hub's ruling for its workspace changes, and say nothing
 otherwise. It is a monitor, not a status feed.
 
@@ -11,8 +13,9 @@ ruling, its contentions, and any reservations, already rendered.
 
 Do not read `.agentgit/events/`. The ledger grows without limit and the projection does not, and a
 task that woke hourly to parse history would get slower every week the workspace stayed busy. The
-same file is what the tool-call hook reads, so the text here and the text a working session sees
-can never disagree.
+legacy tool-call delivery also reads this projection. Workspaces using selective impact
+delivery use per-recipient inboxes instead; a workspace-wide ruling need not be injected
+into every working session. Query the receiver's impacts when explaining that difference.
 
 ## Decide, then almost always stay quiet
 

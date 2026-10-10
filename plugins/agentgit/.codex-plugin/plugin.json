@@ -1,7 +1,7 @@
 {
   "id": "agentgit",
   "name": "agentgit",
-  "version": "0.1.0+codex.20260927144053",
+  "version": "0.1.0+codex.local-20261010094020",
   "description": "Coordination layer for coding agents: a shared ledger of in-flight work, versioned contracts, and a single verdict before every write. Reduces duplicate implementations, stale writes and clean-but-wrong merges when several agents share one workspace.",
   "author": {
     "name": "AgenticGit contributors",

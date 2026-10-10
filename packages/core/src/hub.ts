@@ -46,6 +46,7 @@ import { loadAssumptions, loadContracts, staleAssumptions } from './contracts.ts
 import { buildCapsules, buildEvent, compareCodepoint, entityTouches, toWire } from './ledger.ts'
 import { liveLeases, loadLeases } from './leases.ts'
 import { intentSimilarity } from './policy.ts'
+import { findCodeDuplicates } from './code-duplicates.ts'
 import type { Capsule, ContentionRecord, CoordEvent, Entity } from './types.ts'
 import { appendEvent, machineId, readAllEvents, type WorkspacePaths } from './workspace.ts'
 
@@ -213,6 +214,9 @@ export interface HubStaleItem {
  * visible instead of silent, which is the whole of the fix.
  */
 export interface HubDuplicateWork {
+  readonly basis?: 'code-structure' | 'intent-similarity'
+  readonly paths?: readonly [string, string]
+  readonly fingerprint?: string
   /** The two tasks, sorted, so the pair has one spelling. */
   readonly tasks: readonly [string, string]
   readonly similarity: number
@@ -773,7 +777,13 @@ export function computeHubVerdict(
     (record) => record.tasks.length > 1 || record.sessions.length > 1,
   )
   // Cross-file duplication, which the entity-keyed contention above cannot see by construction.
-  const duplicateWork = crossFileDuplicateWork(entityTouches(capsules), capsules)
+  const codePairs: HubDuplicateWork[] = findCodeDuplicates(paths.root, capsules, now).map(pair => ({
+    ...pair, basis: 'code-structure', similarity: 1,
+    intents: [pair.paths[0], pair.paths[1]],
+  }))
+  const duplicateWork = [...codePairs, ...crossFileDuplicateWork(entityTouches(capsules), capsules)
+    .filter(pair => !codePairs.some(code => code.tasks[0] === pair.tasks[0] && code.tasks[1] === pair.tasks[1]))]
+    .slice(0, HUB_DUPLICATE_WORK_LIMIT)
   const leases = liveLeases(loadLeases(paths), now)
   const answers = hubAnswers(events)
   const since = ownershipSince(ownershipHistory(events))
@@ -926,12 +936,14 @@ export function computeHubVerdict(
  * actually changes.
  */
 export function hubVerdictId(input: {
+  readonly duplicateWork?: readonly HubDuplicateWork[]
   readonly rulings: readonly HubRuling[]
   readonly holders: readonly HubHolder[]
   readonly integration: readonly HubIntegrationItem[]
   readonly stale: readonly HubStaleItem[]
 }): string {
   const canonical = {
+    duplicateWork: [...(input.duplicateWork ?? [])].map(pair => [pair.tasks, pair.sessions, pair.basis, pair.paths, pair.fingerprint, pair.intents]).sort((a, b) => compareCodepoint(JSON.stringify(a), JSON.stringify(b))),
     rulings: [...input.rulings]
       .map((ruling) => [
         ruling.entityKey,
@@ -1199,11 +1211,11 @@ export function renderHubAdvisory(verdict: HubVerdict, maxChars = HUB_ADVISORY_M
   if (verdict.duplicateWork.length > 0) {
     lines.push(
       '',
-      'Possibly one job on different files — no shared ground, so no ruling; check before writing:',
+      'Possibly one job on different files — inspect the evidence before writing:',
     )
     for (const pair of verdict.duplicateWork) {
       lines.push(
-        `- ${pair.tasks[0]} and ${pair.tasks[1]} (intent similarity ${pair.similarity}):` +
+        `- ${pair.tasks[0]} and ${pair.tasks[1]} (${pair.basis === 'code-structure' ? 'same code structure after renaming; verify reuse' : `intent similarity ${pair.similarity}`}):` +
           ` "${pair.intents[0]}" vs "${pair.intents[1]}"`,
       )
     }
